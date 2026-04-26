@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     name: Test & Coverage
-    uses: ./.github/workflows/authentication-_test.yml
+    uses: Neosofia/platform-workflows/.github/workflows/authentication-_test.yml@main
     with:
       upload_coverage: true
     secrets:
@@ -17,4 +17,4 @@ jobs:
 
   scan:
     name: Vulnerability Scan
-    uses: ./.github/workflows/authentication-_scan.yml
+    uses: Neosofia/platform-workflows/.github/workflows/authentication-_scan.yml@main
