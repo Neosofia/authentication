@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pdc-authentication"
-version = "0.1.2"
+version = "0.1.3"
 description = "PDC Authentication Service - Token issuance and introspection"
 requires-python = ">=3.12"
 authors = [{ name = "PDC Team", email = "platform@pdc.local" }]
