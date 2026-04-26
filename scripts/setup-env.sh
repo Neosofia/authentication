@@ -45,16 +45,27 @@ fi
 
 # ── Step 2: CSRF secret ───────────────────────────────────────────────────────
 CSRF_SECRET=$(openssl rand -hex 32)
-# Use a neutral delimiter (@) that won't appear in hex strings
-sed -i '' "s@^CSRF_SECRET_KEY=.*@CSRF_SECRET_KEY=${CSRF_SECRET}@" "$ENV_FILE"
-echo "Generated CSRF_SECRET_KEY"
+python3 - <<PYEOF
+import pathlib, re
+path = pathlib.Path("${ENV_FILE}")
+text = path.read_text()
+text = re.sub(r'^CSRF_SECRET_KEY=.*$', 'CSRF_SECRET_KEY=${CSRF_SECRET}', text, flags=re.MULTILINE)
+path.write_text(text)
+PYEOF
+ echo "Generated CSRF_SECRET_KEY"
 
 # ── Step 3: WorkOS cookie password ───────────────────────────────────────────
 # Must be exactly 32 url-safe base64-encoded bytes (Fernet key requirement)
 # Fernet requires url-safe base64 WITH padding (44 chars)
 COOKIE_PASSWORD=$(python3 -c "import os, base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())")
-sed -i '' "s@^WORKOS_COOKIE_PASSWORD=.*@WORKOS_COOKIE_PASSWORD=${COOKIE_PASSWORD}@" "$ENV_FILE"
-echo "Generated WORKOS_COOKIE_PASSWORD"
+python3 - <<PYEOF
+import pathlib, re
+path = pathlib.Path("${ENV_FILE}")
+text = path.read_text()
+text = re.sub(r'^WORKOS_COOKIE_PASSWORD=.*$', 'WORKOS_COOKIE_PASSWORD=${COOKIE_PASSWORD}', text, flags=re.MULTILINE)
+path.write_text(text)
+PYEOF
+ echo "Generated WORKOS_COOKIE_PASSWORD"
 
 # ── Step 4: RSA keypair ───────────────────────────────────────────────────────
 PRIV_PEM=$(openssl genrsa 2048 2>/dev/null)
@@ -62,15 +73,19 @@ PUB_PEM=$(echo "$PRIV_PEM" | openssl rsa -pubout 2>/dev/null)
 
 # Collapse to single line with literal \n separators so Docker Compose / dotenv
 # parsers can read the value without choking on bare newlines.
-PRIV_ONELINE=$(echo "$PRIV_PEM" | awk 'NF {printf "%s\\n", $0}')
-PUB_ONELINE=$(echo "$PUB_PEM"  | awk 'NF {printf "%s\\n", $0}')
+PRIV_ONELINE=$(printf '%s' "$PRIV_PEM" | awk 'NF {printf "%s\\\\n", $0}')
+PUB_ONELINE=$(printf '%s' "$PUB_PEM" | awk 'NF {printf "%s\\\\n", $0}')
+
+export PRIV_ONELINE
+export PUB_ONELINE
 
 # Python handles the multi-line replacement safely (no shell delimiter issues)
 python3 - <<PYEOF
+import os
 import re
 
-priv = """${PRIV_ONELINE}"""
-pub  = """${PUB_ONELINE}"""
+priv = '"' + os.environ['PRIV_ONELINE'].replace('"', '\\"') + '"'
+pub = '"' + os.environ['PUB_ONELINE'].replace('"', '\\"') + '"'
 
 with open("${ENV_FILE}", "r") as f:
     content = f.read()

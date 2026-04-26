@@ -20,7 +20,8 @@ VALID_USER_TYPES = frozenset({"clinician", "patient"})
 WORKOS_ROLE_TO_PDC_TYPE = {
     "clinician": "clinician",
     "org-clinician": "clinician",  # WorkOS org-based role
-    # "nurse": "clinician",  # Example: can normalize if needed
+    "member": "clinician",  # WorkOS sandbox/org membership default role
+    # "nurse": "clinician",  # Example: can normalize if needed in future
     # Add more mappings as WorkOS roles expand
 }
 
