@@ -1,0 +1,78 @@
+# Reusable workflow — Authentication Service test & coverage.
+# Called by authentication-ci.yml (upload_coverage: true)
+# and authentication-build-push.yml (upload_coverage: false).
+
+name: authentication-test
+
+on:
+  workflow_call:
+    inputs:
+      upload_coverage:
+        description: "Upload HTML/XML coverage artifacts and push to Codecov"
+        type: boolean
+        default: false
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
+jobs:
+  test:
+    name: Test & Coverage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Checkout schemas
+        uses: actions/checkout@v6
+        with:
+          repository: Neosofia/schemas
+          path: _schemas
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        working-directory: .
+        run: uv sync --all-groups --frozen
+
+      - name: Run tests with coverage
+        env:
+          ENV: test
+          SCHEMAS_DIR: ${{ github.workspace }}/_schemas
+        working-directory: .
+        run: |
+          uv run --directory . pytest tests/ \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=xml:../../coverage.xml \
+            -v
+
+      - name: Upload HTML coverage report
+        if: inputs.upload_coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-html
+          path: htmlcov/
+          retention-days: 30
+
+      - name: Upload XML coverage report
+        if: inputs.upload_coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 30
+
+      - name: Upload coverage to Codecov
+        if: inputs.upload_coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          flags: authentication
+          token: ${{ secrets.CODECOV_TOKEN }}

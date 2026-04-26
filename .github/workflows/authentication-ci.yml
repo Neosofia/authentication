@@ -1,0 +1,20 @@
+name: authentication-ci
+
+on:
+  workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
+jobs:
+  test:
+    name: Test & Coverage
+    uses: ./.github/workflows/authentication-_test.yml
+    with:
+      upload_coverage: true
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  scan:
+    name: Vulnerability Scan
+    uses: ./.github/workflows/authentication-_scan.yml

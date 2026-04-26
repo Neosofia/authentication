@@ -1,0 +1,51 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+__pypackages__/
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+.eggs/
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml
+
+# Environment files
+.env
+.local.env
+.env.*
+*.env
+ops.env
+ops.env.sample
+.dev.env
+
+# Logs and runtime
+*.log
+
+# Docker / compose
+docker-compose.override.yml
+
+# IDE/editor
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Git
+*.orig

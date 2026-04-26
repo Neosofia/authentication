@@ -1,0 +1,372 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PDC Authentication Service API",
+    "description": "Authentication, token issuance, and JWT validation for the Post Discharge Care (PDC) platform. Delegates user authentication to WorkOS; issues RS256-signed JWTs for platform-wide service-to-service and client authentication.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "PDC Platform Team"
+    },
+    "license": {
+      "name": "Proprietary"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8014",
+      "description": "Local development"
+    },
+    {
+      "url": "https://auth.pdc.local",
+      "description": "Production"
+    }
+  ],
+  "tags": [
+    {
+      "name": "OAuth2 & Tokens",
+      "description": "Token issuance and session management"
+    },
+    {
+      "name": "Validation",
+      "description": "JWT validation and user info retrieval"
+    },
+    {
+      "name": "Health",
+      "description": "Service health and liveness probes"
+    }
+  ],
+  "paths": {
+    "/api/token": {
+      "post": {
+        "tags": ["OAuth2 & Tokens"],
+        "summary": "Issue platform JWT",
+        "description": "Issue RS256-signed platform JWT via OAuth2 implicit (session) or client_credentials (Basic auth) grant. Supports both human authentication (via sealed WorkOS session cookie) and service-to-service authentication (via machine credentials).",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "title": "Session Grant (Human)",
+                    "description": "Implicit grant: no body required, token extracted from wos_session cookie"
+                  },
+                  {
+                    "type": "object",
+                    "title": "Client Credentials Grant (Machine)",
+                    "properties": {
+                      "grant_type": {
+                        "type": "string",
+                        "enum": ["client_credentials"],
+                        "description": "Must be 'client_credentials'"
+                      }
+                    },
+                    "required": ["grant_type"]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BasicAuth": []
+          },
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token issued successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (missing grant type, invalid credentials format)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (invalid credentials, no session)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable (WorkOS, database, or config unavailable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "tags": ["Validation"],
+        "summary": "Get current user info from JWT",
+        "description": "Validate Bearer token JWT and return decoded claims. Performs stateless JWT verification via RS256 signature validation against published public key. No WorkOS API call required (Constitution §VII).",
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token valid, claims returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformJWTClaims"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable (JWT key not configured)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Liveness probe",
+        "description": "Check service health by executing SELECT 1 against PostgreSQL with 5-second timeout. Used by Kubernetes probes and load balancers.",
+        "responses": {
+          "200": {
+            "description": "Service healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["ok"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unhealthy (database unavailable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["error"]
+                    },
+                    "detail": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/jwks.json": {
+      "get": {
+        "tags": ["Validation"],
+        "summary": "Get JWT signing public keys",
+        "description": "Publish JWT signing public key in JWKS format (RFC 7517). 1-hour cache; used by other services to validate platform JWTs without calling back to auth service. Enables stateless, distributed JWT validation (Constitution §VII).",
+        "responses": {
+          "200": {
+            "description": "JWKS set with public keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keys": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kty": { "type": "string", "enum": ["RSA"] },
+                          "use": { "type": "string", "enum": ["sig"] },
+                          "kid": { "type": "string" },
+                          "n": { "type": "string", "description": "RSA modulus (base64url)" },
+                          "e": { "type": "string", "description": "RSA exponent (base64url)" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "tags": ["Contracts"],
+        "summary": "Get OpenAPI specification",
+        "description": "Serve OpenAPI 3.0 specification for this service. Standard endpoint for API documentation tools (Swagger UI, ReDoc, Postman, etc.).",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.0 document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "OpenAPI 3.0.0 document"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TokenResponse": {
+        "type": "object",
+        "title": "Token Response",
+        "description": "Successful token issuance response",
+        "required": ["access_token", "token_type", "expires_in"],
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "RS256-signed JWT token",
+            "minLength": 50
+          },
+          "token_type": {
+            "type": "string",
+            "enum": ["Bearer"],
+            "description": "Always 'Bearer' per RFC 6750"
+          },
+          "expires_in": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Token TTL in seconds"
+          }
+        }
+      },
+      "PlatformJWTClaims": {
+        "type": "object",
+        "title": "Platform JWT Claims",
+        "description": "Standard and custom claims in platform JWT",
+        "required": ["sub", "iss", "iat", "exp", "jti", "pdc:user_type", "pdc:roles"],
+        "properties": {
+          "sub": {
+            "type": "string",
+            "description": "Subject (user ID or service name)"
+          },
+          "iss": {
+            "type": "string",
+            "description": "Issuer (authentication service URL)"
+          },
+          "iat": {
+            "type": "integer",
+            "description": "Issued at (Unix timestamp)"
+          },
+          "exp": {
+            "type": "integer",
+            "description": "Expiration time (Unix timestamp)"
+          },
+          "jti": {
+            "type": "string",
+            "description": "JWT ID (unique identifier)"
+          },
+          "pdc:user_type": {
+            "type": "string",
+            "enum": ["clinician", "patient", "service"],
+            "description": "PDC user type classification"
+          },
+          "pdc:roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of role strings (e.g., ['care_team', 'supervisor'])"
+          },
+          "pdc:tenant_id": {
+            "type": "string",
+            "description": "Optional: tenant/organization ID (absent for patient tokens)"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "title": "Error Response",
+        "description": "Standard error response format",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Machine-readable error code (e.g., 'invalid_grant', 'unauthorized')"
+          },
+          "error_description": {
+            "type": "string",
+            "description": "Optional human-readable error details"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "RS256-signed platform JWT in Authorization header"
+      },
+      "BasicAuth": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "Base64-encoded client_id:client_secret for machine credentials grant"
+      },
+      "SessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "wos_session",
+        "description": "Sealed WorkOS session cookie (HTTPOnly, Secure)"
+      }
+    }
+  }
+}

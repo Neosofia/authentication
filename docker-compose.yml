@@ -1,0 +1,40 @@
+services:
+  auth-postgres:
+    image: postgres:16
+    container_name: pdc-auth-postgres
+    environment:
+      POSTGRES_DB: pdc_auth
+      POSTGRES_USER: pdc
+      POSTGRES_PASSWORD: dev_only
+    ports:
+      - "5014:5432"
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pdc -d pdc_auth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  authentication:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pdc-authentication
+    env_file:
+      - ../pdc/services/authentication/.dev.env
+    environment:
+      ENV: development
+    ports:
+      - "8014:8000"
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./alembic.ini:/app/alembic.ini
+      - ./templates:/app/src/templates
+      - ./static:/app/static
+
+volumes:
+  auth_postgres_data:
