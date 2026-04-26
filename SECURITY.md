@@ -17,7 +17,7 @@ The service is designed and audited against the following bodies of work:
 | **Healthcare Compliance** | [HIPAA Security Rule §164.312](https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312) (audit, integrity, transmission security); no PHI in logs per internal Constitution §I |
 | **Transport Security** | [TLS 1.2+](https://datatracker.ietf.org/doc/html/rfc5246) (enforced at ingress); [HSTS](https://datatracker.ietf.org/doc/html/rfc6797) (1 year, includeSubDomains) |
 | **Identity Guidelines** | [NIST SP 800-63B](https://pages.nist.gov/800-63-3/sp800-63b.html) (Digital Identity — Authentication & Lifecycle) |
-| **Internal Governance** | [Constitution §I](../../.specify/memory/constitution.md) (no PHI/PII in logs), §VII (stateless), §VIII (defense in depth); [ADR-0007](../../architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md) (never roll your own authentication) |
+| **Internal Governance** | [Constitution §I](https://github.com/Neosofia/cdp/blob/main/.specify/memory/constitution.md) (no PHI/PII in logs), §VII (stateless), §VIII (defense in depth); [ADR-0007](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md) (never roll your own authentication) |
 
 We delegate identity verification to **WorkOS AuthKit** (a HIPAA-eligible identity platform) rather than implementing credential storage, MFA, or password policies ourselves.
 
@@ -60,7 +60,7 @@ Controls are grouped by the risk domain they address. Every control listed below
 
 ### 3.1 Identity & Authentication
 
-- **Delegated identity provider (WorkOS AuthKit)** — passwords, MFA, federation, account lockout, and user lifecycle are owned by a HIPAA-eligible identity platform. We are a relying party, not a credential store. ([ADR-0007](../../architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md))
+- **Delegated identity provider (WorkOS AuthKit)** — passwords, MFA, federation, account lockout, and user lifecycle are owned by a HIPAA-eligible identity platform. We are a relying party, not a credential store. ([ADR-0007](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md))
 - **OAuth 2.0 `state` parameter** ([RFC 6819 §4.4.1.8](https://datatracker.ietf.org/doc/html/rfc6819#section-4.4.1.8)) — a 32-byte cryptographic random value is generated at `/login`, bound to a `HttpOnly`/`Secure`/`SameSite=Lax` cookie with a 5-minute TTL, and verified at `/callback`. Mismatch logs `oauth_state_mismatch` and aborts the flow, defeating OAuth CSRF and session-fixation attacks ([CWE-352](https://cwe.mitre.org/data/definitions/352.html), [CWE-384](https://cwe.mitre.org/data/definitions/384.html)).
 - **PKCE** ([RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)) — a 128-character code verifier is generated alongside `state`; its SHA-256 challenge is sent to WorkOS with `code_challenge_method=S256`, and the verifier is cookie-stored for the callback. Protects against authorization-code interception even if TLS is compromised.
 - **User-type allow-list** — `VALID_USER_TYPES = frozenset({"clinician", "patient"})` with a strict `WORKOS_ROLE_TO_PDC_TYPE` mapping. Unknown roles or user types are rejected fail-closed, preventing privilege escalation via provider-side role injection.
@@ -116,7 +116,7 @@ Per-node rate limiting via [Flask-Limiter](https://flask-limiter.readthedocs.io/
 
 ### 3.8 Observability & Audit
 
-- **Structured JSON logs ([ADR-0009](../../architecture/structurizr/decisions/0009-structured-json-logging-with-schema-validation.md))** — every security-relevant event (`login_initiated`, `authentication_success`, `oauth_state_mismatch`, `machine_auth_failure`, `session_revoked`, …) emits JSON validated against [schemas/log.json](../../schemas/log.json) at CI time.
+- **Structured JSON logs ([ADR-0009](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0009-structured-json-logging-with-schema-validation.md))** — every security-relevant event (`login_initiated`, `authentication_success`, `oauth_state_mismatch`, `machine_auth_failure`, `session_revoked`, …) emits JSON validated against [schemas/log.json](https://github.com/Neosofia/cdp/blob/main/schemas/log.json) at CI time.
 - **No PHI / PII in logs (Constitution §I)** — only opaque WorkOS user IDs (e.g. `user_01KPMY3Q...`). No emails, names, DOBs, or phone numbers appear in any log event.
 - **Error class preserved on callback failures** — `/callback` exceptions log `error_class` (the exception class name) and a truncated message, distinguishing WorkOS failures from unexpected application errors without leaking stack traces to clients.
 - **SIEM integration (TBD)** — the structured JSON log format is designed for ingestion by a SIEM (e.g. Splunk, Elastic SIEM, AWS Security Lake). Schema-validated events with consistent `event_type` fields enable correlation rules for brute-force detection, anomalous login patterns, and token misuse across services.
@@ -173,9 +173,9 @@ Per-node rate limiting via [Flask-Limiter](https://flask-limiter.readthedocs.io/
 
 ## 7. References
 
-- [ADR-0007: Never roll your own authentication](../../architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md)
-- [ADR-0009: Structured JSON logging with schema validation](../../architecture/structurizr/decisions/0009-structured-json-logging-with-schema-validation.md)
-- [Spec 014: Authentication Service](../../specs/014-authentication-service/spec.md)
-- [Constitution](../../.specify/memory/constitution.md)
+- [ADR-0007: Never roll your own authentication](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md)
+- [ADR-0009: Structured JSON logging with schema validation](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0009-structured-json-logging-with-schema-validation.md)
+- [Spec 014: Authentication Service](https://github.com/Neosofia/cdp/blob/main/specs/014-authentication-service/spec.md)
+- [Constitution](https://github.com/Neosofia/cdp/blob/main/.specify/memory/constitution.md)
 - [OWASP ASVS v4.0.3](https://owasp.org/www-project-application-security-verification-standard/)
 - [NIST SP 800-63B: Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html)
