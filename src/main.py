@@ -6,7 +6,9 @@ from flask import Flask
 from flask_talisman import Talisman
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-load_dotenv()
+from src.env import get_env_file_path
+
+load_dotenv(get_env_file_path())
 
 # Extensions must be imported after load_dotenv so env vars are available.
 from src.config import settings  # noqa: E402

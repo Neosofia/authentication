@@ -4,7 +4,9 @@ import os
 from dotenv import load_dotenv
 from alembic import context
 
-load_dotenv(".local.env")  # loads .local.env from cwd before anything reads env vars
+from src.env import get_env_file_path
+
+load_dotenv(get_env_file_path())  # loads the selected env file from cwd before anything reads env vars
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from src.db.engine import Base

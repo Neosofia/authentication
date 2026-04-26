@@ -4,6 +4,8 @@ import os
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from src.env import get_env_file_path
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,7 +45,7 @@ def _load_secrets_manager() -> dict:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".local.env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(get_env_file_path()), extra="ignore")
 
     database_url: str = ""
     jwt_private_key_pem: str = ""
