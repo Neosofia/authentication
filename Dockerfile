@@ -39,8 +39,8 @@ ENV PATH="/repo/.venv/bin:$PATH" \
 # Stage 3: Runtime environment
 FROM python:3.14-alpine
 
-# Runtime shared libraries needed by C extensions
-RUN apk add --no-cache libffi libpq
+# Runtime shared libraries needed by C extensions and local env setup
+RUN apk add --no-cache bash openssl libffi libpq
 
 WORKDIR /app
 
@@ -52,12 +52,14 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH="/app"
 
-# Copy source code, config, and static files
+# Copy source code, config, static files, and local env helper assets
 COPY src ./src
 COPY alembic.ini ./
 COPY templates ./src/templates
 COPY static ./static
 COPY openapi.json ./
+COPY scripts ./scripts
+COPY .local.env.example ./
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
