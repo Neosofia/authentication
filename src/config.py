@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+from pathlib import Path
+from typing import ClassVar
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -45,7 +47,11 @@ def _load_secrets_manager() -> dict:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=str(get_env_file_path()), extra="ignore")
+    env_file_path: ClassVar[Path | None] = get_env_file_path()
+    model_config = SettingsConfigDict(
+        env_file=str(env_file_path) if env_file_path is not None else None,
+        extra="ignore",
+    )
 
     database_url: str = ""
     jwt_private_key_pem: str = ""
