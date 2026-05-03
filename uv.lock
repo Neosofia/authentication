@@ -630,6 +630,18 @@ wheels = [
 ]
 
 [[package]]
+name = "gunicorn"
+version = "25.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c4/f4/e78fa054248fab913e2eab0332c6c2cb07421fca1ce56d8fe43b6aef57a4/gunicorn-25.3.0.tar.gz", hash = "sha256:f74e1b2f9f76f6cd1ca01198968bd2dd65830edc24b6e8e4d78de8320e2fe889", size = 634883, upload-time = "2026-03-27T00:00:26.092Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/c8/8aaf447698c4d59aa853fd318eed300b5c9e44459f242ab8ead6c9c09792/gunicorn-25.3.0-py3-none-any.whl", hash = "sha256:cacea387dab08cd6776501621c295a904fe8e3b7aae9a1a3cbb26f4e7ed54660", size = 208403, upload-time = "2026-03-27T00:00:27.386Z" },
+]
+
+[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -757,10 +769,10 @@ wheels = [
 
 [[package]]
 name = "logenvelope"
-version = "0.1.0"
-source = { url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.1.0/logenvelope-0.1.0-py3-none-any.whl" }
+version = "0.2.0"
+source = { url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.2.0/logenvelope-0.2.0-py3-none-any.whl" }
 wheels = [
-    { url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.1.0/logenvelope-0.1.0-py3-none-any.whl", hash = "sha256:703420e5198a1990785a8546535cc33f2bd4bf878b5321de95a90f61ddbef959" },
+    { url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.2.0/logenvelope-0.2.0-py3-none-any.whl", hash = "sha256:775c73278225ff887a80a2476381aba309b222fb9b746425c16d0e7776c7571c" },
 ]
 
 [[package]]
@@ -878,7 +890,7 @@ wheels = [
 
 [[package]]
 name = "pdc-authentication"
-version = "0.1.5"
+version = "0.1.6"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
@@ -890,6 +902,7 @@ dependencies = [
     { name = "flask-limiter" },
     { name = "flask-talisman" },
     { name = "flask-wtf" },
+    { name = "gunicorn" },
     { name = "httpx" },
     { name = "logenvelope" },
     { name = "pydantic" },
@@ -923,8 +936,9 @@ requires-dist = [
     { name = "flask-limiter", specifier = ">=3.5.0" },
     { name = "flask-talisman", specifier = ">=1.1.0" },
     { name = "flask-wtf", specifier = ">=1.2.0" },
+    { name = "gunicorn", specifier = ">=21.2.0" },
     { name = "httpx", specifier = ">=0.25.0" },
-    { name = "logenvelope", url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.1.0/logenvelope-0.1.0-py3-none-any.whl" },
+    { name = "logenvelope", url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.2.0/logenvelope-0.2.0-py3-none-any.whl" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "pyjwt", extras = ["cryptography"], specifier = ">=2.8.0" },

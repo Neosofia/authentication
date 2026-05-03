@@ -16,7 +16,7 @@ Flask reloads on code changes. Best for active development.
 # From the repo root:
 docker compose -f docker-compose.dev.yml up -d auth-postgres
 uv run alembic upgrade head
-uv run flask --app src.main:app run --port 8014
+uv run python -m gunicorn -c gunicorn_conf.py src.main:app
 ```
 
 ### Option B — Single Service (Docker)
@@ -96,21 +96,19 @@ The test suite uses pytest with mocked external dependencies (WorkOS, Postgres).
 ```bash
 uv run pytest tests/ -v
 
-# Specific file
-uv run pytest tests/test_api.py -v
-uv run pytest tests/test_auth_routes.py -v
+# Specific layer
+uv run pytest tests/unit/ -v
+uv run pytest tests/integration/ -v
+uv run pytest tests/contract/ -v
 
-# Specific test class or test
-uv run pytest tests/test_api.py::TestTokenClientCredentials -v
-uv run pytest tests/test_api.py::TestHealth::test_ok_when_db_available -v
+# Specific test
+uv run pytest tests/unit/test_api_routes.py::TestCSRFExemption -v
 ```
 
-**Inside a running container:**
+**Container integration tests (builds the image, spins up Postgres + authentication):**
 
 ```bash
-# From the repo root:
-docker compose -f docker-compose.dev.yml up -d authentication
-docker compose -f docker-compose.dev.yml exec authentication uv run pytest tests/ -v
+uv run pytest tests/integration/test_container.py -v --no-cov -s
 ```
 
 ---

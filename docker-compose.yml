@@ -22,11 +22,12 @@ services:
       dockerfile: Dockerfile
     container_name: pdc-authentication
     env_file:
-      - ../pdc/services/authentication/.dev.env
+      - path: ../pdc/services/authentication/.dev.env
+        required: false
     environment:
       ENV: development
     ports:
-      - "8014:8000"
+      - "8014:8014"
     depends_on:
       auth-postgres:
         condition: service_healthy
@@ -35,6 +36,13 @@ services:
       - ./alembic.ini:/app/alembic.ini
       - ./templates:/app/src/templates
       - ./static:/app/static
+    healthcheck:
+      test: ["CMD", "python", "-c",
+        "import urllib.request, sys; resp=urllib.request.urlopen('http://127.0.0.1:8014/api/health', timeout=5); sys.exit(0 if resp.status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
 volumes:
   auth_postgres_data:

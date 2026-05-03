@@ -23,7 +23,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ENV_FILE="${SERVICE_DIR}/.local.env"
+ENV_FILE="${ENV_FILE:-${SERVICE_DIR}/.local.env}"
 ENV_EXAMPLE="${SERVICE_DIR}/.local.env.example"
 
 # ── Argument parsing ──────────────────────────────────────────────────────────

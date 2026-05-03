@@ -1,0 +1,24 @@
+# Test overlay — combine with base:
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --build --wait
+#
+# What changes vs local-dev:
+#   auth-postgres : test password, no host port, no named volume (ephemeral)
+#   authentication: test env_file, tighter healthcheck timing, no source mounts
+
+services:
+  auth-postgres:
+    environment:
+      POSTGRES_PASSWORD: test_only
+    ports: []
+    volumes: []
+
+  authentication:
+    env_file: ${TEST_ENV_FILE:-.local.env.example}
+    environment:
+      ENV: test
+      DATABASE_URL: postgresql+asyncpg://pdc:test_only@auth-postgres:5432/pdc_auth
+    volumes: []
+    healthcheck:
+      interval: 5s
+      retries: 15
+      start_period: 15s

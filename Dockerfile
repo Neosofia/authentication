@@ -1,6 +1,6 @@
 # Multi-stage build for Authentication Service
 # Stage 1: Build environment
-FROM python:3.14-alpine AS builder
+FROM python:3.14-alpine@sha256:dd4d2bd5b53d9b25a51da13addf2be586beebd5387e289e798e4083d94ca837a AS builder
 
 # Build tools needed for C-extension packages (asyncpg, cryptography, bcrypt, cffi)
 RUN apk add --no-cache gcc musl-dev libffi-dev postgresql-dev
@@ -37,10 +37,10 @@ ENV PATH="/repo/.venv/bin:$PATH" \
     PYTHONPATH="/repo"
 
 # Stage 3: Runtime environment
-FROM python:3.14-alpine
+FROM python:3.14-alpine@sha256:dd4d2bd5b53d9b25a51da13addf2be586beebd5387e289e798e4083d94ca837a
 
 # Runtime shared libraries needed by C extensions and local env setup
-RUN apk add --no-cache bash openssl libffi libpq
+RUN apk add --no-cache bash openssl libffi libpq && addgroup -S app && adduser -S -G app app
 
 WORKDIR /app
 
@@ -59,11 +59,14 @@ COPY templates ./src/templates
 COPY static ./static
 COPY openapi.json ./
 COPY scripts ./scripts
+COPY gunicorn_conf.py ./
 COPY .local.env.example ./
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8000/api/health')" || exit 1
+    CMD python -c "import httpx; httpx.get('http://localhost:8014/api/health')" || exit 1
+
+USER app
 
 # Run the service
-CMD ["/bin/sh", "-c", "python -m alembic upgrade head && python -m flask --app src.main:app run --host 0.0.0.0 --port 8000"]
+CMD ["/bin/sh", "-c", "python -m alembic upgrade head && python -m gunicorn -c gunicorn_conf.py src.main:app"]

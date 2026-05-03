@@ -39,10 +39,10 @@ services:
     environment:
       ENV: production
     ports:
-      - "8000:8000"
+      - "8014:8014"
     volumes: []                           # image is immutable; no source mounts
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import httpx; httpx.get('http://localhost:8000/api/health')\" || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import httpx; httpx.get('http://localhost:8014/api/health')\" || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

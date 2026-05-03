@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     jwt_issuer: str = "https://auth.pdc.local"
     access_token_ttl_secs: int = 900   # 15 minutes
     machine_token_ttl_secs: int = 300  # 5 minutes
+    port: int = 8014
+    web_concurrency: int = 2
+    gunicorn_threads: int = 2
+    gunicorn_timeout: int = 30
+    gunicorn_keepalive: int = 5
+    log_level: str = "info"
 
     def model_post_init(self, __context: object) -> None:
         # Docker Compose / shell env sourcing can pass PEM keys with literal \n
