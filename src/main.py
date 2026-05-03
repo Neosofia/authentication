@@ -53,11 +53,18 @@ def create_app(config: dict | None = None) -> Flask:
     is_development = os.getenv("ENV", "production").lower() in ("development", "test")
 
     if not is_development:
-        # Trust the single Traefik reverse proxy sitting in front of us.
-        # ProxyFix makes Flask honour X-Forwarded-Proto/Host so that
-        # url_for() generates https:// URLs and Talisman's force_https
-        # doesn't redirect-loop behind the TLS-terminating proxy.
-        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+        # Trust the reverse proxy in front of the service (Traefik on PVE/AWS,
+        # or Railway's internal router). ProxyFix makes Flask honour
+        # X-Forwarded-Proto/Host so url_for() generates https:// URLs and
+        # Talisman's force_https doesn't redirect-loop behind the TLS-terminating
+        # proxy. Set TRUSTED_PROXY_HOPS=2 if a CDN sits in front of the proxy.
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            x_for=settings.trusted_proxy_hops,
+            x_proto=settings.trusted_proxy_hops,
+            x_host=settings.trusted_proxy_hops,
+            x_prefix=settings.trusted_proxy_hops,
+        )
         Talisman(
             app,
             force_https=True,  # Enforce HTTPS in production

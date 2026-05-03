@@ -25,7 +25,7 @@ services:
       - path: .env
         required: false
     environment:
-      ENV: development
+      ENV: development  # intentional — enables debug mode and disables Talisman/ProxyFix for local dev
     ports:
       - "8014:8014"
     depends_on:

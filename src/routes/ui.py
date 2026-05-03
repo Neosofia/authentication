@@ -62,7 +62,7 @@ def index():
                 user_email = escape(email)
                 log_event("homepage_session_valid")
         except Exception as e:
-            log_event("homepage_session_validation_error", reason=str(e))
+            log_event("homepage_session_validation_error", error_class=type(e).__name__)
     else:
         log_event("homepage_accessed", session_status="no_session")
 
