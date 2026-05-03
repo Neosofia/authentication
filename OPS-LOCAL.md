@@ -19,6 +19,8 @@ uv run alembic upgrade head
 uv run python -m gunicorn -c gunicorn_conf.py src.main:app
 ```
 
+> To enable hot-reload and the Werkzeug debugger locally, set `ENV=development` in `.env` before running gunicorn. **Never set this in staging or production** — see [SECURITY.md §3.6](SECURITY.md#36-web-layer-defenses).
+
 ### Option B — Single Service (Docker)
 
 Runs the production container image locally. Best for testing the built image.
@@ -32,11 +34,6 @@ docker compose -f docker-compose.dev.yml ps
 This compose loads `.env` from the service directory (optional — the container
 falls back to real environment variables if `.env` is absent).
 
-> **Do not** run `docker compose up -d` from inside a nested checkout path; always run from the repository root.
-> The per-service compose file omits shared infrastructure (Traefik, LocalStack
-> secret seeding) and will fail to start correctly.
->
-> To bring up the full platform, omit the service name: `docker compose -f docker-compose.dev.yml up -d`
 
 ---
 

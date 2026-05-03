@@ -1,217 +1,51 @@
 # Authentication Service — Cloud Operations
 
-Deploying and operating the authentication service on Proxmox with public HTTPS via NetBird.
-Covers the dev environment (shell scripts) and staging/prod (OpenTofu).
+This service defines its dependencies via the Dockerfile
+and the environment variables it expects. The deployment method will depend on how your platform is architected and the environment you are deploying to. For example, Neosofia uses a mix of private cloud hypervisors running Proxmox and public cloud operators like Railway for development environments. For staging and production environments, "traditional" hyperscalers like AWS are used. While supporting both private and pubic providers do incur more overhead from an operational overhead point of view, the flexibility and portability outweigh it.
 
-**Before starting here**: complete [OPERATIONS.md](OPERATIONS.md) (WorkOS setup + local tooling).
+> **Note:** complete [OPERATIONS.md](OPERATIONS.md) first for WorkOS setup and local tooling.
 
-For generic private-cloud mechanics (CT provisioning, DNS/NetBird setup, secret seeding,
-deploy/rotate/teardown patterns) see the
-[Private Cloud Runbook](https://github.com/Neosofia/infrastructure/blob/main/private-cloud/RUNBOOK.md).
-This document covers only what is specific to the authentication service.
+## Deployment
 
----
 
-## Service parameters
+### Step 1 — Register the target environment in WorkOS
 
-| Parameter | Dev | Staging | Prod |
-|-----------|-----|---------|------|
-| Port | 8000 | 8000 | 8000 |
-| Public URL | `auth.dev.<base-domain>` | `auth.staging.<base-domain>` | `auth.<base-domain>` |
-| Suggested CT ID | 120 | 121 | 122 |
-| Suggested CT IP | 10.0.0.120/10 | 10.0.0.121/10 | 10.0.0.122/10 |
-| Resources | 2 vCPU / 4 GiB | 2 vCPU / 4 GiB | 4 vCPU / 8 GiB |
+Follow [OPERATIONS.md §2](OPERATIONS.md#2-configure-workos) for the full WorkOS setup.
+For each environment (staging, prod), create a new WorkOS environment, then set one
+callback URL (`https://auth.<env>.<base-domain>/callback`) and one homepage for it.
 
----
+Each of dev, staging, and prod needs its own WorkOS environment with its own `WORKOS_CLIENT_ID` and `WORKOS_API_KEY`.
 
-## Generating service secrets
+### Step 2 — Generate cryptographic environment variables
 
-The authentication service requires cryptographic material that must be generated — do not
-hand-craft these values.
+Follow [OPERATIONS.md §3](OPERATIONS.md#3-generate-environment-secrets) to run `setup-env.sh` and fill in the WorkOS credentials.
+
+> **Warning:** each environment needs its own `.env`. If you already have one from another environment, move it first (e.g. `mv .env .dev.env`) before running the script.
+
+### Step 3 — Fill in the remaining variables
+
+See [OPERATIONS.md Appendix A](OPERATIONS.md#appendix-a-environment-variable-reference) for the full variable reference. Open `.env` and set the cloud-specific URL variables:
 
 ```bash
-cd ~/projects/neosofia/authentication
-./scripts/setup-env.sh   # creates .env from .env.example + generates RSA-4096 keypair,
-                         # CSRF secret, and cookie password
-$EDITOR .env             # fill in the remaining variables (see table below)
+$EDITOR .env
 ```
 
-### Required variables
+| Variable | Value |
+|----------|-------|
+| `WORKOS_REDIRECT_URI` | `https://auth.<env>.<base-domain>/callback` |
+| `JWT_ISSUER` | `https://auth.<env>.<base-domain>` |
 
-| Variable | Where to get it |
-|----------|----------------|
-| `WORKOS_CLIENT_ID` | WorkOS dashboard → your application → Client ID |
-| `WORKOS_API_KEY` | WorkOS dashboard → API Keys → Secret Key (`sk_...`) |
-| `PUBLIC_BASE_URL` | The public HTTPS URL for this environment (e.g. `https://auth.dev.neosofia.tech`) |
+> **Rate limiting:** per-node limits (60/min login, 20/min token) apply in all environments. See [SECURITY.md §3.7](SECURITY.md#37-rate-limiting) for thresholds and the Redis upgrade path.
 
-### WorkOS one-time setup (per environment)
+> **TLS:** terminate TLS at the ingress layer (Traefik for staging, CloudFront for prod). See [SECURITY.md §3.5](SECURITY.md#35-network-isolation--transport-security) for architecture rationale and compliance notes.
 
-In the WorkOS dashboard, add the environment's callback URL to the application's
-**Redirect URI allowlist**:
+### Step 4 — Deploy
 
-```
-https://auth.dev.<base-domain>/callback
-https://auth.staging.<base-domain>/callback   # when staging is brought up
-https://auth.<base-domain>/callback           # when prod is brought up
-```
+Follow the runbook that matches your target infrastructure:
 
-Use a WorkOS **staging** project (`sk_test_...`) for dev and staging.
-Use a WorkOS **production** project (`sk_live_...`) for prod.
+- [Private Cloud Runbook](https://github.com/Neosofia/infrastructure/blob/main/private-cloud/RUNBOOK.md) — LXC containers on Proxmox
+- [Public Cloud Runbook](https://github.com/Neosofia/infrastructure/blob/main/public-cloud/RUNBOOK.md) — OpenTofu on AWS / Railway / etc. Service-specific `tfvars` live in `infra/tofu/envs/<env>/terraform.tfvars`.
 
----
+### Step 5 - Test
 
-## Dev deployment
-
-Follow the [Private Cloud Runbook — First deployment](https://github.com/Neosofia/infrastructure/blob/main/private-cloud/RUNBOOK.md#first-deployment-of-a-service-dev-environment)
-with these authentication-specific values:
-
-```bash
-# Step 1 — Provision CT (from infrastructure repo)
-./private-cloud/containers/create-ct.sh authentication 120 10.0.0.120/10
-
-# Step 2 — Seed secrets
-bash private-cloud/containers/seed-ct-env.sh authentication ~/projects/neosofia/authentication/.env
-
-# Step 3 — Trigger deploy
-cd ~/projects/neosofia/authentication
-git tag authentication/$(date +%Y.%m.%d)
-git push origin authentication/$(date +%Y.%m.%d)
-
-# Step 4 — Verify
-ssh root@$PVE_HOST "pct exec 120 -- /usr/bin/curl -s http://localhost:8000/api/health"
-# → {"status":"ok"}
-```
-
-### Machine credential seeding
-
-The `test-service` credential is seeded automatically by migration `002` when
-`SEED_MACHINE_SECRET` is set in `.env` before the first deploy. Add it alongside
-other secrets before Step 2:
-
-```
-SEED_MACHINE_SECRET=<choose a strong secret>
-```
-
-To verify after deploy:
-
-```bash
-ssh root@$PVE_HOST "pct exec 120 -- \
-  docker exec authentication bash -c \
-  'curl -sf -X POST http://localhost:8000/api/token \
-    -H \"Authorization: Basic \$(echo -n test-service:\$SEED_MACHINE_SECRET | base64)\" \
-    -d grant_type=client_credentials | python3 -m json.tool'"
-```
-
-### Observability
-
-```bash
-COMPOSE="-f docker-compose.yml -f docker-compose.cloud.yml"
-APP=/opt/actions-runner/_work/authentication/authentication
-
-ssh $PVE_HOST "pct exec 120 -- bash -c 'cd $APP && docker compose $COMPOSE logs -f'"
-ssh $PVE_HOST "pct exec 120 -- bash -c 'cd $APP && docker compose $COMPOSE ps'"
-ssh $PVE_HOST "pct exec 120 -- docker exec -it auth-postgres psql -U auth -d auth"
-```
-
----
-
-## Staging and Prod — OpenTofu
-
-Managed with OpenTofu. State lives in S3; secrets in AWS Secrets Manager.
-
-### One-time AWS bootstrap
-
-Run once per AWS account. Creates the S3 bucket, DynamoDB lock table, and KMS key
-shared by all environments. See [infra/tofu/bootstrap/README.md](infra/tofu/bootstrap/README.md).
-
-```bash
-aws sso login   # or: export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
-
-cd infra/tofu/bootstrap
-tofu init
-tofu apply
-
-# Save backend configs (gitignored — regenerate any time)
-tofu output -raw backend_config_staging > ../envs/staging/backend.conf
-tofu output -raw backend_config_prod    > ../envs/prod/backend.conf
-```
-
-> [!CAUTION]
-> **Back up `terraform.tfstate`** before closing this terminal — copy it to a
-> password manager or private encrypted location. See bootstrap README for recovery steps.
-
-### Deploy staging
-
-```bash
-cd infra/tofu/envs/staging
-
-# First time only
-cp terraform.tfvars.example terraform.tfvars
-$EDITOR terraform.tfvars    # fill in workos_*, repo_root, proxmox_ssh_host
-
-tofu init -backend-config=backend.conf
-tofu plan -out=staging.tfplan
-tofu apply staging.tfplan
-```
-
-Then configure manually (one-time):
-- Cloudflare: `*.staging.<base-domain>` CNAME → NetBird cluster hostname (DNS only)
-- NetBird: wildcard reverse proxy route `*.staging.<base-domain>` → `<staging CT IP>:8000`
-- WorkOS (staging project): add `https://auth.staging.<base-domain>/callback` to redirect URI allowlist
-
-### Deploy prod
-
-Identical to staging. Prod uses 4 cores / 8 GiB RAM and a WorkOS **production** project.
-
-```bash
-cd infra/tofu/envs/prod
-cp terraform.tfvars.example terraform.tfvars
-$EDITOR terraform.tfvars
-tofu init -backend-config=backend.conf
-tofu plan -out=prod.tfplan
-tofu apply prod.tfplan
-```
-
-### Rotating secrets
-
-```bash
-# Single secret
-tofu apply -replace=module.auth.random_password.postgres
-
-# All random secrets
-tofu apply -var='rotate_secrets=true'
-```
-
-If rotating the Postgres password, wipe the data volume first:
-
-```bash
-ssh root@$PVE_HOST "pct exec $STAGING_CTID bash -c '
-  cd /opt/authentication-staging
-  docker compose down -v
-  rm -rf /var/lib/authentication-staging/postgres
-'"
-tofu apply
-```
-
-### Rollback a secret
-
-```bash
-aws secretsmanager get-secret-value \
-  --secret-id neosofia/authentication/staging/env \
-  --version-stage AWSPREVIOUS
-```
-
----
-
-## Troubleshooting
-
-| Symptom | Likely cause |
-|---------|-------------|
-| Service returns 500 on `/api/health` | Missing or malformed secret — check `/etc/authentication/env` exists and `docker logs authentication --tail 50` |
-| WorkOS OAuth redirect fails | Verify the callback URL is on the WorkOS app's redirect URI allowlist and NetBird is proxying to the correct CT IP + port |
-| Alembic migration stuck on startup | `ssh root@$PVE_HOST "pct exec $DEV_CTID -- docker exec -it authentication python -m alembic current"` |
-| Postgres password drift after secret rotation | Wipe the data volume and re-apply (see Rotating secrets above) |
-
-For NetBird cert, TLS, and general CT/Docker troubleshooting see the
-[Private Cloud Runbook — Troubleshooting](https://github.com/Neosofia/infrastructure/blob/main/private-cloud/RUNBOOK.md#troubleshooting).
-
+Ensure deploy logs have no errors and that the health check page works.
