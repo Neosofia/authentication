@@ -19,7 +19,7 @@ class TestIssueToken:
         """Issued JWT is valid RS256 and can be decoded with public key."""
         token = issue_token(
             sub="usr_123",
-            user_type="clinician",
+            token_type="human",
             roles=["clinician"],
             tenant_id="org_xyz",
             ttl_secs=900,
@@ -43,7 +43,7 @@ class TestIssueToken:
         now_before = int(datetime.now(timezone.utc).timestamp())
         token = issue_token(
             sub="usr_123",
-            user_type="clinician",
+            token_type="human",
             roles=["clinician"],
             tenant_id="org_xyz",
             ttl_secs=900,
@@ -64,7 +64,8 @@ class TestIssueToken:
         assert claims["sub"] == "usr_123"
         assert claims["iss"] == "https://auth.test.local"
         assert claims["aud"] == "neosofia-auth-svc"
-        assert claims["neosofia:user_type"] == "clinician"
+        assert claims["neosofia:token_type"] == "human"
+        assert claims["neosofia:token_version"] == 1
         assert claims["neosofia:roles"] == ["clinician"]
         assert claims["neosofia:tenant_id"] == "org_xyz"
         assert "jti" in claims
@@ -79,7 +80,7 @@ class TestIssueToken:
         """JWT ID is a valid UUID."""
         token = issue_token(
             sub="usr_123",
-            user_type="clinician",
+            token_type="human",
             roles=[],
             tenant_id=None,
             ttl_secs=900,
@@ -98,11 +99,11 @@ class TestIssueToken:
         # Should not raise
         uuid.UUID(claims["jti"])
 
-    def test_patient_has_no_tenant_claim(self, rsa_keys):
-        """Patient tokens omit neosofia:tenant_id claim."""
+    def test_token_without_tenant_id(self, rsa_keys):
+        """Tokens issued with tenant_id=None omit the neosofia:tenant_id claim."""
         token = issue_token(
-            sub="usr_patient",
-            user_type="patient",
+            sub="usr_test",
+            token_type="human",
             roles=[],
             tenant_id=None,
             ttl_secs=900,
@@ -119,18 +120,19 @@ class TestIssueToken:
         )
         
         assert "neosofia:tenant_id" not in claims
-        assert claims["neosofia:user_type"] == "patient"
+        assert claims["neosofia:token_type"] == "human"
 
-    def test_service_token_empty_roles(self, rsa_keys):
-        """Service tokens have empty roles list."""
+    def test_machine_token_has_azp_and_empty_roles(self, rsa_keys):
+        """Machine tokens have azp set and empty roles list."""
         token = issue_token(
             sub="payment-svc",
-            user_type="service",
+            token_type="machine",
             roles=[],
             tenant_id=None,
             ttl_secs=300,
             private_key_pem=rsa_keys["private"],
             issuer="https://auth.test.local",
+            azp="payment-svc",
         )
         claims = pyjwt.decode(
             token,
@@ -141,15 +143,16 @@ class TestIssueToken:
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         
-        assert claims["neosofia:user_type"] == "service"
+        assert claims["neosofia:token_type"] == "machine"
         assert claims["neosofia:roles"] == []
+        assert claims["azp"] == "payment-svc"
         assert "neosofia:tenant_id" not in claims
 
     def test_ttl_affects_expiry(self, rsa_keys):
         """Different TTL values produce different expiry times."""
         token_900 = issue_token(
             sub="usr_123",
-            user_type="clinician",
+            token_type="human",
             roles=["clinician"],
             tenant_id="org_xyz",
             ttl_secs=900,
@@ -159,7 +162,7 @@ class TestIssueToken:
         
         token_300 = issue_token(
             sub="usr_123",
-            user_type="clinician",
+            token_type="human",
             roles=["clinician"],
             tenant_id="org_xyz",
             ttl_secs=300,
@@ -191,7 +194,7 @@ class TestIssueToken:
         """JWT can contain multiple roles."""
         token = issue_token(
             sub="usr_clinician",
-            user_type="clinician",
+            token_type="human",
             roles=["clinician", "supervisor", "researcher"],
             tenant_id="org_xyz",
             ttl_secs=900,
@@ -223,7 +226,7 @@ class TestIssueToken:
         
         token = issue_token(
             sub="usr_123",
-            user_type="clinician",
+            token_type="human",
             roles=["clinician"],
             tenant_id="org_xyz",
             ttl_secs=900,

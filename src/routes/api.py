@@ -114,7 +114,7 @@ def _handle_session_grant():
         claims = workos_bridge.extract_platform_claims(auth_response)
         platform_token = token_issuer.issue_token(
             sub=sub,
-            user_type=claims["user_type"],
+            token_type="human",
             roles=claims["roles"],
             tenant_id=claims.get("tenant_id"),
             ttl_secs=settings.access_token_ttl_secs,
@@ -122,7 +122,7 @@ def _handle_session_grant():
             issuer=settings.jwt_issuer,
             claim_namespace=settings.jwt_claim_namespace,
         )
-        log_event("platform_token_issued", user_id=sub, user_type=claims["user_type"])
+        log_event("platform_token_issued", user_id=sub)
         return jsonify({
             "access_token": platform_token,
             "token_type": "Bearer",
@@ -192,7 +192,7 @@ def me():
     - Contain required fields (sub, iat)
     
     Request: Authorization: Bearer <platform-jwt>
-    Response: {\"sub\": \"<user_id>\", \"user_type\": \"<clinician|patient|service>\", \"roles\": [...], \"tenant_id\": \"<id>\", \"exp\": <timestamp>, ...}
+    Response: {\"sub\": \"<user_id>\", \"neosofia:token_type\": \"<human|machine>\", \"neosofia:roles\": [...], \"neosofia:tenant_id\": \"<id>\", \"exp\": <timestamp>, ...}
     Status: 200 (valid), 401 (missing/invalid/expired token), 503 (JWT key not configured)
     
     Ref: RFC 7519 (JWT Claims), RFC 7523 (Bearer token), specs/014-authentication-service/spec.md (FR-002: JWT validation)

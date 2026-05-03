@@ -116,32 +116,21 @@ class TestTokenSessionGrantIntegration:
         assert claims["sub"] == "usr_abc"
         assert claims["iss"] == jwt_issuer
         assert claims["aud"] == "neosofia-auth-svc"
-        assert claims["neosofia:user_type"] == "clinician"
+        assert claims["neosofia:token_type"] == "human"
         assert claims["neosofia:roles"] == ["clinician"]
         assert claims["neosofia:tenant_id"] == "org_xyz"
         assert "jti" in claims
         assert "exp" in claims
 
-    def test_patient_has_no_tenant_claim(self, client, rsa_keys, jwt_issuer):
-        """Patient tokens (no org) must not have neosofia:tenant_id."""
-        mock_wos = _workos_auth_mock(user_id="usr_patient", role=None, org_id=None)
+    def test_no_org_membership_returns_500(self, client):
+        """Users with no org membership must be rejected at token issuance."""
+        mock_wos = _workos_auth_mock(user_id="usr_no_org", role=None, org_id=None)
         
         with patch("src.routes.api.workos_client", mock_wos):
             client.set_cookie("wos_session", "valid")
             resp = client.post("/api/token")
         
-        token = resp.get_json()["access_token"]
-        claims = pyjwt.decode(
-            token,
-            rsa_keys["public"],
-            algorithms=["RS256"],
-            issuer=jwt_issuer,
-            audience="neosofia-auth-svc",
-            options={"require": ["exp", "iat", "iss", "sub", "aud"]},
-        )
-        
-        assert claims["neosofia:user_type"] == "patient"
-        assert "neosofia:tenant_id" not in claims
+        assert resp.status_code == 500
 
     def test_workos_timeout_returns_503(self, client):
         """WorkOS timeout should return 503."""
@@ -238,7 +227,7 @@ class TestMeEndpoint:
         assert resp.status_code == 200
         claims = resp.get_json()
         assert claims["sub"] == "usr_test"
-        assert claims["neosofia:user_type"] == "clinician"
+        assert claims["neosofia:token_type"] == "human"
 
     def test_me_rejects_expired_jwt(self, client, rsa_keys, jwt_issuer):
         """Expired JWT should return 401."""

@@ -24,6 +24,7 @@ os.environ.setdefault("WORKOS_CLIENT_ID", "client_test_PLACEHOLDER_0000000000")
 os.environ.setdefault("JWT_PRIVATE_KEY_PEM", "placeholder")
 os.environ.setdefault("JWT_PUBLIC_KEY_PEM", "placeholder")
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test_db")
+os.environ.setdefault("VALID_ROLES", "clinician,patient")
 os.environ.setdefault("ENV", "test")
 
 
@@ -98,7 +99,7 @@ def make_jwt(rsa_keys, jwt_issuer):
     def _factory(
         *,
         sub: str = "usr_test",
-        user_type: str = "clinician",
+        token_type: str = "human",
         roles: list[str] | None = None,
         tenant_id: str | None = "org_test",
         exp_offset: int = 900,
@@ -111,8 +112,9 @@ def make_jwt(rsa_keys, jwt_issuer):
             "iat": now,
             "exp": now + exp_offset,
             "jti": str(uuid.uuid4()),
-            f"{ns}:user_type": user_type,
-            f"{ns}:roles": roles if roles is not None else [user_type],
+            f"{ns}:token_type": token_type,
+            f"{ns}:token_version": 1,
+            f"{ns}:roles": roles if roles is not None else ([] if token_type == "machine" else ["clinician"]),
         }
         if tenant_id:
             claims[f"{ns}:tenant_id"] = tenant_id

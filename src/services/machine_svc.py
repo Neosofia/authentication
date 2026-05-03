@@ -51,13 +51,14 @@ async def issue_machine_token(
 
     token = token_issuer.issue_token(
         sub=service_name,
-        user_type="service",
+        token_type="machine",
         roles=[],
         tenant_id=None,
         ttl_secs=settings.machine_token_ttl_secs,
         private_key_pem=settings.jwt_private_key_pem,
         issuer=settings.jwt_issuer,
         claim_namespace=settings.jwt_claim_namespace,
+        azp=service_name,
     )
     log_event("machine_token_issued", service=service_name)
     return token

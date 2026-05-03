@@ -292,7 +292,7 @@
         "type": "object",
         "title": "Platform JWT Claims",
         "description": "Standard and custom claims in platform JWT",
-        "required": ["sub", "iss", "iat", "exp", "jti", "neosofia:user_type", "neosofia:roles"],
+        "required": ["sub", "iss", "iat", "exp", "jti", "neosofia:token_type", "neosofia:token_version", "neosofia:roles"],
         "properties": {
           "sub": {
             "type": "string",
@@ -314,10 +314,19 @@
             "type": "string",
             "description": "JWT ID (unique identifier)"
           },
-          "neosofia:user_type": {
+          "azp": {
             "type": "string",
-            "enum": ["clinician", "patient", "service"],
-            "description": "Neosofia user type classification"
+            "description": "Authorized party (RFC 7519); present on machine tokens only, set to the client_id of the machine credential"
+          },
+          "neosofia:token_type": {
+            "type": "string",
+            "enum": ["human", "machine"],
+            "description": "Token principal class: 'human' for user sessions, 'machine' for service-to-service credentials"
+          },
+          "neosofia:token_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Claim schema version; consumers must reject tokens whose version they do not support"
           },
           "neosofia:roles": {
             "type": "array",
@@ -328,7 +337,7 @@
           },
           "neosofia:tenant_id": {
             "type": "string",
-            "description": "Optional: tenant/organization ID (absent for patient tokens)"
+            "description": "Optional: tenant/organization ID (absent for machine tokens)"
           }
         }
       },

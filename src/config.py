@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     jwt_public_key_pem: str = ""
     jwt_claim_namespace: str = "neosofia"
     jwt_issuer: str = "https://auth.neosofia.local"
+    # TODO (M2.1): Replace with an API call to the Authorization Service endpoint /api/valid-roles
+    #              (see spec/016-authorization-service/spec.md for design) so role management
+    #              is owned by the Authorization Service rather than configured here.
+    valid_roles: str  # required; comma-separated WorkOS org membership roles, e.g. "admin,member"
     access_token_ttl_secs: int = 900   # 15 minutes
     machine_token_ttl_secs: int = 300  # 5 minutes
     port: int = 8014
@@ -63,6 +67,8 @@ class Settings(BaseSettings):
     log_level: str = "info"
 
     def model_post_init(self, __context: object) -> None:
+        if not self.valid_roles.strip():
+            raise ValueError("VALID_ROLES must be set to a non-empty comma-separated list of accepted WorkOS org roles")
         # Docker Compose / shell env sourcing can pass PEM keys with literal \n
         # instead of real newlines. Normalize both fields here so callers always
         # receive valid PEM strings regardless of how they were injected.

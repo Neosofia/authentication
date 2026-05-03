@@ -43,7 +43,7 @@ falls back to real environment variables if `.env` is absent).
 ## 2. Test the End-to-End Flow
 
 1. Open http://localhost:8014 in a browser and click **Sign in**.
-2. WorkOS will prompt you to authenticate as your test clinician user.
+2. WorkOS will prompt you to authenticate as your test user.
 3. After authentication, you'll be redirected back to the homepage showing your user info.
 4. Click **Sign out** and verify you're returned to the login page.
 5. Click **Sign in** again.

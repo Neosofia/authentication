@@ -48,17 +48,9 @@ Copy the **environment-level credentials** from **API Keys** on the overview pag
 
 ### JWT Template
 
-1. Go to **Authentication → Sessions → JWT Template**.
-2. Replace the template contents with:
+The Auth Service reads role and organization ID directly from the WorkOS SDK session response (`auth_response.role`, `auth_response.organization_id`) — no custom JWT template is required. You may leave the WorkOS JWT template empty or at its default.
 
-   ```json
-   {
-       "neosofia:user_type": "{{ organization_membership.role || 'patient' }}",
-       "neosofia:tenant_id": {{ organization.id }}
-   }
-   ```
-
-3. Save. This embeds `user_type` and `tenant_id` directly into the WorkOS access token so the Auth Service can read them without extra SDK calls. Clinicians get their role slug (e.g. `clinician`); patients with no org membership fall back to `patient`. `neosofia:tenant_id` is omitted for patients (WorkOS drops null keys automatically).
+> **Note**: All users must have an organization membership with a recognized role. Users without an org are rejected at token issuance.
 
 ### Session Timeouts
 
@@ -82,17 +74,16 @@ Copy the **environment-level credentials** from **API Keys** on the overview pag
 
 1. Go to **Organizations** → **Create Organization**.
 2. Name it e.g. `Neosofia Test Clinic`.
-3. Go to roles and create a `clinician` and `patient` role.
+3. Go to roles and create your application roles (e.g. `admin` and `member`).
 
-#### Clinician user
+#### Test user
 
 1. Go to **Users** → **Create User**.
 2. Fill in name + email (use a real email you can receive).
 3. Select the user → **Organization Memberships** → **Add Member**.
-4. Select `Neosofia Test Clinic`, assign role **clinician**.
+4. Select your test organization and assign one of your configured roles.
 
-> **Note**: Clinicians require an explicit org role assignment. Patients authenticate without
-> org membership and will receive `neosofia:user_type=patient` with no `neosofia:tenant_id` claim.
+> **Note**: All users must have an explicit org role assignment. Users without org membership are rejected at token issuance.
 
 ---
 

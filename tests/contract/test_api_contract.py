@@ -74,31 +74,19 @@ class TestTokenResponseContract:
         jsonschema.validate(claims, schemas["PlatformJWTClaims"])
         
         # Verify role-specific claims
-        assert claims["neosofia:user_type"] == "clinician"
+        assert claims["neosofia:token_type"] == "human"
         assert "neosofia:tenant_id" in claims
 
-    def test_patient_token_claims_conform_to_contract(self, client, rsa_keys, mock_workos_auth, schemas, jwt_issuer):
-        """Patient token claims must not include tenant_id."""
-        mock_wos, patch_context = mock_workos_auth(user_id="usr_patient", role=None, org_id=None)
+    def test_no_org_membership_rejected(self, client, mock_workos_auth, schemas):
+        """Users with no org membership must be rejected; response conforms to error schema."""
+        mock_wos, patch_context = mock_workos_auth(user_id="usr_no_org", role=None, org_id=None)
         
         with patch_context:
             client.set_cookie("wos_session", "valid")
             resp = client.post("/api/token")
         
-        token = resp.get_json()["access_token"]
-        claims = pyjwt.decode(
-            token,
-            rsa_keys["public"],
-            algorithms=["RS256"],
-            issuer=jwt_issuer,
-            audience="neosofia-auth-svc",
-            options={"require": ["exp", "iat", "iss", "sub", "aud"]},
-        )
-        
-        jsonschema.validate(claims, schemas["PlatformJWTClaims"])
-        
-        assert claims["neosofia:user_type"] == "patient"
-        assert "neosofia:tenant_id" not in claims
+        assert resp.status_code == 500
+        jsonschema.validate(resp.get_json(), schemas["ErrorResponse"])
 
 
 @pytest.mark.contract
@@ -131,7 +119,7 @@ class TestMeEndpointContract:
 
     def test_me_response_echoes_jwt_claims(self, client, make_jwt, schemas):
         """GET /api/me response must echo decoded JWT claims conforming to schema."""
-        token = make_jwt(sub="usr_123", user_type="clinician", tenant_id="org_456")
+        token = make_jwt(sub="usr_123", tenant_id="org_456")
         resp = client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
         
         assert resp.status_code == 200
@@ -142,7 +130,7 @@ class TestMeEndpointContract:
         
         # Verify echoed values
         assert data["sub"] == "usr_123"
-        assert data["neosofia:user_type"] == "clinician"
+        assert data["neosofia:token_type"] == "human"
         assert data["neosofia:tenant_id"] == "org_456"
 
     def test_me_401_without_token(self, client, schemas):
