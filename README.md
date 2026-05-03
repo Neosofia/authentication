@@ -2,6 +2,14 @@
 
 Issues JWTs for human users via [WorkOS AuthKit](https://workos.com/docs/authkit) and for platform services via client credentials. Identity is always delegated to WorkOS — no passwords are stored or managed by this service.
 
+The WorkOS integration is implemented as an identity bridge: it authenticates the user through an external provider and mints a platform JWT with normalised `neosofia:` claims. Additional bridges will be added as needed. The most likely candidates are providers that authenticate users but do not issue JWTs themselves:
+
+- **LDAP / Active Directory** — enterprise on-premises directory; authenticates via bind, issues no tokens
+- **SAML 2.0 IdPs** (Ping Identity, Shibboleth, on-prem Okta SAML) — issue XML assertions, not JWTs
+- **Epic MyChart / SMART on FHIR** — healthcare EHR identity; OAuth 2.0 scoped to FHIR resources, not platform-wide JWTs
+
+
+
 ## Resources
 
 ### Operations
@@ -18,7 +26,7 @@ For security reviewers, on-call engineers, and contributors, [SECURITY.md](SECUR
 
 ### Feature Specification
 
-For product owners, architects, and new contributors, the [feature spec](../../specs/014-authentication-service/spec.md) describes the goals, scope, and acceptance criteria that drove the design of this service. It is the human-readable record of what was built and why.
+For product owners, architects, and new contributors, the [feature spec](https://github.com/Neosofia/cdp/blob/main/specs/014-authentication-service/spec.md) describes the goals, scope, and acceptance criteria that drove the design of this service. It is the human-readable record of what was built and why.
 
 ### Governance & Architecture Decisions
 
