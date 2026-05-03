@@ -1,14 +1,6 @@
 # Authentication Service
 
-Issues JWTs for human users via [WorkOS AuthKit](https://workos.com/docs/authkit) and for platform services via client credentials. Identity is always delegated to WorkOS — no passwords are stored or managed by this service.
-
-The WorkOS integration is implemented as an identity bridge: it authenticates the user through an external provider and mints a platform JWT with normalised `neosofia:` claims. Additional bridges will be added as needed. The most likely candidates are providers that authenticate users but do not issue JWTs themselves:
-
-- **LDAP / Active Directory** — enterprise on-premises directory; authenticates via bind, issues no tokens
-- **SAML 2.0 IdPs** (Ping Identity, Shibboleth, on-prem Okta SAML) — issue XML assertions, not JWTs
-- **Epic MyChart / SMART on FHIR** — healthcare EHR identity; OAuth 2.0 scoped to FHIR resources, not platform-wide JWTs
-
-
+This service is the platform's single source of truth for identity. It delegates the question "is this human who they say they are?" to an external provider — currently [WorkOS AuthKit](https://workos.com/docs/authkit) — then answers the separate platform question: "given that, what identity and permissions does this principal have?" The answer is a short-lived platform JWT with normalized `neosofia:` claims (`user_type`, `roles`, `tenant_id`) that every downstream service validates offline. Because no downstream service ever sees the external provider's token, the provider is a hidden implementation detail: the platform's trust model, claim vocabulary, tenant scoping, and token lifetime are all enforced here, independently of whatever the IdP does. Additional authentication providers will be added as customer demand requires — the most likely near-term candidates are Google Workspace and Microsoft Entra ID (Azure AD) via OIDC federation.
 
 ## Resources
 
