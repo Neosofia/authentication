@@ -15,12 +15,13 @@ on:
 jobs:
   test:
     name: Test & Coverage
-    uses: Neosofia/platform-workflows/.github/workflows/authentication-_test.yml@main
+    uses: Neosofia/platform-workflows/.github/workflows/_test-python.yml@main
     with:
       upload_coverage: true
+      codecov_flags: authentication
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   scan:
     name: Vulnerability Scan
-    uses: Neosofia/platform-workflows/.github/workflows/authentication-_scan.yml@main
+    uses: Neosofia/platform-workflows/.github/workflows/_scan.yml@main
