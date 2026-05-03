@@ -187,15 +187,14 @@ class TestCSRFExemption:
 
     def test_csrf_exempt_on_health_endpoint(self, client):
         """GET /api/health should be CSRF exempt."""
-        from unittest.mock import AsyncMock
         session_factory = MagicMock()
-        mock_db = AsyncMock()
-        mock_cm = AsyncMock()
-        mock_cm.__aenter__ = AsyncMock(return_value=mock_db)
-        mock_cm.__aexit__ = AsyncMock(return_value=False)
+        mock_db = MagicMock()
+        mock_cm = MagicMock()
+        mock_cm.__enter__.return_value = mock_db
+        mock_cm.__exit__.return_value = False
         session_factory.return_value = mock_cm
         
-        with patch("src.routes.api.AsyncSessionLocal", session_factory):
+        with patch("src.routes.api.SessionLocal", session_factory):
             resp = client.get("/api/health")
         
         assert resp.status_code == 200

@@ -1,4 +1,3 @@
-import asyncio
 import base64
 import json
 import pathlib
@@ -9,7 +8,7 @@ from flask_wtf.csrf import CSRFError, validate_csrf
 from sqlalchemy import text
 
 from src.config import settings
-from src.db.engine import AsyncSessionLocal
+from src.db.engine import SessionLocal
 from src.extensions import csrf, workos_client, cookie_password, limiter
 from src.logging_config import log_event
 from src.services import token_issuer, workos_bridge
@@ -37,15 +36,6 @@ def _load_openapi_spec():
         _openapi_spec_cache = json.load(f)
     
     return _openapi_spec_cache
-
-
-def _run_async(coro):
-    """Run an async coroutine from a synchronous Flask route."""
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
 
 
 @bp.route("/token", methods=["POST"])
@@ -156,11 +146,9 @@ def _handle_client_credentials():
         return jsonify({"error": "invalid_client"}), 401
 
     try:
-        async def _issue():
-            async with AsyncSessionLocal() as db:
-                return await issue_machine_token(client_id, client_secret, db)
+        with SessionLocal() as db:
+            machine_token = issue_machine_token(client_id, client_secret, db)
 
-        machine_token = _run_async(_issue())
         return jsonify({
             "access_token": machine_token,
             "token_type": "Bearer",
@@ -244,18 +232,11 @@ def health():
     
     Ref: Kubernetes probes (livenessProbe, readinessProbe)
     """
-    async def _ping():
-        async with AsyncSessionLocal() as db:
-            await db.execute(text("SELECT 1"))
-
     try:
-        loop = asyncio.new_event_loop()
-        try:
-            loop.run_until_complete(asyncio.wait_for(_ping(), timeout=5.0))
-        finally:
-            loop.close()
+        with SessionLocal() as db:
+            db.execute(text("SELECT 1"))
         return jsonify({"status": "ok"}), 200
-    except asyncio.TimeoutError:
+    except TimeoutError:
         log_event("health_check_failed", reason="database timeout")
         return jsonify({"status": "error", "detail": "database timeout"}), 503
     except Exception as e:

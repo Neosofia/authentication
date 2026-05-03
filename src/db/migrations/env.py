@@ -1,7 +1,5 @@
-import asyncio
-
 from alembic import context
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import create_engine
 
 from src.config import settings
 from src.db.engine import Base
@@ -35,15 +33,10 @@ def do_run_migrations(connection):
         context.run_migrations()
 
 
-async def run_async_migrations() -> None:
-    engine = create_async_engine(settings.database_url)
-    async with engine.begin() as conn:
-        await conn.run_sync(do_run_migrations)
-    await engine.dispose()
-
-
 def run_migrations_online() -> None:
-    asyncio.run(run_async_migrations())
+    engine = create_engine(settings.database_url)
+    with engine.begin() as connection:
+        do_run_migrations(connection)
 
 
 if context.is_offline_mode():

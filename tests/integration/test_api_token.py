@@ -5,12 +5,11 @@ Tests the real Flask route handler and JWT signing against mocked WorkOS SDK res
 """
 
 import base64
-import asyncio
 from typing import Optional
 
 import jwt as pyjwt
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from src.services.machine_svc import InvalidClientError
 
@@ -18,12 +17,12 @@ from src.services.machine_svc import InvalidClientError
 BASIC_EMR = "Basic " + base64.b64encode(b"test-service:secret").decode()
 
 
-def _async_session_mock():
-    """Create a mock async session context manager."""
-    mock_db = AsyncMock()
-    mock_cm = AsyncMock()
-    mock_cm.__aenter__ = AsyncMock(return_value=mock_db)
-    mock_cm.__aexit__ = AsyncMock(return_value=False)
+def _session_mock():
+    """Create a mock session context manager."""
+    mock_db = MagicMock()
+    mock_cm = MagicMock()
+    mock_cm.__enter__.return_value = mock_db
+    mock_cm.__exit__.return_value = False
     return MagicMock(return_value=mock_cm), mock_db
 
 
@@ -163,9 +162,9 @@ class TestHealthEndpoint:
 
     def test_health_ok(self, client):
         """Health endpoint should return 200 when healthy."""
-        session_factory, mock_db = _async_session_mock()
+        session_factory, mock_db = _session_mock()
         
-        with patch("src.routes.api.AsyncSessionLocal", session_factory):
+        with patch("src.routes.api.SessionLocal", session_factory):
             resp = client.get("/api/health")
         
         assert resp.status_code == 200
@@ -173,10 +172,10 @@ class TestHealthEndpoint:
 
     def test_health_db_timeout(self, client):
         """Health endpoint should return 503 on database timeout."""
-        session_factory, mock_db = _async_session_mock()
-        mock_db.execute.side_effect = asyncio.TimeoutError("database timeout")
+        session_factory, mock_db = _session_mock()
+        mock_db.execute.side_effect = TimeoutError("database timeout")
         
-        with patch("src.routes.api.AsyncSessionLocal", session_factory):
+        with patch("src.routes.api.SessionLocal", session_factory):
             resp = client.get("/api/health")
         
         assert resp.status_code == 503
@@ -185,10 +184,10 @@ class TestHealthEndpoint:
 
     def test_health_db_error(self, client):
         """Health endpoint should return 503 on database error."""
-        session_factory, mock_db = _async_session_mock()
+        session_factory, mock_db = _session_mock()
         mock_db.execute.side_effect = Exception("database connection refused")
         
-        with patch("src.routes.api.AsyncSessionLocal", session_factory):
+        with patch("src.routes.api.SessionLocal", session_factory):
             resp = client.get("/api/health")
         
         assert resp.status_code == 503
@@ -305,11 +304,11 @@ class TestClientCredentialsGrant:
         """Valid Basic auth should issue machine token."""
         with patch("src.routes.api.issue_machine_token") as mock_issue:
             mock_issue.return_value = "machine_token_xyz"
-            with patch("src.routes.api.AsyncSessionLocal") as mock_session_class:
-                mock_session = AsyncMock()
-                mock_cm = AsyncMock()
-                mock_cm.__aenter__ = AsyncMock(return_value=mock_session)
-                mock_cm.__aexit__ = AsyncMock(return_value=False)
+            with patch("src.routes.api.SessionLocal") as mock_session_class:
+                mock_session = MagicMock()
+                mock_cm = MagicMock()
+                mock_cm.__enter__.return_value = mock_session
+                mock_cm.__exit__.return_value = False
                 mock_session_class.return_value = mock_cm
                 
                 resp = client.post(
@@ -327,11 +326,11 @@ class TestClientCredentialsGrant:
         """Form body client_id/client_secret should be accepted."""
         with patch("src.routes.api.issue_machine_token") as mock_issue:
             mock_issue.return_value = "machine_token_xyz"
-            with patch("src.routes.api.AsyncSessionLocal") as mock_session_class:
-                mock_session = AsyncMock()
-                mock_cm = AsyncMock()
-                mock_cm.__aenter__ = AsyncMock(return_value=mock_session)
-                mock_cm.__aexit__ = AsyncMock(return_value=False)
+            with patch("src.routes.api.SessionLocal") as mock_session_class:
+                mock_session = MagicMock()
+                mock_cm = MagicMock()
+                mock_cm.__enter__.return_value = mock_session
+                mock_cm.__exit__.return_value = False
                 mock_session_class.return_value = mock_cm
                 
                 resp = client.post(
@@ -371,11 +370,11 @@ class TestClientCredentialsGrant:
         """Invalid client credentials should return 401."""
         with patch("src.routes.api.issue_machine_token") as mock_issue:
             mock_issue.side_effect = InvalidClientError("unknown client")
-            with patch("src.routes.api.AsyncSessionLocal") as mock_session_class:
-                mock_session = AsyncMock()
-                mock_cm = AsyncMock()
-                mock_cm.__aenter__ = AsyncMock(return_value=mock_session)
-                mock_cm.__aexit__ = AsyncMock(return_value=False)
+            with patch("src.routes.api.SessionLocal") as mock_session_class:
+                mock_session = MagicMock()
+                mock_cm = MagicMock()
+                mock_cm.__enter__.return_value = mock_session
+                mock_cm.__exit__.return_value = False
                 mock_session_class.return_value = mock_cm
                 
                 resp = client.post(

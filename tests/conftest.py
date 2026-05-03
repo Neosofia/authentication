@@ -8,7 +8,7 @@ src.* module is imported by pytest during collection.
 import os
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import jwt as pyjwt
 import pytest
@@ -23,7 +23,7 @@ os.environ.setdefault("WORKOS_API_KEY", "sk_test_PLACEHOLDER_0000000000000000")
 os.environ.setdefault("WORKOS_CLIENT_ID", "client_test_PLACEHOLDER_0000000000")
 os.environ.setdefault("JWT_PRIVATE_KEY_PEM", "placeholder")
 os.environ.setdefault("JWT_PUBLIC_KEY_PEM", "placeholder")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test_db")
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost/test_db")
 os.environ.setdefault("VALID_ROLES", "clinician,patient")
 os.environ.setdefault("ENV", "test")
 

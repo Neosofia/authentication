@@ -139,5 +139,5 @@ See [Appendix A](#appendix-a-environment-variable-reference) for the full variab
 | `VALID_ROLES` | Comma-separated list of accepted WorkOS org roles (required; service refuses to start if unset). See [SECURITY.md §3.1](SECURITY.md#31-identity--authentication). | — |
 | `ACCESS_TOKEN_TTL_SECS` | Optional, default `900` (15 min) | — |
 | `MACHINE_TOKEN_TTL_SECS` | Optional, default `300` (5 min) | — |
-| `DATABASE_URL` | Local Postgres | `postgresql+asyncpg://auth:dev_only@localhost:5014/auth` |
+| `DATABASE_URL` | Local Postgres | `postgresql+psycopg://auth:dev_only@localhost:5014/auth` |
 | `MACHINE_TOKEN_TTL_SECS` | Optional, default `300` | — |

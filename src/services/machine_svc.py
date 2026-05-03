@@ -1,6 +1,6 @@
 import bcrypt
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from src.config import settings
 from src.logging_config import log_event
@@ -18,17 +18,17 @@ _DUMMY_SECRET = b"dummy_secret_for_timing_constant_verification"
 _DUMMY_HASH = bcrypt.hashpw(_DUMMY_SECRET, bcrypt.gensalt())
 
 
-async def issue_machine_token(
+def issue_machine_token(
     service_name: str,
     client_secret: str,
-    db: AsyncSession,
+    db: Session,
 ) -> str:
     """
     Verify a machine credential and issue a platform JWT with user_type='service'.
     Raises InvalidClientError (→ 401) on any mismatch or inactive credential.
     Uses constant-time comparison to prevent timing attacks (CWE-208).
     """
-    result = await db.execute(
+    result = db.execute(
         select(MachineCredential).where(
             MachineCredential.service_name == service_name,
             MachineCredential.active.is_(True),
