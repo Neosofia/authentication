@@ -70,5 +70,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=pdc-authentication-prod
-          cache-to: type=gha,scope=pdc-authentication-prod,mode=max
+          cache-from: type=gha,scope=authentication-prod
+          cache-to: type=gha,scope=authentication-prod,mode=max

@@ -182,7 +182,7 @@ def me():
     JWT public key (cached from JWKS endpoint), validates issuer and audience claims,
     and enforces required claims (exp, iat, iss, sub, aud). Returns decoded claims
     without requiring WorkOS API call — enabling stateless, distributed JWT validation
-    throughout PDC services (Constitution §VII).
+    throughout the platform services (Constitution §VII).
     
     Validation ensures tokens are:
     - Signed by this issuer (iss claim)

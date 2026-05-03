@@ -13,10 +13,10 @@ services:
     volumes: []
 
   authentication:
-    env_file: ${TEST_ENV_FILE:-.local.env.example}
+    env_file: ${TEST_ENV_FILE:-.env.example}
     environment:
       ENV: test
-      DATABASE_URL: postgresql+asyncpg://pdc:test_only@auth-postgres:5432/pdc_auth
+      DATABASE_URL: postgresql+asyncpg://auth:test_only@auth-postgres:5432/auth
     volumes: []
     healthcheck:
       interval: 5s

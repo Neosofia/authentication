@@ -1,12 +1,8 @@
 import json
 import logging
 import os
-from pathlib import Path
-from typing import ClassVar
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from src.env import get_env_file_path
 
 logger = logging.getLogger(__name__)
 
@@ -47,16 +43,15 @@ def _load_secrets_manager() -> dict:
 
 
 class Settings(BaseSettings):
-    env_file_path: ClassVar[Path | None] = get_env_file_path()
     model_config = SettingsConfigDict(
-        env_file=str(env_file_path) if env_file_path is not None else None,
+        env_file=".env",
         extra="ignore",
     )
 
     database_url: str = ""
     jwt_private_key_pem: str = ""
     jwt_public_key_pem: str = ""
-    jwt_issuer: str = "https://auth.pdc.local"
+    jwt_issuer: str = "https://auth.neosofia.local"
     access_token_ttl_secs: int = 900   # 15 minutes
     machine_token_ttl_secs: int = 300  # 5 minutes
     port: int = 8014

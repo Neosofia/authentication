@@ -23,7 +23,7 @@ COPY src ./src
 COPY alembic.ini ./
 
 # Stage 2: CI — extends builder with dev deps and tests; not used in production
-# Build with: docker build --target ci -t pdc-authentication-ci .
+# Build with: docker build --target ci -t authentication-ci .
 FROM builder AS ci
 
 WORKDIR /repo
@@ -60,7 +60,7 @@ COPY static ./static
 COPY openapi.json ./
 COPY scripts ./scripts
 COPY gunicorn_conf.py ./
-COPY .local.env.example ./
+COPY .env.example ./
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

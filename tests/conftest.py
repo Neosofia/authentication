@@ -104,15 +104,15 @@ def make_jwt(rsa_keys, jwt_issuer):
         claims: dict = {
             "sub": sub,
             "iss": jwt_issuer,
-            "aud": "pdc-auth-svc",
+            "aud": "neosofia-auth-svc",
             "iat": now,
             "exp": now + exp_offset,
             "jti": str(uuid.uuid4()),
-            "pdc:user_type": user_type,
-            "pdc:roles": roles if roles is not None else [user_type],
+            "neosofia:user_type": user_type,
+            "neosofia:roles": roles if roles is not None else [user_type],
         }
         if tenant_id:
-            claims["pdc:tenant_id"] = tenant_id
+            claims["neosofia:tenant_id"] = tenant_id
         return pyjwt.encode(claims, rsa_keys["private"], algorithm="RS256")
 
     return _factory

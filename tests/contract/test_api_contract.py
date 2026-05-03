@@ -66,7 +66,7 @@ class TestTokenResponseContract:
             rsa_keys["public"], 
             algorithms=["RS256"],
             issuer=jwt_issuer,
-            audience="pdc-auth-svc",
+            audience="neosofia-auth-svc",
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         
@@ -74,8 +74,8 @@ class TestTokenResponseContract:
         jsonschema.validate(claims, schemas["PlatformJWTClaims"])
         
         # Verify role-specific claims
-        assert claims["pdc:user_type"] == "clinician"
-        assert "pdc:tenant_id" in claims
+        assert claims["neosofia:user_type"] == "clinician"
+        assert "neosofia:tenant_id" in claims
 
     def test_patient_token_claims_conform_to_contract(self, client, rsa_keys, mock_workos_auth, schemas, jwt_issuer):
         """Patient token claims must not include tenant_id."""
@@ -91,14 +91,14 @@ class TestTokenResponseContract:
             rsa_keys["public"],
             algorithms=["RS256"],
             issuer=jwt_issuer,
-            audience="pdc-auth-svc",
+            audience="neosofia-auth-svc",
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         
         jsonschema.validate(claims, schemas["PlatformJWTClaims"])
         
-        assert claims["pdc:user_type"] == "patient"
-        assert "pdc:tenant_id" not in claims
+        assert claims["neosofia:user_type"] == "patient"
+        assert "neosofia:tenant_id" not in claims
 
 
 @pytest.mark.contract
@@ -142,8 +142,8 @@ class TestMeEndpointContract:
         
         # Verify echoed values
         assert data["sub"] == "usr_123"
-        assert data["pdc:user_type"] == "clinician"
-        assert data["pdc:tenant_id"] == "org_456"
+        assert data["neosofia:user_type"] == "clinician"
+        assert data["neosofia:tenant_id"] == "org_456"
 
     def test_me_401_without_token(self, client, schemas):
         """GET /api/me without token must return 401 conforming to error schema."""
@@ -182,7 +182,7 @@ class TestLoggingContract:
             assert "level" in log, f"Log {i} missing 'level' field"
 
     def test_logs_conform_to_log_schema(self, client, mock_workos_auth, log_capture):
-        """All logs must conform to the PDC log JSON schema."""
+        """All logs must conform to the Neosofia log JSON schema."""
         mock_wos, patch_context = mock_workos_auth(user_id="usr_123", role="clinician", org_id="org_456")
         
         with patch_context:

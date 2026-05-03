@@ -6,11 +6,7 @@ from flask import Flask
 from flask_talisman import Talisman
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from src.env import get_env_file_path
-
-env_path = get_env_file_path()
-if env_path is not None:
-    load_dotenv(env_path)
+load_dotenv()  # no-op in containers where env vars come from the runtime
 
 # Extensions must be imported after load_dotenv so env vars are available.
 from src.config import settings  # noqa: E402

@@ -1,8 +1,6 @@
-# PDC Authentication Service
+# Authentication Service
 
-[![Coverage](https://codecov.io/gh/byoung/pdc/branch/main/graph/badge.svg?token=2MN0184F0D)](https://codecov.io/gh/byoung/pdc) [![CI](https://github.com/byoung/pdc/actions/workflows/authentication-ci.yml/badge.svg)](https://github.com/byoung/pdc/actions/workflows/authentication-ci.yml)
-
-Handles sign-in and sign-out for patients and clinicians, and lets platform services authenticate with each other — all without storing passwords.
+Issues JWTs for human users via [WorkOS AuthKit](https://workos.com/docs/authkit) and for platform services via client credentials. Identity is always delegated to WorkOS — no passwords are stored or managed by this service.
 
 ## Resources
 

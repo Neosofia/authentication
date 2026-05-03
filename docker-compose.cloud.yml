@@ -12,7 +12,7 @@
 # Standard merge semantics apply — later file keys win for maps.
 #
 # Secrets source: secrets service; checked out to /etc/authentication/env by deploy.sh
-# Data paths:     /var/lib/pdc-auth/postgres (bind-mounted)
+# Data paths:     /var/lib/authentication/postgres (bind-mounted)
 
 services:
   auth-postgres:
@@ -20,12 +20,12 @@ services:
     restart: unless-stopped
     env_file: /etc/authentication/env      # provides POSTGRES_PASSWORD
     environment:
-      POSTGRES_DB: pdc_auth
-      POSTGRES_USER: pdc
+      POSTGRES_DB: auth
+      POSTGRES_USER: auth
       # POSTGRES_PASSWORD comes from env_file above
     ports: []                              # not exposed outside the compose network
     volumes:
-      - /var/lib/pdc-auth/postgres:/var/lib/postgresql/data
+      - /var/lib/authentication/postgres:/var/lib/postgresql/data
 
   authentication:
     build: ~                              # suppress local build — use pre-built image

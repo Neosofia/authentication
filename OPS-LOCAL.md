@@ -29,22 +29,8 @@ docker compose -f docker-compose.dev.yml up -d authentication
 docker compose -f docker-compose.dev.yml ps
 ```
 
-This compose uses `ENV=development` and expects the corresponding env file
-for the selected environment to exist. In this local setup, the service loads
-`.dev.env` as the selected file and also mounts it as `.env` for bootstrap
-compatibility.
-
-If you want to run with a different environment, set `ENV` explicitly and
-provide the matching file:
-
-- `ENV=local` → `.local.env`
-- `ENV=development` / `ENV=dev` → `.dev.env`
-- `ENV=staging` → `.staging.env`
-- `ENV=production` / `ENV=prod` → `.prod.env`
-
-You can also override the exact file with `ENV_FILE` if needed.
-
-The selected file must exist, otherwise startup fails fast.
+This compose loads `.env` from the service directory (optional — the container
+falls back to real environment variables if `.env` is absent).
 
 > **Do not** run `docker compose up -d` from inside a nested checkout path; always run from the repository root.
 > The per-service compose file omits shared infrastructure (Traefik, LocalStack

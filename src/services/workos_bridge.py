@@ -9,15 +9,15 @@ Authorization Service API in spec/016-authorization-service/spec.md).
 from src.logging_config import log_event
 
 # ── Valid User Types (M2 Validation) ─────────────────────────────────────────
-# Define the canonical set of valid PDC user types.
+# Define the canonical set of valid user types.
 # Users with WorkOS roles outside this set are rejected at token issuance (fail closed).
 # TODO (M2.1): Replace with API call to Authorization Service endpoint /api/valid-user-types
 #              (see spec/016-authorization-service/spec.md for design).
 VALID_USER_TYPES = frozenset({"clinician", "patient"})
 
-# Map WorkOS role slugs → PDC user_type
+# Map WorkOS role slugs → user_type
 # Handles role normalization (e.g., "nurse" → "clinician" if desired in future)
-WORKOS_ROLE_TO_PDC_TYPE = {
+WORKOS_ROLE_TO_USER_TYPE = {
     "clinician": "clinician",
     "org-clinician": "clinician",  # WorkOS org-based role
     "member": "clinician",  # WorkOS sandbox/org membership default role
@@ -28,13 +28,13 @@ WORKOS_ROLE_TO_PDC_TYPE = {
 
 def extract_platform_claims(auth_response) -> dict:
     """
-    Extract PDC platform claims from a WorkOS session authenticate response
+    Extract platform claims from a WorkOS session authenticate response
     (AuthenticateWithSessionCookieSuccessResponse).
 
     The SDK surfaces role and organization_id directly on the response — no
     JWT decoding required.
 
-    Validates that WorkOS role maps to a known PDC user_type (M2).
+    Validates that WorkOS role maps to a known user_type (M2).
     Rejects unknown roles with fail-closed behavior.
 
     Args:
@@ -42,13 +42,13 @@ def extract_platform_claims(auth_response) -> dict:
 
     Returns:
         {
-            "user_type": str,        # Validated PDC user type (clinician or patient)
+            "user_type": str,        # Validated user type (clinician or patient)
             "tenant_id": str | None, # org ID; None for patients
             "roles": list[str],      # [user_type] for non-patients, [] for patients
         }
 
     Raises:
-        ValueError: If WorkOS role does not map to a valid PDC user type
+        ValueError: If WorkOS role does not map to a valid user type
 
     References:
         CWE-863 (Incorrect Authorization), CWE-269 (Improper Access Control)
@@ -66,8 +66,8 @@ def extract_platform_claims(auth_response) -> dict:
     if workos_role is None:
         user_type = "patient"
     else:
-        # Map WorkOS role to PDC user type
-        user_type = WORKOS_ROLE_TO_PDC_TYPE.get(workos_role)
+        # Map WorkOS role to user type
+        user_type = WORKOS_ROLE_TO_USER_TYPE.get(workos_role)
         
         if user_type is None:
             # Unknown role: fail closed (M2)
@@ -78,9 +78,9 @@ def extract_platform_claims(auth_response) -> dict:
                 reason="role not in allow-list"
             )
             raise ValueError(
-                f"WorkOS role '{workos_role}' does not map to valid PDC user type. "
+                f"WorkOS role '{workos_role}' does not map to a valid user type. "
                 f"Valid types: {VALID_USER_TYPES}. "
-                f"If this is a new role, update WORKOS_ROLE_TO_PDC_TYPE mapping."
+                f"If this is a new role, update WORKOS_ROLE_TO_USER_TYPE mapping."
             )
     
     # Final validation: ensure mapped type is valid

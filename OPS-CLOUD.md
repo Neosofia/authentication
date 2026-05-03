@@ -18,7 +18,7 @@ This architecture is based on a local dev environment running Proxmox.
                                 │ NetBird mesh
                                 ▼
      ┌───────────────────────────────────────────────────────┐
-     │ NetBird — custom domain → Docker                     │
+     │ NetBird — custom domain → Docker                      │
      │  auth.dev.<base-domain>     → <dev IP>:8000           │
      │  auth.staging.<base-domain> → <staging IP>:8000       │
      │  auth.prod.<base-domain>    → <prod IP>:8000          │
@@ -28,12 +28,12 @@ This architecture is based on a local dev environment running Proxmox.
      ┌───────────────────────────────────────────────────────┐
      │ Service host (Debian 13, Docker CE)                   │
      │  ┌──────────────────────┐  ┌──────────────────────┐   │
-     │  │ pdc-authentication   │──│ pdc-auth-postgres    │   │
+     │  │ authentication       │──│ auth-postgres        │   │
      │  │ FastAPI :8000        │  │ PostgreSQL 16        │   │
      │  └────────┬─────────────┘  └──────────────────────┘   │
      │           │ fetches secrets at startup                │
      │           │ via /etc/authentication/env (deploy.sh)   │
-     │  data:     /var/lib/pdc-auth/postgres                 │
+     │  data:     /var/lib/authentication/postgres           │
      └───────────────────────────────────────────────────────┘
 ```
 
@@ -41,14 +41,14 @@ This architecture is based on a local dev environment running Proxmox.
 ## DNS and reverse proxy setup (one-time, per environment)
 
 These steps are manual and done once per environment in external dashboards.
-Examples use `auth.dev.pdc.neosofia.tech` — substitute your base domain and env prefix.
+Examples use `auth.dev.neosofia.tech` — substitute your base domain and env prefix.
 
 ### 1. Reverse proxy — custom domain
 
 In your reverse proxy provider's dashboard, add a **custom domain** for the environment
 (e.g. in NetBird: **Network → Routing → Reverse Proxy → Custom Domain**):
 
-- Domain: `*.dev.pdc.neosofia.tech`
+- Domain: `*.dev.neosofia.tech`
 
 The provider will display a **CNAME target** you must point your DNS at
 (e.g. `us1.netbird.services` — varies by provider and region).
@@ -58,7 +58,7 @@ Once the DNS record is in place, return and wait for the domain status to show *
 with a wildcard cert issued.
 
 > **Known issue (NetBird ≥ beta)**: requesting a cert for a _specific_ subdomain
-> (e.g. `auth.dev.pdc.neosofia.tech`) wedges at "Issuing". Use a wildcard custom domain
+> (e.g. `auth.dev.neosofia.tech`) wedges at "Issuing". Use a wildcard custom domain
 > and rely on the wildcard cert instead. Track [NetBird #5517](https://github.com/netbirdio/netbird/issues/5517).
 
 ### 2. DNS (Cloudflare or any provider)
@@ -67,7 +67,7 @@ Add a wildcard CNAME for the environment using the CNAME target noted in step 1:
 
 | Name | Type | Target | Proxy |
 |------|------|--------|-------|
-| `*.dev.pdc.neosofia.tech` | CNAME | `<CNAME target from step 1>` | DNS only/Off/Inactive |
+| `*.dev.neosofia.tech` | CNAME | `<CNAME target from step 1>` | DNS only/Off/Inactive |
 
 One wildcard covers all services in that environment.
 Repeat with `*.staging.` and `*.prod.` when those environments are brought up.
@@ -83,7 +83,7 @@ Back in the reverse proxy dashboard, add a route for each service under the cust
 
 | Field | Value |
 |-------|-------|
-| Domain | `auth.dev.pdc.neosofia.tech` |
+| Domain | `auth.dev.neosofia.tech` |
 | Target | `http://<host-ip>:8000` |
 | Protocol | HTTP |
 
@@ -169,7 +169,7 @@ $EDITOR .env             # fill in WORKOS_CLIENT_ID, WORKOS_API_KEY, PUBLIC_BASE
 
 # 2. Push to the CT
 cd ~/projects/neosofia/infrastructure
-bash scripts/seed-ct-env.sh authentication ${DEV_CTID} ~/projects/neosofia/authentication/.dev.env
+bash scripts/seed-ct-env.sh authentication ${DEV_CTID} ~/projects/neosofia/authentication/.env
 ```
 
 **Step 3 — Trigger the first deploy** (push a CalVer tag)
@@ -183,7 +183,7 @@ git push origin authentication/$(date +%Y.%m.%d)
 This runs `authentication-build-push` → on success triggers `authentication-deploy-dev`.
 The runner inside the CT pulls the image, starts the compose stack (LocalStack + Postgres +
 auth service). On first boot, LocalStack's init hook generates RSA keypairs and seeds
-the `pdc/authentication/dev/env` secret bundle. The auth container starts only after
+the `neosofia/authentication/dev/env` secret bundle. The auth container starts only after
 LocalStack is healthy.
 
 The GHCR packages are public — no token required.
@@ -217,7 +217,7 @@ To verify after deploy:
 
 ```bash
 ssh root@$PVE_HOST "pct exec $DEV_CTID -- \
-  docker exec pdc-authentication bash -c \
+  docker exec authentication bash -c \
   'curl -sf -X POST http://localhost:8000/api/token \
     -H \"Authorization: Basic \$(echo -n test-service:\$SEED_MACHINE_SECRET | base64)\" \
     -d grant_type=client_credentials | python3 -m json.tool'"
@@ -257,7 +257,7 @@ Secrets live in the shared secrets service. To rotate, update the secret then re
 ```bash
 # Re-seed updated secrets then restart the service
 cd ~/projects/neosofia/infrastructure
-bash scripts/seed-ct-env.sh authentication ~/projects/neosofia/authentication/.dev.env
+bash scripts/seed-ct-env.sh authentication ~/projects/neosofia/authentication/.env
 
 ssh $PVE_HOST "pct exec $DEV_CTID -- bash -c '
   docker compose -f /opt/actions-runner/_work/authentication/authentication/docker-compose.yml \
@@ -266,7 +266,7 @@ ssh $PVE_HOST "pct exec $DEV_CTID -- bash -c '
 '"
 ```
 
-To update WorkOS credentials, edit `.dev.env`, re-seed via the above, then restart.
+To update WorkOS credentials, edit `.env`, re-seed via the above, then restart.
 
 **Observability** (operator terminal)
 
@@ -281,18 +281,18 @@ ssh $PVE_HOST "pct exec $DEV_CTID -- bash -c 'cd $APP && docker compose $COMPOSE
 ssh $PVE_HOST "pct exec $DEV_CTID -- bash -c 'cd $APP && docker compose $COMPOSE ps'"
 
 # Postgres shell
-ssh $PVE_HOST "pct exec $DEV_CTID -- docker exec -it pdc-auth-postgres psql -U pdc -d pdc_auth"
+ssh $PVE_HOST "pct exec $DEV_CTID -- docker exec -it auth-postgres psql -U auth -d auth"
 ```
 
 **Backups**
 
-Postgres data lives at `/var/lib/pdc-auth/postgres` inside the CT.
+Postgres data lives at `/var/lib/authentication/postgres` inside the CT.
 Configure a nightly Proxmox Backup snapshot, or dump on demand from the operator terminal:
 
 ```bash
 ssh root@$PVE_HOST "pct exec $DEV_CTID \
-  docker exec pdc-auth-postgres pg_dump -U pdc pdc_auth" \
-  > pdc-auth-$(date +%F).sql
+  docker exec auth-postgres pg_dump -U auth auth" \
+  > auth-$(date +%F).sql
 ```
 
 **Teardown** (operator terminal)
@@ -351,9 +351,9 @@ Apply steps (in order):
 1. Create/update LXC CT on Proxmox
 2. Install Docker in the CT
 3. Generate secrets (passwords, RSA-4096 JWT key) — idempotent unless `rotate_secrets=true`
-4. Write secret bundle to AWS Secrets Manager at `pdc/authentication/staging/env`
-5. Render `/etc/pdc-auth/staging.env` inside the CT (mode 0600)
-6. Build `pdc-authentication:staging` locally for `linux/amd64`
+4. Write secret bundle to AWS Secrets Manager at `neosofia/authentication/staging/env`
+5. Render `/etc/authentication/staging.env` inside the CT (mode 0600)
+6. Build `authentication:staging` locally for `linux/amd64`
 7. Ship via `docker save | ssh pve pct exec docker load`
 8. `docker compose up -d` inside the CT
 
@@ -398,9 +398,9 @@ If rotating the Postgres password, wipe the data volume first:
 
 ```bash
 ssh root@$PVE_HOST "pct exec $STAGING_CTID bash -c '
-  cd /opt/pdc-auth-staging
+  cd /opt/authentication-staging
   docker compose down -v
-  rm -rf /var/lib/pdc-auth-staging/postgres
+  rm -rf /var/lib/authentication-staging/postgres
 '"
 tofu apply
 ```
@@ -409,7 +409,7 @@ tofu apply
 
 ```bash
 aws secretsmanager get-secret-value \
-  --secret-id pdc/authentication/staging/env \
+  --secret-id neosofia/authentication/staging/env \
   --version-stage AWSPREVIOUS
 ```
 
@@ -420,10 +420,10 @@ aws secretsmanager get-secret-value \
 | Symptom | Likely cause |
 |---------|-------------|
 | `docker: command not found` during bootstrap | `create-auth-ct.sh` failed partway — re-run it (idempotent) |
-| Service returns 500 on `/api/health` | Missing or malformed secret — check `/etc/authentication/env` exists and `docker logs pdc-authentication --tail 50` |
+| Service returns 500 on `/api/health` | Missing or malformed secret — check `/etc/authentication/env` exists and `docker logs authentication --tail 50` |
 | WorkOS OAuth redirect fails | Verify the callback URL is on the WorkOS app's redirect URI allowlist and NetBird is proxying the domain to the correct CT IP + port |
 | NetBird cert stuck "Issuing" on a specific subdomain | Known NetBird beta bug ([#5517](https://github.com/netbirdio/netbird/issues/5517)) — use a wildcard Custom Domain (`*.dev.<base-domain>`) instead of a per-service domain; verify the DNS CNAME is DNS-only (grey cloud) |
 | TLS `internal_error` / SSL alert 80 after cert issued | NetBird edge cert state is wedged — delete and re-create the service and custom domain in the NetBird dashboard |
-| Alembic migration stuck on startup | `ssh root@$PVE_HOST "pct exec $DEV_CTID docker exec -it pdc-authentication python -m alembic current"` |
+| Alembic migration stuck on startup | `ssh root@$PVE_HOST "pct exec $DEV_CTID docker exec -it authentication python -m alembic current"` |
 | `tofu apply` fails with S3 backend error | Run `aws sso login` on the operator terminal and retry |
 | Postgres password drift after secret rotation | Wipe the data volume and re-apply (see Rotating secrets above) |

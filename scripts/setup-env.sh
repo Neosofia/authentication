@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# setup-env.sh — bootstrap a local .local.env for the authentication service.
+# setup-env.sh — bootstrap a .env for the authentication service.
 #
 # Usage:
 #   cd authentication
 #   ./scripts/setup-env.sh
 #
 # What it does:
-#   1. Copies .local.env.example → .local.env (skips if .local.env already exists, unless --force)
+#   1. Copies .env.example → .env (skips if .env already exists, unless --force)
 #   2. Generates CSRF_SECRET_KEY  (openssl rand -hex 32)
 #   3. Generates WORKOS_COOKIE_PASSWORD  (44-char Fernet key via Python)
 #   4. Generates an RSA-2048 keypair and writes JWT_PRIVATE_KEY_PEM /
@@ -17,14 +17,14 @@
 #   WORKOS_API_KEY    — from WorkOS Dashboard → API Keys
 #
 # Options:
-#   --force   Overwrite an existing .local.env (secrets will be regenerated)
+#   --force   Overwrite an existing .env (secrets will be regenerated)
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ENV_FILE="${ENV_FILE:-${SERVICE_DIR}/.local.env}"
-ENV_EXAMPLE="${SERVICE_DIR}/.local.env.example"
+ENV_FILE="${ENV_FILE:-${SERVICE_DIR}/.env}"
+ENV_EXAMPLE="${SERVICE_DIR}/.env.example"
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
 FORCE=false
@@ -37,10 +37,10 @@ done
 
 # ── Step 1: copy example ──────────────────────────────────────────────────────
 if [[ -f "$ENV_FILE" && "$FORCE" == false ]]; then
-  echo ".local.env already exists — skipping copy (use --force to overwrite)"
+  echo ".env already exists — skipping copy (use --force to overwrite)"
 else
   cp "$ENV_EXAMPLE" "$ENV_FILE"
-  echo "Created .local.env from .local.env.example"
+  echo "Created .env from .env.example"
 fi
 
 # ── Step 2: CSRF secret ───────────────────────────────────────────────────────
@@ -114,7 +114,7 @@ echo "Generated JWT_PRIVATE_KEY_PEM / JWT_PUBLIC_KEY_PEM"
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
-echo "✓ .local.env is ready."
+echo "✓ .env is ready."
 echo ""
 echo "Still required — fill these in manually:"
 echo "  WORKOS_CLIENT_ID  — WorkOS Dashboard → API Keys"

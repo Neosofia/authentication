@@ -1,11 +1,11 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "PDC Authentication Service API",
-    "description": "Authentication, token issuance, and JWT validation for the Post Discharge Care (PDC) platform. Delegates user authentication to WorkOS; issues RS256-signed JWTs for platform-wide service-to-service and client authentication.",
+    "title": "Authentication Service API",
+    "description": "Authentication, token issuance, and JWT validation for the Neosofia platform. Delegates user authentication to WorkOS; issues RS256-signed JWTs for platform-wide service-to-service and client authentication.",
     "version": "1.0.0",
     "contact": {
-      "name": "PDC Platform Team"
+      "name": "Neosofia Platform Team"
     },
     "license": {
       "name": "Proprietary"
@@ -17,7 +17,7 @@
       "description": "Local development"
     },
     {
-      "url": "https://auth.pdc.local",
+      "url": "https://auth.neosofia.local",
       "description": "Production"
     }
   ],
@@ -292,7 +292,7 @@
         "type": "object",
         "title": "Platform JWT Claims",
         "description": "Standard and custom claims in platform JWT",
-        "required": ["sub", "iss", "iat", "exp", "jti", "pdc:user_type", "pdc:roles"],
+        "required": ["sub", "iss", "iat", "exp", "jti", "neosofia:user_type", "neosofia:roles"],
         "properties": {
           "sub": {
             "type": "string",
@@ -314,19 +314,19 @@
             "type": "string",
             "description": "JWT ID (unique identifier)"
           },
-          "pdc:user_type": {
+          "neosofia:user_type": {
             "type": "string",
             "enum": ["clinician", "patient", "service"],
-            "description": "PDC user type classification"
+            "description": "Neosofia user type classification"
           },
-          "pdc:roles": {
+          "neosofia:roles": {
             "type": "array",
             "items": {
               "type": "string"
             },
             "description": "Array of role strings (e.g., ['care_team', 'supervisor'])"
           },
-          "pdc:tenant_id": {
+          "neosofia:tenant_id": {
             "type": "string",
             "description": "Optional: tenant/organization ID (absent for patient tokens)"
           }

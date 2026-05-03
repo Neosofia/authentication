@@ -33,7 +33,7 @@ class TestIssueToken:
             rsa_keys["public"],
             algorithms=["RS256"],
             issuer="https://auth.test.local",
-            audience="pdc-auth-svc",
+            audience="neosofia-auth-svc",
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         assert claims is not None
@@ -57,16 +57,16 @@ class TestIssueToken:
             rsa_keys["public"],
             algorithms=["RS256"],
             issuer="https://auth.test.local",
-            audience="pdc-auth-svc",
+            audience="neosofia-auth-svc",
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         
         assert claims["sub"] == "usr_123"
         assert claims["iss"] == "https://auth.test.local"
-        assert claims["aud"] == "pdc-auth-svc"
-        assert claims["pdc:user_type"] == "clinician"
-        assert claims["pdc:roles"] == ["clinician"]
-        assert claims["pdc:tenant_id"] == "org_xyz"
+        assert claims["aud"] == "neosofia-auth-svc"
+        assert claims["neosofia:user_type"] == "clinician"
+        assert claims["neosofia:roles"] == ["clinician"]
+        assert claims["neosofia:tenant_id"] == "org_xyz"
         assert "jti" in claims
         assert "iat" in claims
         assert "exp" in claims
@@ -91,7 +91,7 @@ class TestIssueToken:
             rsa_keys["public"],
             algorithms=["RS256"],
             issuer="https://auth.test.local",
-            audience="pdc-auth-svc",
+            audience="neosofia-auth-svc",
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         
@@ -99,7 +99,7 @@ class TestIssueToken:
         uuid.UUID(claims["jti"])
 
     def test_patient_has_no_tenant_claim(self, rsa_keys):
-        """Patient tokens omit pdc:tenant_id claim."""
+        """Patient tokens omit neosofia:tenant_id claim."""
         token = issue_token(
             sub="usr_patient",
             user_type="patient",
@@ -114,12 +114,12 @@ class TestIssueToken:
             rsa_keys["public"],
             algorithms=["RS256"],
             issuer="https://auth.test.local",
-            audience="pdc-auth-svc",
+            audience="neosofia-auth-svc",
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         
-        assert "pdc:tenant_id" not in claims
-        assert claims["pdc:user_type"] == "patient"
+        assert "neosofia:tenant_id" not in claims
+        assert claims["neosofia:user_type"] == "patient"
 
     def test_service_token_empty_roles(self, rsa_keys):
         """Service tokens have empty roles list."""
@@ -137,13 +137,13 @@ class TestIssueToken:
             rsa_keys["public"],
             algorithms=["RS256"],
             issuer="https://auth.test.local",
-            audience="pdc-auth-svc",
+            audience="neosofia-auth-svc",
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         
-        assert claims["pdc:user_type"] == "service"
-        assert claims["pdc:roles"] == []
-        assert "pdc:tenant_id" not in claims
+        assert claims["neosofia:user_type"] == "service"
+        assert claims["neosofia:roles"] == []
+        assert "neosofia:tenant_id" not in claims
 
     def test_ttl_affects_expiry(self, rsa_keys):
         """Different TTL values produce different expiry times."""
@@ -172,7 +172,7 @@ class TestIssueToken:
             rsa_keys["public"],
             algorithms=["RS256"],
             issuer="https://auth.test.local",
-            audience="pdc-auth-svc",
+            audience="neosofia-auth-svc",
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         claims_300 = pyjwt.decode(
@@ -180,7 +180,7 @@ class TestIssueToken:
             rsa_keys["public"],
             algorithms=["RS256"],
             issuer="https://auth.test.local",
-            audience="pdc-auth-svc",
+            audience="neosofia-auth-svc",
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         
@@ -203,11 +203,11 @@ class TestIssueToken:
             rsa_keys["public"],
             algorithms=["RS256"],
             issuer="https://auth.test.local",
-            audience="pdc-auth-svc",
+            audience="neosofia-auth-svc",
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         
-        assert set(claims["pdc:roles"]) == {"clinician", "supervisor", "researcher"}
+        assert set(claims["neosofia:roles"]) == {"clinician", "supervisor", "researcher"}
 
     def test_wrong_key_fails_verification(self, rsa_keys):
         """Token signed with key A fails verification with key B."""

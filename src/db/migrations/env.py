@@ -4,11 +4,7 @@ import os
 from dotenv import load_dotenv
 from alembic import context
 
-from src.env import get_env_file_path
-
-env_path = get_env_file_path()
-if env_path is not None:
-    load_dotenv(env_path)  # loads the selected env file from cwd before anything reads env vars
+load_dotenv()  # no-op in containers where env vars come from the runtime
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from src.db.engine import Base

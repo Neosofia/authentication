@@ -88,6 +88,77 @@ wheels = [
 ]
 
 [[package]]
+name = "authentication"
+version = "0.2.0"
+source = { editable = "." }
+dependencies = [
+    { name = "alembic" },
+    { name = "asyncpg" },
+    { name = "authentication-in-the-middle" },
+    { name = "bcrypt" },
+    { name = "boto3" },
+    { name = "flask" },
+    { name = "flask-limiter" },
+    { name = "flask-talisman" },
+    { name = "flask-wtf" },
+    { name = "gunicorn" },
+    { name = "httpx" },
+    { name = "logenvelope" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "pyjwt" },
+    { name = "python-dotenv" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "workos" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "jsonschema" },
+    { name = "moto" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "requests" },
+    { name = "respx" },
+    { name = "testcontainers" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.13.0" },
+    { name = "asyncpg", specifier = ">=0.29.0" },
+    { name = "authentication-in-the-middle", url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle-0.2.0/authentication_in_the_middle-0.2.0-py3-none-any.whl" },
+    { name = "bcrypt", specifier = ">=4.1.0" },
+    { name = "boto3", specifier = ">=1.34.0" },
+    { name = "flask", specifier = ">=3.0.0" },
+    { name = "flask-limiter", specifier = ">=3.5.0" },
+    { name = "flask-talisman", specifier = ">=1.1.0" },
+    { name = "flask-wtf", specifier = ">=1.2.0" },
+    { name = "gunicorn", specifier = ">=21.2.0" },
+    { name = "httpx", specifier = ">=0.25.0" },
+    { name = "logenvelope", url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.2.0/logenvelope-0.2.0-py3-none-any.whl" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "pydantic-settings", specifier = ">=2.0.0" },
+    { name = "pyjwt", extras = ["cryptography"], specifier = ">=2.8.0" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.0" },
+    { name = "workos", specifier = ">=1.0.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "jsonschema", specifier = ">=4.20.0" },
+    { name = "moto", specifier = ">=4.2.0" },
+    { name = "pytest", specifier = ">=7.4.0" },
+    { name = "pytest-asyncio", specifier = ">=0.21.0" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "requests", specifier = ">=2.33.0" },
+    { name = "respx", specifier = ">=0.21.0" },
+    { name = "testcontainers", specifier = ">=3.7.0" },
+]
+
+[[package]]
 name = "authentication-in-the-middle"
 version = "0.2.0"
 source = { url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle-0.2.0/authentication_in_the_middle-0.2.0-py3-none-any.whl" }
@@ -886,77 +957,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d7/f1/e7a6dd94a8d4a5626c03e4e99c87f241ba9e350cd9e6d75123f992427270/packaging-26.2.tar.gz", hash = "sha256:ff452ff5a3e828ce110190feff1178bb1f2ea2281fa2075aadb987c2fb221661", size = 228134, upload-time = "2026-04-24T20:15:23.917Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl", hash = "sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e", size = 100195, upload-time = "2026-04-24T20:15:22.081Z" },
-]
-
-[[package]]
-name = "pdc-authentication"
-version = "0.1.6"
-source = { editable = "." }
-dependencies = [
-    { name = "alembic" },
-    { name = "asyncpg" },
-    { name = "authentication-in-the-middle" },
-    { name = "bcrypt" },
-    { name = "boto3" },
-    { name = "flask" },
-    { name = "flask-limiter" },
-    { name = "flask-talisman" },
-    { name = "flask-wtf" },
-    { name = "gunicorn" },
-    { name = "httpx" },
-    { name = "logenvelope" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "pyjwt" },
-    { name = "python-dotenv" },
-    { name = "sqlalchemy", extra = ["asyncio"] },
-    { name = "workos" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "jsonschema" },
-    { name = "moto" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "requests" },
-    { name = "respx" },
-    { name = "testcontainers" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "alembic", specifier = ">=1.13.0" },
-    { name = "asyncpg", specifier = ">=0.29.0" },
-    { name = "authentication-in-the-middle", url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle-0.2.0/authentication_in_the_middle-0.2.0-py3-none-any.whl" },
-    { name = "bcrypt", specifier = ">=4.1.0" },
-    { name = "boto3", specifier = ">=1.34.0" },
-    { name = "flask", specifier = ">=3.0.0" },
-    { name = "flask-limiter", specifier = ">=3.5.0" },
-    { name = "flask-talisman", specifier = ">=1.1.0" },
-    { name = "flask-wtf", specifier = ">=1.2.0" },
-    { name = "gunicorn", specifier = ">=21.2.0" },
-    { name = "httpx", specifier = ">=0.25.0" },
-    { name = "logenvelope", url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.2.0/logenvelope-0.2.0-py3-none-any.whl" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pydantic-settings", specifier = ">=2.0.0" },
-    { name = "pyjwt", extras = ["cryptography"], specifier = ">=2.8.0" },
-    { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.0" },
-    { name = "workos", specifier = ">=1.0.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "jsonschema", specifier = ">=4.20.0" },
-    { name = "moto", specifier = ">=4.2.0" },
-    { name = "pytest", specifier = ">=7.4.0" },
-    { name = "pytest-asyncio", specifier = ">=0.21.0" },
-    { name = "pytest-cov", specifier = ">=7.0.0" },
-    { name = "requests", specifier = ">=2.33.0" },
-    { name = "respx", specifier = ">=0.21.0" },
-    { name = "testcontainers", specifier = ">=3.7.0" },
 ]
 
 [[package]]

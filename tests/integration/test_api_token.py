@@ -109,21 +109,21 @@ class TestTokenSessionGrantIntegration:
             rsa_keys["public"],
             algorithms=["RS256"],
             issuer=jwt_issuer,
-            audience="pdc-auth-svc",
+            audience="neosofia-auth-svc",
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         
         assert claims["sub"] == "usr_abc"
         assert claims["iss"] == jwt_issuer
-        assert claims["aud"] == "pdc-auth-svc"
-        assert claims["pdc:user_type"] == "clinician"
-        assert claims["pdc:roles"] == ["clinician"]
-        assert claims["pdc:tenant_id"] == "org_xyz"
+        assert claims["aud"] == "neosofia-auth-svc"
+        assert claims["neosofia:user_type"] == "clinician"
+        assert claims["neosofia:roles"] == ["clinician"]
+        assert claims["neosofia:tenant_id"] == "org_xyz"
         assert "jti" in claims
         assert "exp" in claims
 
     def test_patient_has_no_tenant_claim(self, client, rsa_keys, jwt_issuer):
-        """Patient tokens (no org) must not have pdc:tenant_id."""
+        """Patient tokens (no org) must not have neosofia:tenant_id."""
         mock_wos = _workos_auth_mock(user_id="usr_patient", role=None, org_id=None)
         
         with patch("src.routes.api.workos_client", mock_wos):
@@ -136,12 +136,12 @@ class TestTokenSessionGrantIntegration:
             rsa_keys["public"],
             algorithms=["RS256"],
             issuer=jwt_issuer,
-            audience="pdc-auth-svc",
+            audience="neosofia-auth-svc",
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         
-        assert claims["pdc:user_type"] == "patient"
-        assert "pdc:tenant_id" not in claims
+        assert claims["neosofia:user_type"] == "patient"
+        assert "neosofia:tenant_id" not in claims
 
     def test_workos_timeout_returns_503(self, client):
         """WorkOS timeout should return 503."""
@@ -238,7 +238,7 @@ class TestMeEndpoint:
         assert resp.status_code == 200
         claims = resp.get_json()
         assert claims["sub"] == "usr_test"
-        assert claims["pdc:user_type"] == "clinician"
+        assert claims["neosofia:user_type"] == "clinician"
 
     def test_me_rejects_expired_jwt(self, client, rsa_keys, jwt_issuer):
         """Expired JWT should return 401."""
@@ -247,7 +247,7 @@ class TestMeEndpoint:
         expired_claims = {
             "sub": "usr_test",
             "iss": jwt_issuer,
-            "aud": "pdc-auth-svc",
+            "aud": "neosofia-auth-svc",
             "iat": int(time.time()) - 7200,  # issued 2 hours ago
             "exp": int(time.time()) - 3600,  # 1 hour ago
         }
@@ -285,7 +285,7 @@ class TestMeEndpoint:
         claims = {
             "sub": "usr_test",
             "iss": jwt_issuer,
-            "aud": "pdc-auth-svc",
+            "aud": "neosofia-auth-svc",
             "iat": int(time.time()),
             "exp": int(time.time()) + 3600,
         }

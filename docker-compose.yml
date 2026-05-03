@@ -1,17 +1,17 @@
 services:
   auth-postgres:
     image: postgres:16
-    container_name: pdc-auth-postgres
+    container_name: auth-postgres
     environment:
-      POSTGRES_DB: pdc_auth
-      POSTGRES_USER: pdc
+      POSTGRES_DB: auth
+      POSTGRES_USER: auth
       POSTGRES_PASSWORD: dev_only
     ports:
       - "5014:5432"
     volumes:
       - auth_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pdc -d pdc_auth"]
+      test: ["CMD-SHELL", "pg_isready -U auth -d auth"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -20,9 +20,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: pdc-authentication
+    container_name: authentication
     env_file:
-      - path: ../pdc/services/authentication/.dev.env
+      - path: .env
         required: false
     environment:
       ENV: development

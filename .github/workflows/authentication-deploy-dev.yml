@@ -5,7 +5,7 @@
 #
 # How it works:
 #   The deploy job runs on the self-hosted GitHub Actions runner registered
-#   inside CT 120 (label: pdc-auth). The runner polls GHA outbound — no
+#   inside CT 120 (label: authentication). The runner polls GHA outbound — no
 #   inbound firewall holes required. It:
 #     1. Pulls the tagged image from GHCR (runner already inside the CT)
 #     2. Retags to :latest (docker-compose.cloud.yml sets pull_policy: never)
@@ -23,7 +23,7 @@
 #   GHCR_USER    — GitHub username that owns the PAT
 #
 # Note: secrets are NOT needed for deployment because the runner runs inside
-# the CT as root and has direct access to Docker and /etc/pdc-auth/aws.env.
+# the CT as root and has direct access to Docker and /etc/authentication/aws.env.
 
 name: authentication-deploy-dev
 
