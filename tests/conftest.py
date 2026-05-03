@@ -14,7 +14,6 @@ import jwt as pyjwt
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from testcontainers.postgres import PostgresContainer
 
 # Must be set before any src.* import so extensions.py and main.py can init.
 os.environ.setdefault("CSRF_SECRET_KEY", "test-csrf-secret-key-32-chars-ok!")
@@ -42,14 +41,6 @@ def rsa_keys():
         serialization.PublicFormat.SubjectPublicKeyInfo,
     ).decode()
     return {"private": private_pem, "public": public_pem}
-
-
-@pytest.fixture(scope="session")
-def postgres_container():
-    """Spin up a real PostgreSQL container for integration tests."""
-    container = PostgresContainer(image="postgres:18-alpine", user="test", password="test", dbname="test_db")
-    with container as postgres:
-        yield postgres
 
 
 @pytest.fixture(scope="session")
@@ -167,6 +158,16 @@ def log_capture():
 
 
 @pytest.fixture
+def mock_session():
+    """Return (session_factory, mock_db) — patch src.routes.api.SessionLocal with session_factory."""
+    mock_db = MagicMock()
+    mock_cm = MagicMock()
+    mock_cm.__enter__.return_value = mock_db
+    mock_cm.__exit__.return_value = False
+    return MagicMock(return_value=mock_cm), mock_db
+
+
+@pytest.fixture
 def mock_workos_auth():
     """
     Factory fixture that creates a mocked WorkOS session for contract and integration tests.
@@ -231,11 +232,4 @@ def schemas():
     # Extract schemas from components/schemas
     return openapi_spec.get("components", {}).get("schemas", {})
 
-
-# ── Fixture decorators for test categorization ────────────────────────────────
-
-def pytest_configure(config):
-    """Register custom markers for test pyramid levels."""
-    config.addinivalue_line("markers", "unit: mark test as a unit test")
-    config.addinivalue_line("markers", "integration: mark test as an integration test")
     config.addinivalue_line("markers", "contract: mark test as a contract test")

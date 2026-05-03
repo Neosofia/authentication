@@ -69,19 +69,6 @@ def test_health(live_server):
     assert resp.json() == {"status": "ok"}
 
 
-def test_openapi_spec_is_served(live_server):
-    """GET /api/openapi.json must return a valid JSON document with the
-    expected top-level OpenAPI fields, proving the spec was loaded and Gunicorn
-    is routing correctly.
-    """
-    resp = requests.get(f"{live_server}/api/openapi.json", timeout=5)
-    assert resp.status_code == 200
-    spec = resp.json()
-    assert "openapi" in spec
-    assert "info" in spec
-    assert "paths" in spec
-
-
 def test_unauthenticated_me_returns_401(live_server):
     """GET /api/me without a token must return 401, proving auth middleware
     is active and the request traversed the full application stack.

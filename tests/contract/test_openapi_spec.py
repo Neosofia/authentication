@@ -20,9 +20,9 @@ def _get_openapi_3_0_0_schema():
         return json.load(f)
 
 
-@pytest.mark.integration
-class TestOpenAPIEndpoint:
-    """Tests for GET /api/openapi.json endpoint."""
+@pytest.mark.contract
+class TestOpenAPIContract:
+    """Tests for the static openapi.json contract file."""
 
     def test_openapi_spec_conforms_to_openapi_3_0_schema(self, client):
         """
@@ -36,10 +36,10 @@ class TestOpenAPIEndpoint:
         
         Ref: https://spec.openapis.org/oas/3.0/schema/json
         """
-        resp = client.get("/api/openapi.json")
-        assert resp.status_code == 200
-        spec = resp.get_json()
-        
+        openapi_file = pathlib.Path(__file__).parent.parent.parent / "openapi.json"
+        with open(openapi_file) as f:
+            spec = json.load(f)
+
         # Load shared OpenAPI 3.0.0 schema
         openapi_schema = _get_openapi_3_0_0_schema()
         

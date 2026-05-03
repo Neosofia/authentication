@@ -244,22 +244,3 @@ def health():
         return jsonify({"status": "error", "detail": "database unavailable"}), 503
 
 
-@bp.route("/openapi.json", methods=["GET"])
-@csrf.exempt
-def openapi_spec():
-    """
-    Serve OpenAPI 3.0 specification for this service.
-    
-    Spec is loaded once at startup and cached in memory for efficiency.
-    
-    Ref: ADR-0008 (Published JSON Schema Contracts for API Testing), OpenAPI 3.0 spec
-    """
-    try:
-        spec = _load_openapi_spec()
-        return jsonify(spec), 200
-    except FileNotFoundError as e:
-        log_event("openapi_spec_missing", error_class=type(e).__name__)
-        return jsonify({"error": "OpenAPI specification not found"}), 500
-    except (json.JSONDecodeError, IOError) as e:
-        log_event("openapi_spec_load_error", error_class=type(e).__name__)
-        return jsonify({"error": "failed to load OpenAPI specification"}), 500
