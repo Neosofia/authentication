@@ -10,7 +10,7 @@ After completing the steps here, choose your path in [§4](#4-choose-your-path).
 | Tool | Purpose | Install |
 |------|---------|---------|
 | Docker Desktop | Container runtime | [docs.docker.com](https://docs.docker.com/get-docker/) |
-| `uv` | Python package manager | [ADR-0005](../../architecture/structurizr/decisions/0005-use-uv-for-python-package-management.md) |
+| `uv` | Python package manager | [ADR-0005](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0005-use-uv-for-python-package-management.md) |
 | `openssl` | Secret generation | ships with macOS / most Linux distros |
 
 Install Python dependencies:

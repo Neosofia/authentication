@@ -22,7 +22,7 @@ For product owners, architects, and new contributors, the [feature spec](../../s
 
 ### Governance & Architecture Decisions
 
-For architects and senior engineers, the [project constitution](../../.specify/memory/constitution.md) captures the non-negotiable principles that apply across the whole platform. [ADR-0007](../../architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md) records the decision to delegate all authentication to WorkOS rather than implement it in-house, and [ADR-0008](../../architecture/structurizr/decisions/0008-published-json-schema-contracts-for-api-testing.md) establishes the published JSON Schema contract approach used for API testing across services.
+For architects and senior engineers, the [project constitution](https://github.com/Neosofia/cdp/blob/main/.specify/memory/constitution.md) captures the non-negotiable principles that apply across the whole platform. [ADR-0007](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md) records the decision to delegate all authentication to WorkOS rather than implement it in-house, and [ADR-0008](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0008-published-json-schema-contracts-for-api-testing.md) establishes the published JSON Schema contract approach used for API testing across services.
 
 ### External References
 
