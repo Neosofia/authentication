@@ -134,7 +134,7 @@ GHA_RUNNER_TOKEN=<token>            # Org-level runner registration token
                                     # Generate: GitHub → neosofia org → Settings → Actions → Runners → New runner
 ```
 
-You can override the path at call time: `OPS_ENV=/other/path ./proxmox/create-ct.sh ...`
+You can override the path at call time: `OPS_ENV=/other/path ./private-cloud/containers/create-ct.sh ...`
 
 ---
 
@@ -148,8 +148,8 @@ The dev environment is managed with shell scripts. No Tofu, no AWS state.
 
 ```bash
 cd <neosofia-infrastructure-folder>
-./proxmox/create-ct.sh authentication <ctid> <ip-cidr>
-# e.g. ./proxmox/create-ct.sh authentication 121 10.0.0.121/10
+./private-cloud/containers/create-ct.sh authentication <ctid> <ip-cidr>
+# e.g. ./private-cloud/containers/create-ct.sh authentication 121 10.0.0.121/10
 ```
 
 Provisions an unprivileged Debian 13 CT: 2 vCPU, 4 GiB RAM, 20 GiB rootfs,
@@ -169,7 +169,7 @@ $EDITOR .env             # fill in WORKOS_CLIENT_ID, WORKOS_API_KEY, PUBLIC_BASE
 
 # 2. Push to the CT
 cd ~/projects/neosofia/infrastructure
-bash scripts/seed-ct-env.sh authentication ${DEV_CTID} ~/projects/neosofia/authentication/.env
+bash private-cloud/containers/seed-ct-env.sh authentication ${DEV_CTID} ~/projects/neosofia/authentication/.env
 ```
 
 **Step 3 — Trigger the first deploy** (push a CalVer tag)
@@ -257,7 +257,7 @@ Secrets live in the shared secrets service. To rotate, update the secret then re
 ```bash
 # Re-seed updated secrets then restart the service
 cd ~/projects/neosofia/infrastructure
-bash scripts/seed-ct-env.sh authentication ~/projects/neosofia/authentication/.env
+bash private-cloud/containers/seed-ct-env.sh authentication ~/projects/neosofia/authentication/.env
 
 ssh $PVE_HOST "pct exec $DEV_CTID -- bash -c '
   docker compose -f /opt/actions-runner/_work/authentication/authentication/docker-compose.yml \
