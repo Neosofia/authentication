@@ -83,7 +83,7 @@ def create_app(config: dict | None = None) -> Flask:
 app = create_app()
 
 if __name__ == "__main__":
-    port = int(os.getenv("AUTHENTICATION_PORT", 8014))
+    port = int(os.getenv("PORT", 8014))
     debug = os.getenv("ENV", "production").lower() == "development"
     app.run(debug=debug, port=port)
 
