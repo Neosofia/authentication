@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     database_url: str = ""
     jwt_private_key_pem: str = ""
     jwt_public_key_pem: str = ""
+    jwt_claim_namespace: str = "neosofia"
     jwt_issuer: str = "https://auth.neosofia.local"
     access_token_ttl_secs: int = 900   # 15 minutes
     machine_token_ttl_secs: int = 300  # 5 minutes

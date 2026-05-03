@@ -57,6 +57,7 @@ async def issue_machine_token(
         ttl_secs=settings.machine_token_ttl_secs,
         private_key_pem=settings.jwt_private_key_pem,
         issuer=settings.jwt_issuer,
+        claim_namespace=settings.jwt_claim_namespace,
     )
     log_event("machine_token_issued", service=service_name)
     return token

@@ -92,6 +92,9 @@ def make_jwt(rsa_keys, jwt_issuer):
     Returns a factory that creates signed platform JWTs using the test keypair.
     Keyword args mirror the platform JWT claim set.
     """
+    from src.config import settings
+    ns = settings.jwt_claim_namespace
+
     def _factory(
         *,
         sub: str = "usr_test",
@@ -108,11 +111,11 @@ def make_jwt(rsa_keys, jwt_issuer):
             "iat": now,
             "exp": now + exp_offset,
             "jti": str(uuid.uuid4()),
-            "neosofia:user_type": user_type,
-            "neosofia:roles": roles if roles is not None else [user_type],
+            f"{ns}:user_type": user_type,
+            f"{ns}:roles": roles if roles is not None else [user_type],
         }
         if tenant_id:
-            claims["neosofia:tenant_id"] = tenant_id
+            claims[f"{ns}:tenant_id"] = tenant_id
         return pyjwt.encode(claims, rsa_keys["private"], algorithm="RS256")
 
     return _factory

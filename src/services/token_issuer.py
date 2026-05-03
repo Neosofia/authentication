@@ -16,6 +16,7 @@ def issue_token(
     ttl_secs: int,
     private_key_pem: str,
     issuer: str,
+    claim_namespace: str = "neosofia",
 ) -> str:
     """
     Sign and return a compact RS256 platform JWT.
@@ -26,13 +27,18 @@ def issue_token(
       aud            — intended audience (audience claim for security)
       iat / exp      — issued-at and expiry (epoch seconds)
       jti            — UUID v4 for replay detection
-      neosofia:user_type  — clinician | patient | machine
-      neosofia:roles      — list of roles (mirrors user_type for humans)
-      neosofia:tenant_id  — org ID (omitted for patients and machine credentials)
-    
+      {ns}:user_type  — clinician | patient | machine
+      {ns}:roles      — list of roles (mirrors user_type for humans)
+      {ns}:tenant_id  — org ID (omitted for patients and machine credentials)
+
+    The claim namespace prefix (default "neosofia") is set via the
+    JWT_CLAIM_NAMESPACE env var, allowing forks to use their own namespace
+    without code changes.
+
     Ref: RFC 7519 (JWT Claims), Constitution §VII (stateless validation)
     """
     now = int(datetime.now(timezone.utc).timestamp())
+    ns = claim_namespace
     claims: dict = {
         "sub": sub,
         "iss": issuer,
@@ -40,10 +46,10 @@ def issue_token(
         "iat": now,
         "exp": now + ttl_secs,
         "jti": str(uuid.uuid4()),
-        "neosofia:user_type": user_type,
-        "neosofia:roles": roles,
+        f"{ns}:user_type": user_type,
+        f"{ns}:roles": roles,
     }
     if tenant_id:
-        claims["neosofia:tenant_id"] = tenant_id
+        claims[f"{ns}:tenant_id"] = tenant_id
 
     return jwt.encode(claims, private_key_pem, algorithm="RS256")

@@ -120,6 +120,7 @@ def _handle_session_grant():
             ttl_secs=settings.access_token_ttl_secs,
             private_key_pem=settings.jwt_private_key_pem,
             issuer=settings.jwt_issuer,
+            claim_namespace=settings.jwt_claim_namespace,
         )
         log_event("platform_token_issued", user_id=sub, user_type=claims["user_type"])
         return jsonify({
