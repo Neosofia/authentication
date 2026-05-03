@@ -77,22 +77,27 @@ The test suite uses pytest with mocked external dependencies (WorkOS, Postgres).
 **On the host (fastest):**
 
 ```bash
-uv run pytest tests/ -v
+SCHEMAS_DIR=../schemas uv run pytest tests/ -v
 
 # Specific layer
-uv run pytest tests/unit/ -v
-uv run pytest tests/integration/ -v
-uv run pytest tests/contract/ -v
+SCHEMAS_DIR=../schemas uv run pytest tests/unit/ -v
+SCHEMAS_DIR=../schemas uv run pytest tests/integration/ -v
+SCHEMAS_DIR=../schemas uv run pytest tests/contract/ -v
 
 # Specific test
-uv run pytest tests/unit/test_api_routes.py::TestCSRFExemption -v
+SCHEMAS_DIR=../schemas uv run pytest tests/unit/test_api_routes.py::TestCSRFExemption -v
 ```
 
 **Container integration tests (builds the image, spins up Postgres + authentication):**
 
 ```bash
-uv run pytest tests/integration/test_container.py -v --no-cov -s
+# First run or after any src/ change — force a clean image rebuild to avoid stale layer cache
+docker build --no-cache -t authentication-authentication .
+
+SCHEMAS_DIR=../schemas uv run pytest tests/integration/test_container.py -v --no-cov
 ```
+
+> The `--build` flag used by the test fixture reuses Docker layer cache. Run `docker build --no-cache` whenever `src/` changes so the container image is up to date before running these tests.
 
 ---
 

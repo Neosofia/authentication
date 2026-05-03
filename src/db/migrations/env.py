@@ -1,12 +1,9 @@
 import asyncio
-import os
 
-from dotenv import load_dotenv
 from alembic import context
-
-load_dotenv()  # no-op in containers where env vars come from the runtime
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from src.config import settings
 from src.db.engine import Base
 
 # Import all models so their tables are registered on Base.metadata
@@ -21,16 +18,9 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-def get_url() -> str:
-    url = os.getenv("DATABASE_URL", "")
-    if not url:
-        raise ValueError("DATABASE_URL environment variable is required")
-    return url
-
-
 def run_migrations_offline() -> None:
     context.configure(
-        url=get_url(),
+        url=settings.database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -46,7 +36,7 @@ def do_run_migrations(connection):
 
 
 async def run_async_migrations() -> None:
-    engine = create_async_engine(get_url())
+    engine = create_async_engine(settings.database_url)
     async with engine.begin() as conn:
         await conn.run_sync(do_run_migrations)
     await engine.dispose()
