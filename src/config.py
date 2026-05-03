@@ -100,7 +100,7 @@ def _build_settings() -> Settings:
         # to override individual keys.
         for key, value in sm_values.items():
             os.environ.setdefault(key, str(value))
-    return Settings()
+    return Settings()  # type: ignore[call-arg]
 
 
 # Module-level singleton — loaded once at import time.
