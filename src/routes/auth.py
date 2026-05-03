@@ -169,8 +169,7 @@ def callback():
         # Log error class and message for debugging (allows distinguishing error types)
         log_event(
             "callback_error",
-            error_class=e.__class__.__name__,
-            reason=str(e)[:200],
+            error_class=type(e).__name__,
             method="workos",
         )
         response = make_response(redirect(url_for("auth.login")))
@@ -207,7 +206,7 @@ def logout():
         return response
 
     except Exception as e:
-        log_event("logout_failure", reason=str(e))
+        log_event("logout_failure", error_class=type(e).__name__)
         response = make_response(redirect(url_for("ui.index")))
         response.delete_cookie("wos_session")
         return response
@@ -282,5 +281,5 @@ def jwks():
         response.headers["Cache-Control"] = "public, max-age=3600"
         return response
     except Exception as e:
-        log_event("jwks_error", reason=str(e))
+        log_event("jwks_error", error_class=type(e).__name__)
         return jsonify({"error": "failed to build JWKS"}), 500

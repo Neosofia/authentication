@@ -101,9 +101,9 @@ def _handle_session_grant():
         if not auth_response.authenticated:
             return jsonify({"error": "session invalid or expired"}), 401
     except Exception as e:
-        err = str(e).lower()
-        if any(w in err for w in ("timeout", "connect", "network", "unreachable", "connection")):
-            log_event("workos_unavailable", reason=str(e))
+        exc_name = type(e).__name__
+        if any(w in exc_name.lower() + type(e).__module__.lower() + str(e).lower() for w in ("timeout", "connect", "network", "unreachable", "connection")):
+            log_event("workos_unavailable", error_class=exc_name)
             return jsonify({"error": "authentication provider unavailable"}), 503
         raise
 
@@ -129,7 +129,7 @@ def _handle_session_grant():
             "expires_in": settings.access_token_ttl_secs,
         })
     except Exception as e:
-        log_event("platform_token_error", reason=str(e))
+        log_event("platform_token_error", error_class=type(e).__name__)
         return jsonify({"error": "token issuance failed"}), 500
 
 
@@ -169,7 +169,7 @@ def _handle_client_credentials():
     except InvalidClientError:
         return jsonify({"error": "invalid_client"}), 401
     except Exception as e:
-        log_event("machine_token_error", reason=str(e))
+        log_event("machine_token_error", error_class=type(e).__name__)
         return jsonify({"error": "token issuance failed"}), 500
 
 
@@ -259,7 +259,7 @@ def health():
         log_event("health_check_failed", reason="database timeout")
         return jsonify({"status": "error", "detail": "database timeout"}), 503
     except Exception as e:
-        log_event("health_check_failed", reason=str(e))
+        log_event("health_check_failed", error_class=type(e).__name__)
         return jsonify({"status": "error", "detail": "database unavailable"}), 503
 
 
@@ -277,8 +277,8 @@ def openapi_spec():
         spec = _load_openapi_spec()
         return jsonify(spec), 200
     except FileNotFoundError as e:
-        log_event("openapi_spec_missing", error=str(e))
+        log_event("openapi_spec_missing", error_class=type(e).__name__)
         return jsonify({"error": "OpenAPI specification not found"}), 500
     except (json.JSONDecodeError, IOError) as e:
-        log_event("openapi_spec_load_error", error=str(e))
+        log_event("openapi_spec_load_error", error_class=type(e).__name__)
         return jsonify({"error": "failed to load OpenAPI specification"}), 500

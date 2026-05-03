@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "authentication"
-version = "0.3.0"
+version = "0.3.1"
 description = "Neosofia Authentication Service — token issuance and introspection"
 requires-python = ">=3.12"
 authors = [{ name = "Neosofia", email = "platform@neosofia.com" }]
@@ -17,7 +17,6 @@ dependencies = [
     "workos>=1.0.0",
     "sqlalchemy[asyncio]>=2.0.0",
     "asyncpg>=0.29.0",
-    "psycopg2-binary>=2.9.0",
     "alembic>=1.13.0",
     "pyjwt[cryptography]>=2.8.0",
     "bcrypt>=4.1.0",

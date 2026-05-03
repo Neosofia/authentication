@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     access_token_ttl_secs: int = 900   # 15 minutes
     machine_token_ttl_secs: int = 300  # 5 minutes
     port: int = 8014
+    trusted_proxy_hops: int = 1  # set to 0 in tests; increase for CDN + load balancer topologies
     web_concurrency: int = 2
     gunicorn_threads: int = 2
     gunicorn_timeout: int = 30

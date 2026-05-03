@@ -1,6 +1,12 @@
 name: authentication-ci
 
 on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
   workflow_call:
     secrets:
       CODECOV_TOKEN:
