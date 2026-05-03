@@ -25,7 +25,7 @@ services:
       # POSTGRES_PASSWORD comes from env_file above
     ports: []                              # not exposed outside the compose network
     volumes:
-      - /var/lib/authentication/postgres:/var/lib/postgresql/data
+      - /var/lib/authentication/postgres:/var/lib/postgresql
 
   authentication:
     build: ~                              # suppress local build — use pre-built image

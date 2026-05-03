@@ -47,7 +47,7 @@ def rsa_keys():
 @pytest.fixture(scope="session")
 def postgres_container():
     """Spin up a real PostgreSQL container for integration tests."""
-    container = PostgresContainer(image="postgres:16-alpine", user="test", password="test", dbname="test_db")
+    container = PostgresContainer(image="postgres:18-alpine", user="test", password="test", dbname="test_db")
     with container as postgres:
         yield postgres
 

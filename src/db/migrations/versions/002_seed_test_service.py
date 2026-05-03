@@ -38,7 +38,7 @@ def upgrade() -> None:
                   active = true
             """
         ).bindparams(
-            uuid=uuid.uuid4(),
+            uuid=uuid.uuid7(),
             service_name=SERVICE_NAME,
             hashed_secret=_HASHED,
         )

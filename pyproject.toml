@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "authentication"
 version = "0.3.1"
 description = "Neosofia Authentication Service — token issuance and introspection"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 authors = [{ name = "Neosofia", email = "platform@neosofia.com" }]
 
 dependencies = [

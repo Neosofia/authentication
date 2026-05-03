@@ -16,7 +16,7 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "machine_credentials",
-        sa.Column("client_uuid", sa.UUID(), nullable=False, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("client_uuid", sa.UUID(), nullable=False, server_default=sa.text("uuidv7()")),
         sa.Column("service_name", sa.Text(), nullable=False),
         sa.Column("hashed_secret", sa.Text(), nullable=False),
         sa.Column("active", sa.Boolean(), nullable=False, server_default=sa.true()),
