@@ -1,6 +1,6 @@
 # Authentication Service — Security Posture
 
-This document describes the security posture of the PDC Authentication Service — the system of record for human and machine identity, token issuance, and session lifecycle for the entire PDC platform. Because every other service trusts JWTs minted here, the threat model for this service is one of the strictest in the codebase.
+This document describes the security posture of the Authentication Service — the system of record for human and machine identity, token issuance, and session lifecycle for the Neosofia platform. Because every other service trusts JWTs minted here, the threat model for this service is one of the strictest in the codebase.
 
 To report any security related issue please email security@neosofia.tech -- do not create an issue.
 
@@ -42,7 +42,7 @@ We delegate identity verification to **WorkOS AuthKit** (a HIPAA-eligible identi
 └──────┬──────────────┬────────────────────────────────┘
        │              │
        ▼              ▼
-  PostgreSQL     Other PDC services
+  PostgreSQL     Other services
   (machine       (validate JWTs offline
    credentials)   via cached JWKS)
 ```
@@ -63,12 +63,12 @@ Controls are grouped by the risk domain they address. Every control listed below
 - **Delegated identity provider (WorkOS AuthKit)** — passwords, MFA, federation, account lockout, and user lifecycle are owned by a HIPAA-eligible identity platform. We are a relying party, not a credential store. ([ADR-0007](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md))
 - **OAuth 2.0 `state` parameter** ([RFC 6819 §4.4.1.8](https://datatracker.ietf.org/doc/html/rfc6819#section-4.4.1.8)) — a 32-byte cryptographic random value is generated at `/login`, bound to a `HttpOnly`/`Secure`/`SameSite=Lax` cookie with a 5-minute TTL, and verified at `/callback`. Mismatch logs `oauth_state_mismatch` and aborts the flow, defeating OAuth CSRF and session-fixation attacks ([CWE-352](https://cwe.mitre.org/data/definitions/352.html), [CWE-384](https://cwe.mitre.org/data/definitions/384.html)).
 - **PKCE** ([RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)) — a 128-character code verifier is generated alongside `state`; its SHA-256 challenge is sent to WorkOS with `code_challenge_method=S256`, and the verifier is cookie-stored for the callback. Protects against authorization-code interception even if TLS is compromised.
-- **User-type allow-list** — `VALID_USER_TYPES = frozenset({"clinician", "patient"})` with a strict `WORKOS_ROLE_TO_PDC_TYPE` mapping. Unknown roles or user types are rejected fail-closed, preventing privilege escalation via provider-side role injection.
+- **User-type allow-list** — `VALID_USER_TYPES = frozenset({"clinician", "patient"})` with a strict `WORKOS_ROLE_TO_USER_TYPE` mapping. Unknown roles or user types are rejected fail-closed, preventing privilege escalation via provider-side role injection.
 
 ### 3.2 Token Issuance & Validation
 
 - **Asymmetric signing (RS256)** — all platform JWTs are signed with a 2048-bit RSA private key. The private key lives only in env vars; the public key is published at `/.well-known/jwks.json` ([RFC 7517](https://datatracker.ietf.org/doc/html/rfc7517)) for offline validation by other services. No HS256 / shared-secret tokens exist anywhere in the platform.
-- **Issuer + audience claims** — every token contains `iss = "https://auth.pdc.local"` and `aud = "pdc-auth-svc"`. `/api/me` requires `["exp", "iat", "iss", "sub", "aud"]` via `pyjwt.decode(..., options={"require": [...]})`, preventing cross-service token replay ([CWE-347](https://cwe.mitre.org/data/definitions/347.html)).
+- **Issuer + audience claims** — every token contains `iss = "https://auth.neosofia.local"` and `aud = "neosofia-auth-svc"`. `/api/me` requires `["exp", "iat", "iss", "sub", "aud"]` via `pyjwt.decode(..., options={"require": [...]})`, preventing cross-service token replay ([CWE-347](https://cwe.mitre.org/data/definitions/347.html)).
 - **Short-lived tokens** — human JWTs expire in 15 minutes, machine JWTs in 5. No refresh tokens issued by this service; re-issuance requires a valid sealed WorkOS session cookie.
 - **RFC 7638 JWK Thumbprint as `kid`** — the `kid` in the published JWKS is the base64url-encoded SHA-256 hash of the canonical JSON representation of the key, per [RFC 7638](https://datatracker.ietf.org/doc/html/rfc7638). Stable across deploys and doesn't leak modulus bits.
 
@@ -116,7 +116,7 @@ Per-node rate limiting via [Flask-Limiter](https://flask-limiter.readthedocs.io/
 
 ### 3.8 Observability & Audit
 
-- **Structured JSON logs ([ADR-0009](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0009-structured-json-logging-with-schema-validation.md))** — every security-relevant event (`login_initiated`, `authentication_success`, `oauth_state_mismatch`, `machine_auth_failure`, `session_revoked`, …) emits JSON validated against [schemas/log.json](https://github.com/Neosofia/cdp/blob/main/schemas/log.json) at CI time.
+- **Structured JSON logs ([ADR-0009](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0009-structured-json-logging-with-schema-validation.md))** — every security-relevant event (`login_initiated`, `authentication_success`, `oauth_state_mismatch`, `machine_auth_failure`, `session_revoked`, …) emits JSON validated against [schemas/log.json](https://github.com/Neosofia/schemas/blob/main/log-v1.0.0.json) at CI time.
 - **No PHI / PII in logs (Constitution §I)** — only opaque WorkOS user IDs (e.g. `user_01KPMY3Q...`). No emails, names, DOBs, or phone numbers appear in any log event.
 - **Error class preserved on callback failures** — `/callback` exceptions log `error_class` (the exception class name) and a truncated message, distinguishing WorkOS failures from unexpected application errors without leaking stack traces to clients.
 - **SIEM integration (TBD)** — the structured JSON log format is designed for ingestion by a SIEM (e.g. Splunk, Elastic SIEM, AWS Security Lake). Schema-validated events with consistent `event_type` fields enable correlation rules for brute-force detection, anomalous login patterns, and token misuse across services.
@@ -175,7 +175,6 @@ Per-node rate limiting via [Flask-Limiter](https://flask-limiter.readthedocs.io/
 
 - [ADR-0007: Never roll your own authentication](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md)
 - [ADR-0009: Structured JSON logging with schema validation](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0009-structured-json-logging-with-schema-validation.md)
-- [Spec 014: Authentication Service](https://github.com/Neosofia/cdp/blob/main/specs/014-authentication-service/spec.md)
 - [Constitution](https://github.com/Neosofia/cdp/blob/main/.specify/memory/constitution.md)
 - [OWASP ASVS v4.0.3](https://owasp.org/www-project-application-security-verification-standard/)
 - [NIST SP 800-63B: Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html)

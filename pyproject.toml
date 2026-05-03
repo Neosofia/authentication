@@ -3,11 +3,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pdc-authentication"
-version = "0.2.0"
-description = "PDC Authentication Service - Token issuance and introspection"
+name = "authentication"
+version = "0.2.1"
+description = "Neosofia Authentication Service — token issuance and introspection"
 requires-python = ">=3.12"
-authors = [{ name = "PDC Team", email = "platform@pdc.local" }]
+authors = [{ name = "Neosofia", email = "platform@neosofia.com" }]
 
 dependencies = [
     "flask>=3.0.0",
