@@ -17,7 +17,7 @@ The service is designed and audited against the following bodies of work:
 | **Healthcare Compliance** | [HIPAA Security Rule §164.312](https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312) (audit, integrity, transmission security); no PHI in logs per internal Constitution §I |
 | **Transport Security** | [TLS 1.2+](https://datatracker.ietf.org/doc/html/rfc5246) (enforced at ingress); [HSTS](https://datatracker.ietf.org/doc/html/rfc6797) (1 year, includeSubDomains) |
 | **Identity Guidelines** | [NIST SP 800-63B](https://pages.nist.gov/800-63-3/sp800-63b.html) (Digital Identity — Authentication & Lifecycle) |
-| **Internal Governance** | [Constitution §I](https://github.com/Neosofia/cdp/blob/main/.specify/memory/constitution.md) (no PHI/PII in logs), §VII (stateless), §VIII (defense in depth); [ADR-0007](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md) (never roll your own authentication) |
+| **Internal Governance** | [Constitution §I](https://github.com/Neosofia/cdp/blob/main/architecture/constitution.md) (no PHI/PII in logs), §VII (stateless), §VIII (defense in depth); [ADR-0007](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md) (never roll your own authentication) |
 
 We delegate identity verification to **WorkOS AuthKit** (a HIPAA-eligible identity platform) rather than implementing credential storage, MFA, or password policies ourselves.
 
@@ -175,6 +175,6 @@ Per-node rate limiting via [Flask-Limiter](https://flask-limiter.readthedocs.io/
 
 - [ADR-0007: Never roll your own authentication](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md)
 - [ADR-0009: Structured JSON logging with schema validation](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0009-structured-json-logging-with-schema-validation.md)
-- [Constitution](https://github.com/Neosofia/cdp/blob/main/.specify/memory/constitution.md)
+- [Constitution](https://github.com/Neosofia/cdp/blob/main/architecture/constitution.md)
 - [OWASP ASVS v4.0.3](https://owasp.org/www-project-application-security-verification-standard/)
 - [NIST SP 800-63B: Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html)
