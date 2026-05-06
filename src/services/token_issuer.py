@@ -1,11 +1,36 @@
+import base64
+import hashlib
+import json
 import uuid
 from datetime import datetime, timezone
 
 import jwt
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
 # Audience claim for JWT validation (RFC 7519 §4.1.3)
 # Pins tokens to this service; downstream services validate against this
 AUDIENCE = "neosofia-auth-svc"
+
+
+def _compute_kid(public_key_pem: str) -> str:
+    """Compute the RFC 7638 JWK Thumbprint for a given RSA public key."""
+    pub_key = load_pem_public_key(public_key_pem.encode("utf-8"))
+    pub_numbers = pub_key.public_numbers()
+
+    def _b64url_uint(n: int) -> str:
+        length = (n.bit_length() + 7) // 8
+        return base64.urlsafe_b64encode(n.to_bytes(length, "big")).rstrip(b"=").decode()
+
+    n_b64 = _b64url_uint(pub_numbers.n)
+    e_b64 = _b64url_uint(pub_numbers.e)
+
+    thumbprint_data = json.dumps(
+        {"e": e_b64, "kty": "RSA", "n": n_b64},
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    thumbprint_hash = hashlib.sha256(thumbprint_data.encode()).digest()
+    return base64.urlsafe_b64encode(thumbprint_hash).rstrip(b"=").decode()
 
 
 def issue_token(
@@ -18,6 +43,7 @@ def issue_token(
     issuer: str,
     claim_namespace: str = "neosofia",
     azp: str | None = None,
+    public_key_pem: str | None = None,
 ) -> str:
     """
     Sign and return a compact RS256 platform JWT.
@@ -58,4 +84,8 @@ def issue_token(
     if tenant_id:
         claims[f"{ns}:tenant_id"] = tenant_id
 
-    return jwt.encode(claims, private_key_pem, algorithm="RS256")
+    headers = {}
+    if public_key_pem:
+        headers["kid"] = _compute_kid(public_key_pem)
+
+    return jwt.encode(claims, private_key_pem, algorithm="RS256", headers=headers)

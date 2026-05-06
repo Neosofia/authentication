@@ -111,6 +111,7 @@ def _handle_session_grant():
             private_key_pem=settings.jwt_private_key_pem,
             issuer=settings.jwt_issuer,
             claim_namespace=settings.jwt_claim_namespace,
+            public_key_pem=settings.jwt_public_key_pem,
         )
         log_event("platform_token_issued", user_id=sub)
         return jsonify({
