@@ -150,7 +150,7 @@ def callback():
             cookie_password=cookie_password,
         )
 
-        response = make_response(redirect("/"))
+        response = make_response(redirect(os.getenv("FRONTEND_URL", "/")))
         response.set_cookie(
             "wos_session",
             sealed_session,
@@ -193,7 +193,7 @@ def logout():
         sealed_session = request.cookies.get("wos_session")
         if not sealed_session:
             log_event("logout_failure", reason="No session found")
-            return redirect(url_for("ui.index"))
+            return redirect(os.getenv("FRONTEND_URL", "/"))
 
         session = workos_client.user_management.load_sealed_session(
             session_data=sealed_session,
@@ -207,7 +207,7 @@ def logout():
 
     except Exception as e:
         log_event("logout_failure", error_class=type(e).__name__)
-        response = make_response(redirect(url_for("ui.index")))
+        response = make_response(redirect(os.getenv("FRONTEND_URL", "/")))
         response.delete_cookie("wos_session")
         return response
 

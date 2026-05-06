@@ -59,6 +59,7 @@ def issue_machine_token(
         issuer=settings.jwt_issuer,
         claim_namespace=settings.jwt_claim_namespace,
         azp=service_name,
+        public_key_pem=settings.jwt_public_key_pem,
     )
     log_event("machine_token_issued", service=service_name)
     return token

@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     gunicorn_timeout: int = 30
     gunicorn_keepalive: int = 5
     log_level: str = "info"
+    frontend_url: str = "http://localhost:5173"
 
     def model_post_init(self, __context: object) -> None:
         if not self.valid_roles.strip():
