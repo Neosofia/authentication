@@ -5,10 +5,15 @@ Environment variables are set at module level so they are in place before any
 src.* module is imported by pytest during collection.
 """
 
+import base64
 import os
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
+
+# Boot the structured logging first so log_event doesn't raise
+from src.logging_config import setup_logging
+setup_logging("test_authentication")
 
 import jwt as pyjwt
 import pytest
@@ -20,8 +25,8 @@ os.environ.setdefault("CSRF_SECRET_KEY", "test-csrf-secret-key-32-chars-ok!")
 os.environ.setdefault("WORKOS_COOKIE_PASSWORD", "test-cookie-password-32-chars-ok!")
 os.environ.setdefault("WORKOS_API_KEY", "sk_test_PLACEHOLDER_0000000000000000")
 os.environ.setdefault("WORKOS_CLIENT_ID", "client_test_PLACEHOLDER_0000000000")
-os.environ.setdefault("JWT_PRIVATE_KEY_PEM", "placeholder")
-os.environ.setdefault("JWT_PUBLIC_KEY_PEM", "placeholder")
+os.environ.setdefault("JWT_PRIVATE_KEY_PEM", "DEFAULT_PRIVATE_KEY")
+os.environ.setdefault("JWT_PUBLIC_KEY_PEM", "DEFAULT_PUBLIC_KEY")
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost/test_db")
 os.environ.setdefault("VALID_ROLES", "clinician,patient")
 os.environ.setdefault("ENV", "test")
@@ -47,8 +52,8 @@ def rsa_keys():
 def app(rsa_keys):
     """Create the Flask application once for the entire test session with real keys."""
     # Set real keys before importing any src.* modules
-    os.environ["JWT_PRIVATE_KEY_PEM"] = rsa_keys["private"]
-    os.environ["JWT_PUBLIC_KEY_PEM"] = rsa_keys["public"]
+    os.environ["JWT_PRIVATE_KEY_PEM"] = base64.b64encode(rsa_keys["private"].encode("utf-8")).decode("utf-8")
+    os.environ["JWT_PUBLIC_KEY_PEM"] = base64.b64encode(rsa_keys["public"].encode("utf-8")).decode("utf-8")
     os.environ["JWT_ISSUER"] = "https://auth.test.local"
     
     # Reload the settings module to pick up the new environment variables

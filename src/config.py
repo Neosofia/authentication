@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import os
@@ -70,17 +71,21 @@ class Settings(BaseSettings):
     def model_post_init(self, __context: object) -> None:
         if not self.valid_roles.strip():
             raise ValueError("VALID_ROLES must be set to a non-empty comma-separated list of accepted WorkOS org roles")
-        # Docker Compose / shell env sourcing can pass PEM keys with literal \n
-        # instead of real newlines. Normalize both fields here so callers always
-        # receive valid PEM strings regardless of how they were injected.
-        if self.jwt_private_key_pem:
-            object.__setattr__(
-                self, "jwt_private_key_pem", self.jwt_private_key_pem.replace("\\n", "\n")
-            )
-        if self.jwt_public_key_pem:
-            object.__setattr__(
-                self, "jwt_public_key_pem", self.jwt_public_key_pem.replace("\\n", "\n")
-            )
+        
+        # Decode base64 PEM keys injected via environment variables
+        if self.jwt_private_key_pem and self.jwt_private_key_pem != "DEFAULT_PRIVATE_KEY":
+            try:
+                decoded = base64.b64decode(self.jwt_private_key_pem).decode("utf-8")
+                object.__setattr__(self, "jwt_private_key_pem", decoded)
+            except Exception as e:
+                raise ValueError(f"Failed to decode base64 jwt_private_key_pem: {e}")
+                
+        if self.jwt_public_key_pem and self.jwt_public_key_pem != "DEFAULT_PUBLIC_KEY":
+            try:
+                decoded = base64.b64decode(self.jwt_public_key_pem).decode("utf-8")
+                object.__setattr__(self, "jwt_public_key_pem", decoded)
+            except Exception as e:
+                raise ValueError(f"Failed to decode base64 jwt_public_key_pem: {e}")
 
 
 def _build_settings() -> Settings:

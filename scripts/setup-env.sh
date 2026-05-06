@@ -71,46 +71,42 @@ PYEOF
 PRIV_PEM=$(openssl genrsa 2048 2>/dev/null)
 PUB_PEM=$(echo "$PRIV_PEM" | openssl rsa -pubout 2>/dev/null)
 
-# Collapse to single line with literal \n separators so Docker Compose / dotenv
-# parsers can read the value without choking on bare newlines.
-PRIV_ONELINE=$(printf '%s' "$PRIV_PEM" | awk 'NF {printf "%s\\\\n", $0}')
-PUB_ONELINE=$(printf '%s' "$PUB_PEM" | awk 'NF {printf "%s\\\\n", $0}')
+# Generate Base64 representations, eliminating literal \n parsing problems
+PRIV_B64=$(echo "$PRIV_PEM" | base64)
+PUB_B64=$(echo "$PUB_PEM" | base64)
 
-export PRIV_ONELINE
-export PUB_ONELINE
+export PRIV_B64
+export PUB_B64
 
 # Python handles the multi-line replacement safely (no shell delimiter issues)
 python3 - <<PYEOF
 import os
 import re
 
-priv = '"' + os.environ['PRIV_ONELINE'].replace('"', '\\"') + '"'
-pub = '"' + os.environ['PUB_ONELINE'].replace('"', '\\"') + '"'
+priv = os.environ['PRIV_B64'].replace('\n', '').strip()
+pub = os.environ['PUB_B64'].replace('\n', '').strip()
 
 with open("${ENV_FILE}", "r") as f:
     content = f.read()
 
-content = re.sub(
-    r'^JWT_PRIVATE_KEY_PEM=.*?-----END PRIVATE KEY-----',
-    lambda m: 'JWT_PRIVATE_KEY_PEM=' + priv,
-    content, flags=re.MULTILINE | re.DOTALL
-)
-content = re.sub(
-    r'^JWT_PUBLIC_KEY_PEM=.*?-----END PUBLIC KEY-----',
-    lambda m: 'JWT_PUBLIC_KEY_PEM=' + pub,
-    content, flags=re.MULTILINE | re.DOTALL
-)
-
-# If the keys were blank in .env.example, set them directly
-if 'JWT_PRIVATE_KEY_PEM=' + priv not in content:
-    content = re.sub(r'^JWT_PRIVATE_KEY_PEM=$', 'JWT_PRIVATE_KEY_PEM=' + priv, content, flags=re.MULTILINE)
-if 'JWT_PUBLIC_KEY_PEM=' + pub not in content:
-    content = re.sub(r'^JWT_PUBLIC_KEY_PEM=$', 'JWT_PUBLIC_KEY_PEM=' + pub, content, flags=re.MULTILINE)
+# Fallback regex handling
+if 'JWT_PRIVATE_KEY_PEM=' in content:
+    content = re.sub(
+        r'^JWT_PRIVATE_KEY_PEM=.*$',
+        'JWT_PRIVATE_KEY_PEM=' + priv,
+        content, flags=re.MULTILINE
+    )
+if 'JWT_PUBLIC_KEY_PEM=' in content:
+    content = re.sub(
+        r'^JWT_PUBLIC_KEY_PEM=.*$',
+        'JWT_PUBLIC_KEY_PEM=' + pub,
+        content, flags=re.MULTILINE
+    )
 
 with open("${ENV_FILE}", "w") as f:
     f.write(content)
 PYEOF
-echo "Generated JWT_PRIVATE_KEY_PEM / JWT_PUBLIC_KEY_PEM"
+echo "Generated JWT_PRIVATE_KEY_PEM / JWT_PUBLIC_KEY_PEM as Base64 strings"
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
