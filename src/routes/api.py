@@ -3,13 +3,13 @@ import json
 import pathlib
 
 import jwt as pyjwt
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, make_response
 from flask_wtf.csrf import CSRFError, validate_csrf
 from sqlalchemy import text
 
 from src.config import settings
 from src.db.engine import SessionLocal
-from src.extensions import csrf, workos_client, cookie_password, limiter
+from src.extensions import csrf, workos_client, cookie_password, limiter, is_development
 from src.logging_config import log_event
 from src.services import token_issuer, workos_bridge
 from src.services.machine_svc import InvalidClientError, issue_machine_token
@@ -88,6 +88,11 @@ def _handle_session_grant():
             cookie_password=cookie_password,
         )
         auth_response = session.authenticate()
+        
+        # If the WorkOS short-lived access token is expired, attempt to refresh it
+        if not auth_response.authenticated:
+            auth_response = session.refresh()
+            
         if not auth_response.authenticated:
             return jsonify({"error": "session invalid or expired"}), 401
     except Exception as e:
@@ -114,11 +119,25 @@ def _handle_session_grant():
             public_key_pem=settings.jwt_public_key_pem,
         )
         log_event("platform_token_issued", user_id=sub)
-        return jsonify({
+        
+        response = make_response(jsonify({
             "access_token": platform_token,
             "token_type": "Bearer",
             "expires_in": settings.access_token_ttl_secs,
-        })
+        }))
+        
+        # If the session was refreshed, persist the newly sealed session back to the client
+        if getattr(auth_response, "sealed_session", None):
+            response.set_cookie(
+                "wos_session",
+                auth_response.sealed_session,
+                secure=not is_development,
+                httponly=True,
+                samesite="lax",
+                path="/",
+            )
+            
+        return response
     except Exception as e:
         log_event("platform_token_error", error_class=type(e).__name__)
         return jsonify({"error": "token issuance failed"}), 500

@@ -45,6 +45,8 @@ def index():
     authenticated = False
 
     sealed = request.cookies.get("wos_session")
+    new_sealed_session = None
+
     if sealed:
         try:
             session = workos_client.user_management.load_sealed_session(
@@ -52,6 +54,12 @@ def index():
                 cookie_password=cookie_password,
             )
             auth_response = session.authenticate()
+            
+            if not auth_response.authenticated:
+                auth_response = session.refresh()
+                if auth_response.authenticated and hasattr(auth_response, "sealed_session"):
+                    new_sealed_session = auth_response.sealed_session
+
             user = getattr(auth_response, "user", None)
             if auth_response.authenticated and user:
                 authenticated = True
@@ -66,10 +74,22 @@ def index():
     else:
         log_event("homepage_accessed", session_status="no_session")
 
-    return render_template(
+    response = make_response(render_template(
         "index.html",
         authenticated=authenticated,
         user_name=user_name,
         user_email=user_email,
         csrf_token=generate_csrf(),
-    )
+    ))
+
+    if new_sealed_session:
+        response.set_cookie(
+            "wos_session",
+            new_sealed_session,
+            secure=not is_development,
+            httponly=True,
+            samesite="lax",
+            path="/",
+        )
+
+    return response

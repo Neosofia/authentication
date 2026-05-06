@@ -178,7 +178,8 @@ def callback():
         return response
 
 
-@bp.route("/logout", methods=["POST"])
+@bp.route("/logout", methods=["POST", "GET"])
+@csrf.exempt
 def logout():
     """
     Session revocation and cookie cleanup.
