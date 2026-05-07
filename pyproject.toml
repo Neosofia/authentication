@@ -26,13 +26,11 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "boto3>=1.34.0",
     "logenvelope",
-    "authentication-in-the-middle",
     "gunicorn>=21.2.0",
 ]
 
 [tool.uv.sources]
-authentication-in-the-middle = { path = "../sdk/python/authentication-middleware", editable = true }
-logenvelope = { path = "../sdk/python/logenvelope", editable = true }
+logenvelope = { git = "https://github.com/Neosofia/sdk.git", subdirectory = "python/logenvelope" }
 
 [dependency-groups]
 dev = [

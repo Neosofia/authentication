@@ -52,7 +52,6 @@ version = "0.5.1"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
-    { name = "authentication-in-the-middle" },
     { name = "bcrypt" },
     { name = "boto3" },
     { name = "flask" },
@@ -86,7 +85,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.13.0" },
-    { name = "authentication-in-the-middle", editable = "../sdk/python/authentication-middleware" },
     { name = "bcrypt", specifier = ">=4.1.0" },
     { name = "boto3", specifier = ">=1.34.0" },
     { name = "flask", specifier = ">=3.0.0" },
@@ -95,7 +93,7 @@ requires-dist = [
     { name = "flask-wtf", specifier = ">=1.2.0" },
     { name = "gunicorn", specifier = ">=21.2.0" },
     { name = "httpx", specifier = ">=0.25.0" },
-    { name = "logenvelope", editable = "../sdk/python/logenvelope" },
+    { name = "logenvelope", git = "https://github.com/Neosofia/sdk.git?subdirectory=python%2Flogenvelope" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
@@ -116,26 +114,6 @@ dev = [
     { name = "respx", specifier = ">=0.21.0" },
     { name = "testcontainers", specifier = ">=3.7.0" },
 ]
-
-[[package]]
-name = "authentication-in-the-middle"
-version = "0.4.0"
-source = { editable = "../sdk/python/authentication-middleware" }
-dependencies = [
-    { name = "cryptography" },
-    { name = "flask" },
-    { name = "pyjwt" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cryptography", specifier = ">=42.0.0" },
-    { name = "flask", specifier = ">=3.0.0" },
-    { name = "pyjwt", specifier = ">=2.8.0" },
-]
-
-[package.metadata.requires-dev]
-dev = []
 
 [[package]]
 name = "bcrypt"
@@ -753,15 +731,7 @@ wheels = [
 [[package]]
 name = "logenvelope"
 version = "0.2.0"
-source = { editable = "../sdk/python/logenvelope" }
-
-[package.metadata]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "jsonschema", specifier = ">=4.21" },
-    { name = "pytest", specifier = ">=8.0" },
-]
+source = { git = "https://github.com/Neosofia/sdk.git?subdirectory=python%2Flogenvelope#4cd00198127bda7e956648a0582a7b74ef76ca40" }
 
 [[package]]
 name = "mako"
