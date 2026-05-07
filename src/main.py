@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask
@@ -12,14 +11,11 @@ load_dotenv()  # no-op in containers where env vars come from the runtime
 from src.config import settings  # noqa: E402
 from src.extensions import csrf, cookie_password, limiter  # noqa: E402
 from src.logging_config import setup_logging  # noqa: E402
-from src.routes import auth, ui, api  # noqa: E402
-
-_TEMPLATE_FOLDER = str(Path(__file__).parent.parent / "templates")
-_STATIC_FOLDER = str(Path(__file__).parent.parent / "static")
+from src.routes import auth, api  # noqa: E402
 
 
 def create_app(config: dict | None = None) -> Flask:
-    app = Flask(__name__, template_folder=_TEMPLATE_FOLDER, static_folder=_STATIC_FOLDER, static_url_path="/static")
+    app = Flask(__name__)
 
     if config:
         app.config.update(config)
@@ -41,7 +37,6 @@ def create_app(config: dict | None = None) -> Flask:
     csrf.init_app(app)
     limiter.init_app(app)
 
-    app.register_blueprint(ui.bp)
     app.register_blueprint(auth.bp)
     app.register_blueprint(api.bp)
 

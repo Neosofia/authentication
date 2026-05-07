@@ -52,11 +52,9 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH="/app"
 
-# Copy source code, config, static files, and local env helper assets
+# Copy source code, config, and local env helper assets
 COPY src ./src
 COPY alembic.ini ./
-COPY templates ./src/templates
-COPY static ./static
 COPY openapi.json ./
 COPY scripts ./scripts
 COPY gunicorn_conf.py ./

@@ -115,12 +115,12 @@ class TestErrorResponseContract:
 
 @pytest.mark.contract
 class TestMeEndpointContract:
-    """Tests for GET /api/me response contract."""
+    """Tests for GET /api/token-inspect response contract."""
 
     def test_me_response_echoes_jwt_claims(self, client, make_jwt, schemas):
-        """GET /api/me response must echo decoded JWT claims conforming to schema."""
+        """GET /api/token-inspect response must echo decoded JWT claims conforming to schema."""
         token = make_jwt(sub="usr_123", tenant_id="org_456")
-        resp = client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
+        resp = client.get("/api/token-inspect", headers={"Authorization": f"Bearer {token}"})
         
         assert resp.status_code == 200
         data = resp.get_json()
@@ -134,15 +134,15 @@ class TestMeEndpointContract:
         assert data["neosofia:tenant_id"] == "org_456"
 
     def test_me_401_without_token(self, client, schemas):
-        """GET /api/me without token must return 401 conforming to error schema."""
-        resp = client.get("/api/me")
+        """GET /api/token-inspect without token must return 401 conforming to error schema."""
+        resp = client.get("/api/token-inspect")
         assert resp.status_code == 401
         jsonschema.validate(resp.get_json(), schemas["ErrorResponse"])
 
     def test_me_401_expired_token(self, client, make_jwt, schemas):
-        """GET /api/me with expired token must return 401 conforming to error schema."""
+        """GET /api/token-inspect with expired token must return 401 conforming to error schema."""
         token = make_jwt(exp_offset=-1)
-        resp = client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
+        resp = client.get("/api/token-inspect", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 401
         jsonschema.validate(resp.get_json(), schemas["ErrorResponse"])
 

@@ -104,28 +104,28 @@ class TestAuthorizationHeaderParsing:
 
     def test_bearer_token_with_extra_spaces(self, client):
         """Bearer token with extra spaces should be rejected."""
-        resp = client.get("/api/me", headers={"Authorization": "Bearer   token"})
+        resp = client.get("/api/token-inspect", headers={"Authorization": "Bearer   token"})
         
         assert resp.status_code == 401
         assert "invalid token" in resp.get_json()["error"]
 
     def test_bearer_case_insensitive(self, client):
         """Bearer token check should be case-sensitive (only 'Bearer' works)."""
-        resp = client.get("/api/me", headers={"Authorization": "bearer token"})
+        resp = client.get("/api/token-inspect", headers={"Authorization": "bearer token"})
         
         assert resp.status_code == 401
         assert "Bearer token" in resp.get_json()["error"]
 
     def test_missing_authorization_header(self, client):
         """Missing Authorization header should return 401."""
-        resp = client.get("/api/me")
+        resp = client.get("/api/token-inspect")
         
         assert resp.status_code == 401
         assert "Bearer token" in resp.get_json()["error"]
 
     def test_empty_authorization_header(self, client):
         """Empty Authorization header should return 401."""
-        resp = client.get("/api/me", headers={"Authorization": ""})
+        resp = client.get("/api/token-inspect", headers={"Authorization": ""})
         
         assert resp.status_code == 401
         assert "Bearer token" in resp.get_json()["error"]
@@ -179,8 +179,8 @@ class TestCSRFExemption:
         assert resp.get_json()["error"] == "unauthenticated"
 
     def test_csrf_exempt_on_me_endpoint(self, client):
-        """GET /api/me should be CSRF exempt."""
-        resp = client.get("/api/me")
+        """GET /api/token-inspect should be CSRF exempt."""
+        resp = client.get("/api/token-inspect")
         # Would fail CSRF check if not exempt, but we get 401 instead
         assert resp.status_code == 401
         assert "Bearer token" in resp.get_json()["error"]

@@ -72,6 +72,9 @@ The Auth Service reads role and organization ID directly from the WorkOS SDK ses
 
 #### Organization
 
+> [!CAUTION]
+> **Do not use the "Default Test Organization" automatically created by WorkOS.** WorkOS prevents API updates to default test organizations, which causes an `AuthorizationError` when this service attempts to generate and save a UUIDv7 `external_id` for the organization during login. You must explicitly create a new organization.
+
 1. Go to **Organizations** → **Create Organization**.
 2. Name it e.g. `Neosofia Test Clinic`.
 3. Go to roles and create your application roles (e.g. `admin` and `member`).

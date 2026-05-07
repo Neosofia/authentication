@@ -33,7 +33,7 @@ To report any security-related issue please email security@neosofia.tech — do 
 │  ├─ /login, /callback        OAuth + state + PKCE    │
 │  ├─ /api/token (session)     Human JWT (15 min)      │
 │  ├─ /api/token (client_cred) Machine JWT (5 min)     │
-│  ├─ /api/me                  RS256 validation        │
+│  ├─ /api/token-inspect        RS256 validation        │
 │  └─ /.well-known/jwks.json   Public key publication  │
 └──────┬──────────────┬────────────────────────────────┘
        │              │
@@ -62,7 +62,7 @@ Key architectural decisions:
 ### Token Issuance & Validation
 
 - **Asymmetric signing (RS256)** — all platform JWTs are signed with a 2048-bit RSA private key that lives only in env vars. The public key is published at `/.well-known/jwks.json` ([RFC 7517](https://datatracker.ietf.org/doc/html/rfc7517)) for offline validation. No HS256 / shared-secret tokens exist.
-- **Issuer + audience claims** — every token contains `iss` and `aud`. `/api/me` enforces `["exp", "iat", "iss", "sub", "aud"]` via `pyjwt`, preventing cross-service token replay ([CWE-347](https://cwe.mitre.org/data/definitions/347.html)).
+- **Issuer + audience claims** — every token contains `iss` and `aud`. `/api/token-inspect` enforces `["exp", "iat", "iss", "sub", "aud"]` via `pyjwt`, preventing cross-service token replay ([CWE-347](https://cwe.mitre.org/data/definitions/347.html)).
 - **RFC 7638 JWK Thumbprint as `kid`** — stable across deploys; does not leak modulus bits.
 
 ### Session Management
@@ -130,7 +130,7 @@ Key architectural decisions:
 | Item | Status | Notes |
 |---|---|---|
 | Rate limit storage is per-node (in-memory) | Accepted | Upgrade to Redis via `RATELIMIT_STORAGE_URI` when shared Redis is available |
-| `/api/me` is not rate-limited | Accepted | Downstream services validate JWTs locally; this endpoint is a dev/debug convenience |
+| `/api/token-inspect` is not rate-limited | Accepted | Downstream services validate JWTs locally; this endpoint is a dev/debug convenience |
 | WorkOS session refresh logic opaque to this service | Accepted | WorkOS SDK handles refresh internally |
 
 ---

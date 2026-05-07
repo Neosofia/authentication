@@ -70,8 +70,8 @@ def test_health(live_server):
 
 
 def test_unauthenticated_me_returns_401(live_server):
-    """GET /api/me without a token must return 401, proving auth middleware
+    """GET /api/token-inspect without a token must return 401, proving auth middleware
     is active and the request traversed the full application stack.
     """
-    resp = requests.get(f"{live_server}/api/me", timeout=5)
+    resp = requests.get(f"{live_server}/api/token-inspect", timeout=5)
     assert resp.status_code == 401

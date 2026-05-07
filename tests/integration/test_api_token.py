@@ -138,13 +138,13 @@ class TestMeEndpoint:
 
     def test_me_requires_bearer_token(self, client):
         """Missing Bearer token should return 401."""
-        resp = client.get("/api/me")
+        resp = client.get("/api/token-inspect")
         assert resp.status_code == 401
         assert "Bearer token" in resp.get_json()["error"]
 
     def test_me_rejects_invalid_bearer_format(self, client):
         """Invalid Authorization header should return 401."""
-        resp = client.get("/api/me", headers={"Authorization": "Basic abc123"})
+        resp = client.get("/api/token-inspect", headers={"Authorization": "Basic abc123"})
         assert resp.status_code == 401
         assert "Bearer token" in resp.get_json()["error"]
 
@@ -154,7 +154,7 @@ class TestMeEndpoint:
         with patch_ctx:
             client.set_cookie("wos_session", "valid")
             token = client.post("/api/token").get_json()["access_token"]
-        resp = client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
+        resp = client.get("/api/token-inspect", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
         claims = resp.get_json()
         assert claims["sub"] == "usr_test"
@@ -171,13 +171,13 @@ class TestMeEndpoint:
             "exp": int(time.time()) - 3600,
         }
         expired_token = pyjwt.encode(expired_claims, rsa_keys["private"], algorithm="RS256")
-        resp = client.get("/api/me", headers={"Authorization": f"Bearer {expired_token}"})
+        resp = client.get("/api/token-inspect", headers={"Authorization": f"Bearer {expired_token}"})
         assert resp.status_code == 401
         assert "expired" in resp.get_json()["error"]
 
     def test_me_rejects_invalid_jwt(self, client):
         """Malformed JWT should return 401."""
-        resp = client.get("/api/me", headers={"Authorization": "Bearer not.a.jwt"})
+        resp = client.get("/api/token-inspect", headers={"Authorization": "Bearer not.a.jwt"})
         assert resp.status_code == 401
         assert "invalid token" in resp.get_json()["error"]
 
@@ -196,7 +196,7 @@ class TestMeEndpoint:
              "iat": int(time.time()), "exp": int(time.time()) + 3600},
             wrong_pem, algorithm="RS256",
         )
-        resp = client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
+        resp = client.get("/api/token-inspect", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 401
         assert "invalid signature" in resp.get_json()["error"]
 
