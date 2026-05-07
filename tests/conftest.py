@@ -194,9 +194,11 @@ def mock_workos_auth():
         mock_auth.user = mock_user
         mock_auth.role = role
         mock_auth.organization_id = org_id
+        mock_auth.sealed_session = "mock_sealed_session"
         
         mock_session = MagicMock()
         mock_session.authenticate.return_value = mock_auth
+        mock_session.refresh.return_value = mock_auth
         
         mock_wos = MagicMock()
         mock_wos.user_management.load_sealed_session.return_value = mock_session

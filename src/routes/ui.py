@@ -6,27 +6,8 @@ from markupsafe import escape
 
 from src.extensions import workos_client, cookie_password, is_development
 from src.logging_config import log_event
-from authentication_in_the_middle import with_auth
 
 bp = Blueprint("ui", __name__, template_folder="../templates")
-
-# Create the with_auth decorator with dependencies bound
-_with_auth = with_auth(workos_client, cookie_password, is_development, log_event)
-
-
-if is_development:
-    @bp.route("/test")
-    @_with_auth
-    def test():
-        """
-        Demo protected route using @with_auth decorator.
-        
-        Development-only endpoint to validate session authentication middleware.
-        Returns 302 redirect to /login if session is invalid, otherwise renders protected content.
-        
-        Ref: specs/014-authentication-service (with_auth decorator pattern)
-        """
-        return "<h1>Protected</h1><p>You are authenticated.</p><p><a href='/'>Back</a></p>"
 
 
 @bp.route("/")

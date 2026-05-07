@@ -75,6 +75,7 @@ class TestIssueMachineToken:
         # Patch machine_svc's reference to settings to use the real keys loaded by the app fixture
         with patch("src.services.machine_svc.settings") as mock_settings:
             mock_settings.jwt_private_key_pem = rsa_keys["private"]
+            mock_settings.jwt_public_key_pem = rsa_keys["public"]
             mock_settings.jwt_issuer = settings.jwt_issuer
             mock_settings.jwt_claim_namespace = settings.jwt_claim_namespace
             mock_settings.machine_token_ttl_secs = 300
