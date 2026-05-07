@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-logenvelope = { git = "https://github.com/Neosofia/sdk.git", subdirectory = "python/logenvelope" }
+logenvelope = { url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.2.0/logenvelope-0.2.0-py3-none-any.whl" }
 
 [dependency-groups]
 dev = [

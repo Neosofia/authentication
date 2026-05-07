@@ -93,7 +93,7 @@ requires-dist = [
     { name = "flask-wtf", specifier = ">=1.2.0" },
     { name = "gunicorn", specifier = ">=21.2.0" },
     { name = "httpx", specifier = ">=0.25.0" },
-    { name = "logenvelope", git = "https://github.com/Neosofia/sdk.git?subdirectory=python%2Flogenvelope" },
+    { name = "logenvelope", url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.2.0/logenvelope-0.2.0-py3-none-any.whl" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
@@ -731,7 +731,10 @@ wheels = [
 [[package]]
 name = "logenvelope"
 version = "0.2.0"
-source = { git = "https://github.com/Neosofia/sdk.git?subdirectory=python%2Flogenvelope#4cd00198127bda7e956648a0582a7b74ef76ca40" }
+source = { url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.2.0/logenvelope-0.2.0-py3-none-any.whl" }
+wheels = [
+    { url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.2.0/logenvelope-0.2.0-py3-none-any.whl", hash = "sha256:775c73278225ff887a80a2476381aba309b222fb9b746425c16d0e7776c7571c" },
+]
 
 [[package]]
 name = "mako"
