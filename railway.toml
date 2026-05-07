@@ -1,0 +1,15 @@
+[[services]]
+name = "postgres"
+source.image = "ghcr.io/railwayapp-templates/postgres-ssl:18"
+
+[[services.volumes]]
+mountPath = "/var/lib/postgresql/data"
+
+[services.variables]
+PGPORT = "5432"
+PGDATABASE = "${{POSTGRES_DB}}"
+PGUSER = "${{POSTGRES_USER}}"
+PGPASSWORD = "${{POSTGRES_PASSWORD}}"
+POSTGRES_DB = "auth"
+POSTGRES_USER = "auth"
+POSTGRES_PASSWORD = "${{secret}}"
