@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import secrets
+import uuid
 
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
@@ -141,11 +142,43 @@ def callback():
 
         user_email = auth_response.user.email if auth_response.user else "unknown"
         user_id = auth_response.user.id if auth_response.user else "unknown"
+        user_data = auth_response.user.to_dict() if auth_response.user else {}
+
+        # Check for UUIDv7 (Person ID) on WorkOS User, or generate/persist one
+        if "external_id" not in user_data or not user_data.get("external_id"):
+            new_person_id = str(uuid.uuid7())
+            
+            # Persist the newly generated Person ID to WorkOS User
+            try:
+                updated_user = workos_client.user_management.update_user(
+                    id=user_id,
+                    external_id=new_person_id,
+                )
+                user_data = updated_user.to_dict()
+                log_event("person_id_generated", user_id=user_id, person_id=new_person_id)
+            except Exception as e:
+                log_event("person_id_generation_error", error_class=type(e).__name__, user_id=user_id)
+                # Keep going with the old user data so login does not fail entirely
+
+        # Check for UUIDv7 on WorkOS Organization, or generate/persist one
+        organization_id = getattr(auth_response, "organization_id", None)
+        if organization_id:
+            try:
+                org = workos_client.organizations.get_organization(id=organization_id)
+                if not getattr(org, "external_id", None):
+                    new_org_id = str(uuid.uuid7())
+                    workos_client.organizations.update_organization(
+                        id=organization_id,
+                        external_id=new_org_id,
+                    )
+                    log_event("org_internal_id_generated", organization_id=organization_id, internal_org_id=new_org_id)
+            except Exception as e:
+                log_event("org_id_generation_error", error_class=type(e).__name__, organization_id=organization_id)
 
         sealed_session = seal_session_from_auth_response(
             access_token=auth_response.access_token,
             refresh_token=auth_response.refresh_token,
-            user=auth_response.user.to_dict() if auth_response.user else {},
+            user=user_data,
             impersonator=auth_response.impersonator.to_dict() if auth_response.impersonator else None,
             cookie_password=cookie_password,
         )
