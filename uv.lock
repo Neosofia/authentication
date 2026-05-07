@@ -48,7 +48,7 @@ wheels = [
 
 [[package]]
 name = "authentication"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
@@ -86,7 +86,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.13.0" },
-    { name = "authentication-in-the-middle", url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle-0.2.0/authentication_in_the_middle-0.2.0-py3-none-any.whl" },
+    { name = "authentication-in-the-middle", url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle-0.4.0/authentication_in_the_middle-0.4.0-py3-none-any.whl" },
     { name = "bcrypt", specifier = ">=4.1.0" },
     { name = "boto3", specifier = ">=1.34.0" },
     { name = "flask", specifier = ">=3.0.0" },
@@ -119,17 +119,23 @@ dev = [
 
 [[package]]
 name = "authentication-in-the-middle"
-version = "0.2.0"
-source = { url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle-0.2.0/authentication_in_the_middle-0.2.0-py3-none-any.whl" }
+version = "0.4.0"
+source = { url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle-0.4.0/authentication_in_the_middle-0.4.0-py3-none-any.whl" }
 dependencies = [
+    { name = "cryptography" },
     { name = "flask" },
+    { name = "pyjwt" },
 ]
 wheels = [
-    { url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle-0.2.0/authentication_in_the_middle-0.2.0-py3-none-any.whl", hash = "sha256:ff02b4df1b87c250d5182821501f36e7c8a0a133f0772f905d4560d05145ebf3" },
+    { url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle-0.4.0/authentication_in_the_middle-0.4.0-py3-none-any.whl", hash = "sha256:a1758920b05415f74deb96518147ca7066d3655e8ac6e6506279fed6aca0c6ec" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "flask", specifier = ">=3.0.0" }]
+requires-dist = [
+    { name = "cryptography", specifier = ">=42.0.0" },
+    { name = "flask", specifier = ">=3.0.0" },
+    { name = "pyjwt", specifier = ">=2.8.0" },
+]
 
 [[package]]
 name = "bcrypt"
