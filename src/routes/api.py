@@ -127,10 +127,11 @@ def _handle_session_grant():
         }))
         
         # If the session was refreshed, persist the newly sealed session back to the client
-        if getattr(auth_response, "sealed_session", None):
+        sealed_session = getattr(auth_response, "sealed_session", None)
+        if sealed_session:
             response.set_cookie(
                 "wos_session",
-                auth_response.sealed_session,
+                sealed_session,
                 secure=not is_development,
                 httponly=True,
                 samesite="lax",

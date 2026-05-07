@@ -38,8 +38,8 @@ def index():
             
             if not auth_response.authenticated:
                 auth_response = session.refresh()
-                if auth_response.authenticated and hasattr(auth_response, "sealed_session"):
-                    new_sealed_session = auth_response.sealed_session
+                if auth_response.authenticated:
+                    new_sealed_session = getattr(auth_response, "sealed_session", None)
 
             user = getattr(auth_response, "user", None)
             if auth_response.authenticated and user:
