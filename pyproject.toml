@@ -31,8 +31,8 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-logenvelope = { url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.2.0/logenvelope-0.2.0-py3-none-any.whl" }
-authentication-in-the-middle = { url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle-0.4.0/authentication_in_the_middle-0.4.0-py3-none-any.whl" }
+authentication-in-the-middle = { path = "../sdk/python/authentication-middleware", editable = true }
+logenvelope = { path = "../sdk/python/logenvelope", editable = true }
 
 [dependency-groups]
 dev = [

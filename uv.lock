@@ -86,7 +86,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.13.0" },
-    { name = "authentication-in-the-middle", url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle-0.4.0/authentication_in_the_middle-0.4.0-py3-none-any.whl" },
+    { name = "authentication-in-the-middle", editable = "../sdk/python/authentication-middleware" },
     { name = "bcrypt", specifier = ">=4.1.0" },
     { name = "boto3", specifier = ">=1.34.0" },
     { name = "flask", specifier = ">=3.0.0" },
@@ -95,7 +95,7 @@ requires-dist = [
     { name = "flask-wtf", specifier = ">=1.2.0" },
     { name = "gunicorn", specifier = ">=21.2.0" },
     { name = "httpx", specifier = ">=0.25.0" },
-    { name = "logenvelope", url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.2.0/logenvelope-0.2.0-py3-none-any.whl" },
+    { name = "logenvelope", editable = "../sdk/python/logenvelope" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
@@ -120,14 +120,11 @@ dev = [
 [[package]]
 name = "authentication-in-the-middle"
 version = "0.4.0"
-source = { url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle-0.4.0/authentication_in_the_middle-0.4.0-py3-none-any.whl" }
+source = { editable = "../sdk/python/authentication-middleware" }
 dependencies = [
     { name = "cryptography" },
     { name = "flask" },
     { name = "pyjwt" },
-]
-wheels = [
-    { url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle-0.4.0/authentication_in_the_middle-0.4.0-py3-none-any.whl", hash = "sha256:a1758920b05415f74deb96518147ca7066d3655e8ac6e6506279fed6aca0c6ec" },
 ]
 
 [package.metadata]
@@ -136,6 +133,9 @@ requires-dist = [
     { name = "flask", specifier = ">=3.0.0" },
     { name = "pyjwt", specifier = ">=2.8.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = []
 
 [[package]]
 name = "bcrypt"
@@ -753,9 +753,14 @@ wheels = [
 [[package]]
 name = "logenvelope"
 version = "0.2.0"
-source = { url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.2.0/logenvelope-0.2.0-py3-none-any.whl" }
-wheels = [
-    { url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.2.0/logenvelope-0.2.0-py3-none-any.whl", hash = "sha256:775c73278225ff887a80a2476381aba309b222fb9b746425c16d0e7776c7571c" },
+source = { editable = "../sdk/python/logenvelope" }
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "jsonschema", specifier = ">=4.21" },
+    { name = "pytest", specifier = ">=8.0" },
 ]
 
 [[package]]
