@@ -36,8 +36,9 @@ def extract_platform_claims(auth_response) -> dict:
         CWE-863 (Incorrect Authorization), CWE-269 (Improper Access Control)
     """
     valid_roles = frozenset(r.strip() for r in settings.valid_roles.split(",") if r.strip())
-    workos_role: str | None = getattr(auth_response, "role", None)
-    organization_id: str | None = getattr(auth_response, "organization_id", None)
+    workos_roles = getattr(auth_response, "roles", None)
+    workos_role = getattr(auth_response, "role", None)
+    organization_id = getattr(auth_response, "organization_id", None)
 
     user = getattr(auth_response, "user", None)
     if isinstance(user, dict):
@@ -45,7 +46,7 @@ def extract_platform_claims(auth_response) -> dict:
     else:
         user_id = getattr(user, "id", "unknown") if user else "unknown"
 
-    if workos_role is None or organization_id is None:
+    if organization_id is None:
         log_event(
             "token_rejected_no_org",
             user_id=user_id,
@@ -53,19 +54,18 @@ def extract_platform_claims(auth_response) -> dict:
         )
         raise ValueError("User has no organization membership; token issuance denied")
 
-    if workos_role not in valid_roles:
-        log_event(
-            "token_rejected_unknown_role",
-            user_id=user_id,
-            workos_role=workos_role,
-            reason="role not in allow-list",
-        )
-        raise ValueError(
-            f"WorkOS role '{workos_role}' is not in the allow-list {valid_roles}. "
-            "Update VALID_ROLES env var if this is a newly provisioned role."
-        )
+    roles: list[str] = []
+    if workos_roles is not None:
+        if isinstance(workos_roles, str):
+            workos_roles = [workos_roles]
+        for role in workos_roles:
+            if role in valid_roles and role not in roles:
+                roles.append(role)
+    elif workos_role is not None:
+        if workos_role in valid_roles:
+            roles.append(workos_role)
 
     return {
         "tenant_id": organization_id,
-        "roles": [workos_role],
+        "roles": roles,
     }
