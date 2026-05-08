@@ -28,6 +28,7 @@ os.environ["JWT_PRIVATE_KEY_PEM"] = base64.b64encode(TEST_PRIVATE_KEY_PEM.encode
 os.environ["JWT_PUBLIC_KEY_PEM"] = base64.b64encode(TEST_PUBLIC_KEY_PEM.encode("utf-8")).decode("utf-8")
 os.environ["JWT_ISSUER"] = "http://testserver"
 os.environ["VALID_ROLES"] = "admin,user"
+os.environ["DATABASE_URL"] = "postgresql+psycopg://dummy:dummy@localhost/dummy"
 
 from src.app import create_app
 
