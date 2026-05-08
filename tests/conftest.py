@@ -29,6 +29,8 @@ os.environ["JWT_PUBLIC_KEY_PEM"] = base64.b64encode(TEST_PUBLIC_KEY_PEM.encode("
 os.environ["JWT_ISSUER"] = "http://testserver"
 os.environ["VALID_ROLES"] = "admin,user"
 os.environ["DATABASE_URL"] = "postgresql+psycopg://dummy:dummy@localhost/dummy"
+os.environ["WORKOS_API_KEY"] = "sk_test_dummy_key"
+os.environ["WORKOS_CLIENT_ID"] = "client_test_dummy_id"
 
 from src.app import create_app
 
