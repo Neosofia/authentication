@@ -3,19 +3,18 @@ import hashlib
 import json
 import uuid
 from datetime import datetime, timezone
+from typing import cast
 
 import jwt
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
-
-# Audience claim for JWT validation (RFC 7519 §4.1.3)
-# Pins tokens to this service; downstream services validate against this
-AUDIENCE = "neosofia-auth-svc"
-
 
 def _compute_kid(public_key_pem: str) -> str:
     """Compute the RFC 7638 JWK Thumbprint for a given RSA public key."""
     pub_key = load_pem_public_key(public_key_pem.encode("utf-8"))
-    pub_numbers = pub_key.public_numbers()
+    if not isinstance(pub_key, RSAPublicKey):
+        raise TypeError("public key must be an RSA public key")
+    pub_numbers = cast(RSAPublicKey, pub_key).public_numbers()
 
     def _b64url_uint(n: int) -> str:
         length = (n.bit_length() + 7) // 8
@@ -41,6 +40,7 @@ def issue_token(
     ttl_secs: int,
     private_key_pem: str,
     issuer: str,
+    audience: str,
     claim_namespace: str = "neosofia",
     azp: str | None = None,
     public_key_pem: str | None = None,
@@ -71,7 +71,7 @@ def issue_token(
     claims: dict = {
         "sub": sub,
         "iss": issuer,
-        "aud": AUDIENCE,
+        "aud": audience,
         "iat": now,
         "exp": now + ttl_secs,
         "jti": str(uuid.uuid7()),

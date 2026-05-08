@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     jwt_public_key_pem: str = ""
     jwt_claim_namespace: str = "neosofia"
     jwt_issuer: str = "https://auth.neosofia.local"
+    jwt_audience: str = "neosofia-auth-svc"
     # TODO (M2.1): Replace with an API call to the Authorization Service endpoint /api/valid-roles
     #              (see spec/016-authorization-service/spec.md for design) so role management
     #              is owned by the Authorization Service rather than configured here.
@@ -70,8 +71,14 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
 
     def model_post_init(self, __context: object) -> None:
+        if not self.database_url.strip():
+            raise ValueError("DATABASE_URL must be set")
+            
         if not self.valid_roles.strip():
             raise ValueError("VALID_ROLES must be set to a non-empty comma-separated list of accepted WorkOS org roles")
+            
+        if not self.jwt_private_key_pem or not self.jwt_public_key_pem:
+            raise ValueError("JWT_PRIVATE_KEY_PEM and JWT_PUBLIC_KEY_PEM must be set")
         
         # Decode base64 PEM keys injected via environment variables
         if self.jwt_private_key_pem and self.jwt_private_key_pem != "DEFAULT_PRIVATE_KEY":

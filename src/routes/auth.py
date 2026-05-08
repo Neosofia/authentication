@@ -4,6 +4,7 @@ import json
 import os
 import secrets
 import uuid
+from typing import cast
 
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
@@ -12,8 +13,8 @@ from flask_wtf.csrf import generate_csrf
 from workos.session import seal_session_from_auth_response
 
 from src.config import settings
-from src.extensions import workos_client, cookie_password, is_development, csrf, limiter
-from src.logging_config import log_event
+from src.bootstrap.extensions import cookie_password, csrf, is_development, limiter, workos_client
+from src.bootstrap.logging import log_event
 
 bp = Blueprint("auth", __name__)
 
@@ -140,7 +141,6 @@ def callback():
             code_verifier=code_verifier,
         )
 
-        user_email = auth_response.user.email if auth_response.user else "unknown"
         user_id = auth_response.user.id if auth_response.user else "unknown"
         user_data = auth_response.user.to_dict() if auth_response.user else {}
 
@@ -277,14 +277,11 @@ def jwks():
     
     Ref: RFC 7517 (JWK), RFC 7518 (JWA), specs/014-authentication-service/spec.md (FR-004: JWKS publication)
     """
-    if not settings.jwt_public_key_pem:
-        return jsonify({"error": "JWT public key not configured"}), 503
-
     try:
         pub_key = load_pem_public_key(settings.jwt_public_key_pem.encode())
         if not isinstance(pub_key, RSAPublicKey):
             return jsonify({"error": "key is not RSA"}), 500
-        pub_numbers = pub_key.public_numbers()
+        pub_numbers = cast(RSAPublicKey, pub_key).public_numbers()
 
         def _b64url_uint(n: int) -> str:
             length = (n.bit_length() + 7) // 8

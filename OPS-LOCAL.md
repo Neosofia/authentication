@@ -16,7 +16,7 @@ Flask reloads on code changes. Best for active development.
 # From the repo root:
 docker compose -f docker-compose.dev.yml up -d auth-postgres
 uv run alembic upgrade head
-uv run python -m gunicorn -c gunicorn_conf.py src.main:app
+uv run python -m gunicorn -c src/gunicorn.py src.app:app
 ```
 
 > To enable hot-reload and the Werkzeug debugger locally, set `ENV=development` in `.env` before running gunicorn. **Never set this in staging or production** — see [SECURITY.md §3.6](SECURITY.md#36-web-layer-defenses).

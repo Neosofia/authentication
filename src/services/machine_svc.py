@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.config import settings
-from src.logging_config import log_event
+from src.bootstrap.logging import log_event
 from src.models.machine_credential import MachineCredential
 from src.services import token_issuer
 
@@ -57,6 +57,7 @@ def issue_machine_token(
         ttl_secs=settings.machine_token_ttl_secs,
         private_key_pem=settings.jwt_private_key_pem,
         issuer=settings.jwt_issuer,
+        audience=settings.jwt_audience,
         claim_namespace=settings.jwt_claim_namespace,
         azp=service_name,
         public_key_pem=settings.jwt_public_key_pem,

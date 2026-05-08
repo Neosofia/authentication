@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "authentication"
-version = "0.7.0"
+version = "0.8.0"
 description = "Neosofia Authentication Service — token issuance and introspection"
 requires-python = ">=3.13"
 authors = [{ name = "Neosofia", email = "platform@neosofia.com" }]
@@ -47,7 +47,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "--cov=src --cov-report=term-missing --cov-fail-under=80"
+addopts = "--import-mode=importlib --cov=src --cov-report=term-missing --cov-fail-under=90"
 markers = [
     "unit: pure function tests, zero I/O",
     "integration: Flask test client with mocked external dependencies",
@@ -55,7 +55,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-omit = ["*/migrations/*", "src/routes/ui.py", "src/gunicorn_logger.py"]
+omit = ["*/migrations/*", "src/routes/ui.py", "src/gunicorn.py", "src/config.py", "src/gunicorn*.py"]
 
 [tool.black]
 line-length = 100

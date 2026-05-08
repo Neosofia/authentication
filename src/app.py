@@ -9,9 +9,9 @@ load_dotenv()  # no-op in containers where env vars come from the runtime
 
 # Extensions must be imported after load_dotenv so env vars are available.
 from src.config import settings  # noqa: E402
-from src.extensions import csrf, cookie_password, limiter  # noqa: E402
-from src.logging_config import setup_logging  # noqa: E402
-from src.routes import auth, api  # noqa: E402
+from src.bootstrap.extensions import csrf, cookie_password, limiter  # noqa: E402
+from src.bootstrap.logging import setup_logging  # noqa: E402
+from src.routes import auth, token, profile, health, openapi  # noqa: E402
 
 
 def create_app(config: dict | None = None) -> Flask:
@@ -38,10 +38,14 @@ def create_app(config: dict | None = None) -> Flask:
     limiter.init_app(app)
 
     app.register_blueprint(auth.bp)
-    app.register_blueprint(api.bp)
+    app.register_blueprint(token.bp)
+    app.register_blueprint(profile.bp)
+    app.register_blueprint(health.bp)
+    app.register_blueprint(openapi.bp)
+
 
     # Pre-load OpenAPI spec at startup to fail fast if it's missing or invalid
-    api._load_openapi_spec()
+    token._load_openapi_spec()
 
     # Initialize security headers (L2: Flask-Talisman only in production)
     # In development, CSP can be restrictive; production deployments require strict headers
@@ -62,32 +66,24 @@ def create_app(config: dict | None = None) -> Flask:
         )
         Talisman(
             app,
-            force_https=True,  # Enforce HTTPS in production
+            force_https=True,
             strict_transport_security=True,
-            strict_transport_security_max_age=31536000,  # 1 year HSTS
+            strict_transport_security_max_age=31536000,
             strict_transport_security_include_subdomains=True,
             content_security_policy={
                 "default-src": ["'self'"],
-                "script-src": ["'self'"],  # Only allow scripts from same origin (static/app.js)
-                "style-src": ["'self'"],  # CSS only from same origin
-                "img-src": ["'self'", "data:"],  # Images and data URIs
-                "font-src": ["'self'"],  # Fonts only from same origin
-                "frame-ancestors": ["'none'"],  # Prevent clickjacking
-                "base-uri": ["'self'"],  # Restrict base tag
-                "form-action": ["'self'"],  # Restrict form submissions
+                "script-src": ["'self'"],
+                "style-src": ["'self'"],
+                "img-src": ["'self'", "data:"],
+                "font-src": ["'self'"],
+                "frame-ancestors": ["'none'"],
+                "base-uri": ["'self'"],
+                "form-action": ["'self'"],
             },
-            referrer_policy="strict-origin-when-cross-origin",  # Control referer leakage
+            referrer_policy="strict-origin-when-cross-origin",
         )
 
     return app
 
 
 app = create_app()
-
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8014))
-    debug = os.getenv("ENV", "production").lower() == "development"
-    app.run(debug=debug, port=port)
-
-
-

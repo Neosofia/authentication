@@ -6,7 +6,7 @@ All users must belong to an organization; roleless authentication is rejected.
 """
 
 from src.config import settings
-from src.logging_config import log_event
+from src.bootstrap.logging import log_event
 
 
 def extract_platform_claims(auth_response) -> dict:

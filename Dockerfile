@@ -57,7 +57,6 @@ COPY src ./src
 COPY alembic.ini ./
 COPY openapi.json ./
 COPY scripts ./scripts
-COPY gunicorn_conf.py ./
 COPY .env.example ./
 
 # Health check
@@ -67,4 +66,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 USER app
 
 # Run the service
-CMD ["/bin/sh", "-c", "python -m alembic upgrade head && python -m gunicorn -c gunicorn_conf.py src.main:app"]
+CMD ["/bin/sh", "-c", "python -m alembic upgrade head && python -m gunicorn -c src/gunicorn.py src.app:app"]

@@ -1,8 +1,4 @@
-"""
-Logging configuration using logenvelope for structured JSON logging.
-
-All authentication events are logged using the log envelope schema.
-"""
+"""Logging configuration using logenvelope for structured JSON logging."""
 
 from logenvelope import JSONFormatter, log_event as _log_event
 from logenvelope import setup_logging as _setup_logging

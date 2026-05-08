@@ -18,7 +18,7 @@ limiter = Limiter(
     storage_uri=os.getenv("RATELIMIT_STORAGE_URI", "memory://"),
 )
 
-# WorkOS client — reads env vars populated by load_dotenv() in main.py.
+# WorkOS client — reads env vars populated by load_dotenv() in app startup.
 workos_client = WorkOSClient(
     api_key=os.getenv("WORKOS_API_KEY"),
     client_id=os.getenv("WORKOS_CLIENT_ID"),

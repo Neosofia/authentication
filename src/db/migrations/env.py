@@ -10,7 +10,7 @@ import src.models  # noqa: F401
 config = context.config
 if config.config_file_name is not None:
     # Skip fileConfig — the alembic.ini logging section is incomplete and
-    # we rely on src.logging_config.setup_logging() for the application.
+    # we rely on src.bootstrap.logging.setup_logging() for the application.
     pass
 
 target_metadata = Base.metadata

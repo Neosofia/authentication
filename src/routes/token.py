@@ -3,18 +3,16 @@ import json
 import pathlib
 
 import jwt as pyjwt
-from flask import Blueprint, jsonify, request, make_response
-from flask_wtf.csrf import CSRFError, validate_csrf
-from sqlalchemy import text
+from flask import Blueprint, jsonify, make_response, request
 
 from src.config import settings
 from src.db.engine import SessionLocal
-from src.extensions import csrf, workos_client, cookie_password, limiter, is_development
-from src.logging_config import log_event
+from src.bootstrap.extensions import cookie_password, csrf, is_development, limiter, workos_client
+from src.bootstrap.logging import log_event
 from src.services import token_issuer, workos_bridge
 from src.services.machine_svc import InvalidClientError, issue_machine_token
 
-bp = Blueprint("api", __name__, url_prefix="/api")
+bp = Blueprint("token", __name__, url_prefix="/api")
 
 # Cache the OpenAPI spec in memory (loaded once at startup)
 _openapi_spec_cache = None
@@ -23,18 +21,18 @@ _openapi_spec_cache = None
 def _load_openapi_spec():
     """Load and cache the OpenAPI specification."""
     global _openapi_spec_cache
-    
+
     if _openapi_spec_cache is not None:
         return _openapi_spec_cache
-    
+
     openapi_file = pathlib.Path(__file__).parent.parent.parent / "openapi.json"
-    
+
     if not openapi_file.exists():
         raise FileNotFoundError(f"OpenAPI specification not found at {openapi_file}")
-    
+
     with open(openapi_file) as f:
         _openapi_spec_cache = json.load(f)
-    
+
     return _openapi_spec_cache
 
 
@@ -44,21 +42,21 @@ def _load_openapi_spec():
 def token():
     """
     Issue platform JWT via OAuth2 implicit or client_credentials flow.
-    
+
     Supports two authorization methods:
-    
+
     1. **Session Grant (implicit)**: Issues human JWT from sealed WorkOS session cookie.
        - No body required, token from wos_session cookie
-       - Returns: {\"access_token\": \"<jwt>\", \"token_type\": \"Bearer\", \"expires_in\": <seconds>}
+       - Returns: {"access_token": "<jwt>", "token_type": "Bearer", "expires_in": <seconds>}
        - Status: 200 (success), 401 (no session), 503 (WorkOS unavailable)
-    
+
     2. **Client Credentials**: Issues machine JWT for service-to-service auth.
        - Requires: grant_type=client_credentials, Basic auth with client_id:client_secret
        - Looks up MachineCredential, verifies secret via bcrypt, issues RS256 JWT
-       - Returns: {\"access_token\": \"<jwt>\", \"token_type\": \"Bearer\", \"expires_in\": <seconds>}
+       - Returns: {"access_token": "<jwt>", "token_type": "Bearer", "expires_in": <seconds>}
        - Status: 200 (success), 401 (invalid credentials), 503 (DB/config unavailable)
-    
-    Ref: specs/014-authentication-service/spec.md, RFC 6749 (OAuth2), contracts/token-issuance.md
+
+    Ref: specs/014-authentication-service/spec.md, RFC 6749 (OAuth2)
     """
     if request.is_json:
         grant_type = (request.get_json(silent=True) or {}).get("grant_type")
@@ -75,9 +73,6 @@ def token():
 
 
 def _handle_session_grant():
-    if not settings.jwt_private_key_pem or not settings.jwt_public_key_pem:
-        return jsonify({"error": "JWT keys not configured"}), 503
-
     sealed = request.cookies.get("wos_session")
     if not sealed:
         return jsonify({"error": "unauthenticated"}), 401
@@ -88,11 +83,11 @@ def _handle_session_grant():
             cookie_password=cookie_password,
         )
         auth_response = session.authenticate()
-        
+
         # If the WorkOS short-lived access token is expired, attempt to refresh it
         if not auth_response.authenticated:
             auth_response = session.refresh()
-            
+
         if not auth_response.authenticated:
             return jsonify({"error": "session invalid or expired"}), 401
     except Exception as e:
@@ -115,17 +110,18 @@ def _handle_session_grant():
             ttl_secs=settings.access_token_ttl_secs,
             private_key_pem=settings.jwt_private_key_pem,
             issuer=settings.jwt_issuer,
+            audience=settings.jwt_audience,
             claim_namespace=settings.jwt_claim_namespace,
             public_key_pem=settings.jwt_public_key_pem,
         )
         log_event("platform_token_issued", user_id=sub)
-        
+
         response = make_response(jsonify({
             "access_token": platform_token,
             "token_type": "Bearer",
             "expires_in": settings.access_token_ttl_secs,
         }))
-        
+
         # If the session was refreshed, persist the newly sealed session back to the client
         sealed_session = getattr(auth_response, "sealed_session", None)
         if sealed_session:
@@ -137,7 +133,7 @@ def _handle_session_grant():
                 samesite="lax",
                 path="/",
             )
-            
+
         return response
     except Exception as e:
         log_event("platform_token_error", error_class=type(e).__name__)
@@ -146,8 +142,6 @@ def _handle_session_grant():
 
 def _handle_client_credentials():
     """OAuth2 client_credentials grant for machine-to-machine tokens."""
-    if not settings.jwt_private_key_pem:
-        return jsonify({"error": "JWT keys not configured"}), 503
     if not settings.database_url:
         return jsonify({"error": "database not configured"}), 503
 
@@ -182,97 +176,25 @@ def _handle_client_credentials():
         return jsonify({"error": "token issuance failed"}), 500
 
 
-@bp.route("/profile")
-@csrf.exempt
-def profile():
-    """
-    Retrieve user profile and organization details using the platform JWT.
-
-    Verifies the Bearer token (RS256, same as /api/token-inspect), then uses the `sub`
-    (WorkOS user ID) and `neosofia:tenant_id` (org ID) claims to call WorkOS
-    directly — no session cookie unseal required.
-    """
-    if not settings.jwt_public_key_pem:
-        return jsonify({"error": "JWT public key not configured"}), 503
-
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return jsonify({"error": "unauthenticated"}), 401
-
-    raw_token = auth_header[7:]
-    try:
-        from src.services.token_issuer import AUDIENCE
-        decoded = pyjwt.decode(
-            raw_token,
-            settings.jwt_public_key_pem,
-            algorithms=["RS256"],
-            issuer=settings.jwt_issuer,
-            audience=AUDIENCE,
-            options={"require": ["exp", "iat", "iss", "sub", "aud"]},
-        )
-    except pyjwt.ExpiredSignatureError:
-        return jsonify({"error": "token expired"}), 401
-    except pyjwt.InvalidTokenError as e:
-        return jsonify({"error": f"invalid token: {e}"}), 401
-
-    user_id = decoded.get("sub")
-    tenant_id = decoded.get(f"{settings.jwt_claim_namespace}:tenant_id")
-
-    try:
-        wos_user = workos_client.user_management.get_user(user_id)
-        first_name = getattr(wos_user, "first_name", "") or ""
-        last_name = getattr(wos_user, "last_name", "") or ""
-        email = getattr(wos_user, "email", "") or ""
-    except Exception as e:
-        log_event("workos_user_fetch_failed", error_class=type(e).__name__, user_id=user_id)
-        return jsonify({"error": "failed to fetch user profile"}), 503
-
-    org_name = "Unknown Organization"
-    if tenant_id:
-        try:
-            org = workos_client.organizations.get_organization(tenant_id)
-            org_name = org.name
-        except Exception as e:
-            log_event("workos_org_fetch_failed", error_class=type(e).__name__, org_id=tenant_id)
-
-    roles = decoded.get(f"{settings.jwt_claim_namespace}:roles", [])
-
-    return jsonify({
-        "first_name": first_name,
-        "last_name": last_name,
-        "email": email,
-        "organization_name": org_name,
-        "roles": roles,
-    })
-
-
 @bp.route("/token-inspect")
 @csrf.exempt
 def token_inspect():
     """
     Validate platform JWT and return decoded claims.
-    
-    Expects Bearer token in Authorization header. Verifies RS256 signature against
-    JWT public key (cached from JWKS endpoint), validates issuer and audience claims,
-    and enforces required claims (exp, iat, iss, sub, aud). Returns decoded claims
-    without requiring WorkOS API call — enabling stateless, distributed JWT validation
-    throughout the platform services (Constitution §VII).
-    
-    Validation ensures tokens are:
-    - Signed by this issuer (iss claim)
-    - Intended for this service (aud claim)
-    - Not expired (exp claim)
-    - Contain required fields (sub, iat)
-    
-    Request: Authorization: Bearer <platform-jwt>
-    Response: {\"sub\": \"<user_id>\", \"neosofia:token_type\": \"<human|machine>\", \"neosofia:roles\": [...], \"neosofia:tenant_id\": \"<id>\", \"exp\": <timestamp>, ...}
-    Status: 200 (valid), 401 (missing/invalid/expired token), 503 (JWT key not configured)
-    
-    Ref: RFC 7519 (JWT Claims), RFC 7523 (Bearer token), specs/014-authentication-service/spec.md (FR-002: JWT validation)
-    """
-    if not settings.jwt_public_key_pem:
-        return jsonify({"error": "JWT public key not configured"}), 503
 
+    Expects Bearer token in Authorization header. Verifies RS256 signature against
+    JWT public key, validates issuer and audience claims, and enforces required claims
+    (exp, iat, iss, sub, aud). Returns decoded claims without requiring a WorkOS API
+    call — enabling stateless, distributed JWT validation throughout the platform
+    (Constitution §VII).
+
+    Request: Authorization: Bearer <platform-jwt>
+    Response: decoded JWT claims
+    Status: 200 (valid), 401 (missing/invalid/expired token), 503 (JWT key not configured)
+
+    Ref: RFC 7519 (JWT Claims), RFC 7523 (Bearer token),
+         specs/014-authentication-service/spec.md (FR-002: JWT validation)
+    """
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         return jsonify({"error": "missing Bearer token"}), 401
@@ -280,13 +202,12 @@ def token_inspect():
     raw_token = auth_header[7:]
     try:
         # Validate issuer, audience, and required claims (CWE-347 mitigation)
-        from src.services.token_issuer import AUDIENCE
         decoded = pyjwt.decode(
             raw_token,
             settings.jwt_public_key_pem,
             algorithms=["RS256"],
             issuer=settings.jwt_issuer,
-            audience=AUDIENCE,
+            audience=settings.jwt_audience,
             options={"require": ["exp", "iat", "iss", "sub", "aud"]},
         )
         return jsonify(decoded)
@@ -300,32 +221,3 @@ def token_inspect():
         return jsonify({"error": "token from unauthorized issuer"}), 401
     except pyjwt.InvalidTokenError as e:
         return jsonify({"error": f"invalid token: {e}"}), 401
-
-
-@bp.route("/health")
-@csrf.exempt
-def health():
-    """
-    Liveness and readiness probe for Kubernetes/Docker orchestration.
-    
-    Executes SELECT 1 query against PostgreSQL with 5-second timeout.
-    Returns 200 if database is reachable, 503 if timeout or error.
-    Used by load balancers and container orchestrators to route traffic.
-    
-    Response: {\"status\": \"ok\", \"timestamp\": \"<iso8601>\"} or {\"status\": \"error\", \"detail\": \"<reason>\"}
-    Status: 200 (healthy), 503 (unhealthy)
-    
-    Ref: Kubernetes probes (livenessProbe, readinessProbe)
-    """
-    try:
-        with SessionLocal() as db:
-            db.execute(text("SELECT 1"))
-        return jsonify({"status": "ok"}), 200
-    except TimeoutError:
-        log_event("health_check_failed", reason="database timeout")
-        return jsonify({"status": "error", "detail": "database timeout"}), 503
-    except Exception as e:
-        log_event("health_check_failed", error_class=type(e).__name__)
-        return jsonify({"status": "error", "detail": "database unavailable"}), 503
-
-

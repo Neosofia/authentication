@@ -167,7 +167,7 @@
             "description": "Unauthenticated or session invalid",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
               }
             }
           }
