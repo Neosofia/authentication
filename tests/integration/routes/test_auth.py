@@ -11,9 +11,10 @@ def test_login_happy_path(client):
 
         assert response.status_code == 302
         assert response.headers["Location"] == redirect_url
-        cookie_headers = response.headers.getlist("Set-Cookie")
-        assert any("oauth_state=" in header for header in cookie_headers)
-        assert any("code_verifier=" in header for header in cookie_headers)
+
+        with client.session_transaction() as sess:
+            assert "oauth_state" in sess
+            assert "code_verifier" in sess
 
 
 def test_callback_happy_path(client):
@@ -43,8 +44,9 @@ def test_callback_happy_path(client):
         mock_workos.organizations.get_organization.return_value = org
         mock_seal.return_value = sealed_value
 
-        client.set_cookie("oauth_state", state)
-        client.set_cookie("code_verifier", "verifier-value")
+        with client.session_transaction() as sess:
+            sess["oauth_state"] = state
+            sess["code_verifier"] = "verifier-value"
 
         response = client.get(f"/callback?code={code}&state={state}")
 
@@ -52,8 +54,10 @@ def test_callback_happy_path(client):
         assert response.headers["Location"] == "/"
         cookie_headers = response.headers.getlist("Set-Cookie")
         assert any("wos_session=" in header for header in cookie_headers)
-        assert any("oauth_state=;" in header for header in cookie_headers)
-        assert any("code_verifier=;" in header for header in cookie_headers)
+        
+        with client.session_transaction() as sess:
+            assert "oauth_state" not in sess
+            assert "code_verifier" not in sess
 
 
 def test_logout_happy_path(client):
