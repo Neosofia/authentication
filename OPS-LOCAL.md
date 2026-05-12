@@ -48,17 +48,17 @@ falls back to real environment variables if `.env` is absent).
 
 ---
 
-## 3. Machine Credentials (service-to-service)
+## 3. Service Credentials (service-to-service)
 
 The `test-service` credential is seeded automatically by the Alembic migration
-when `SEED_MACHINE_SECRET` is set. Set it in `.env`, then run migrations:
+when `SEED_SERVICE_SECRET` is set. Set it in `.env`, then run migrations:
 
 ```bash
-# .env must contain: SEED_MACHINE_SECRET=secret
+# .env must contain: SEED_SERVICE_SECRET=secret
 uv run alembic upgrade head
 ```
 
-Then request a machine token:
+Then request a service token:
 
 ```bash
 curl -X POST http://localhost:8014/api/token \

@@ -32,7 +32,7 @@ To report any security-related issue please email security@neosofia.tech — do 
 │  Authentication Service (Flask)                      │
 │  ├─ /login, /callback        OAuth + state + PKCE    │
 │  ├─ /api/token (session)     Human JWT (15 min)      │
-│  ├─ /api/token (client_cred) Machine JWT (5 min)     │
+│  ├─ /api/token (client_cred) Service JWT (5 min)     │
 │  ├─ /api/token-inspect        RS256 validation        │
 │  └─ /.well-known/jwks.json   Public key publication  │
 └──────┬──────────────┬────────────────────────────────┘
@@ -46,7 +46,7 @@ To report any security-related issue please email security@neosofia.tech — do 
 Key architectural decisions:
 - **Stateless validation** — downstream services validate JWTs locally via cached JWKS; no per-request callback to this service or WorkOS.
 - **Delegated identity** — WorkOS owns passwords, MFA, federation, and user lifecycle.
-- **Short-lived tokens** — human JWTs expire in 15 minutes; machine JWTs in 5. No refresh tokens issued by this service.
+- **Short-lived tokens** — human JWTs expire in 15 minutes; Service JWTs in 5. No refresh tokens issued by this service.
 
 ---
 
@@ -71,9 +71,9 @@ Key architectural decisions:
 - **Cookie hardening** — all cookies set with `HttpOnly`, `Secure` (production), `SameSite=Lax`, `path="/"`.
 - **Stateless architecture** — no server-side session store; satisfies Constitution §VII.
 
-### Machine-to-Machine Credentials
+### service-to-service Credentials
 
-- **bcrypt-hashed secrets** — stored at cost factor 12; never reversible. `MachineCredential.active` flag enables immediate revocation.
+- **bcrypt-hashed secrets** — stored at cost factor 12; never reversible. `ServiceCredential.active` flag enables immediate revocation.
 - **Constant-time verification** — a dummy hash is pre-computed at import; unknown `client_id` submissions still run `bcrypt.checkpw` to prevent enumeration via timing side-channel ([CWE-208](https://cwe.mitre.org/data/definitions/208.html)).
 
 ### Rate Limits
@@ -105,7 +105,7 @@ Key architectural decisions:
 | Auth code interception | PKCE (RFC 7636) |
 | Cross-service token replay | Per-service `aud` claim |
 | Credential stuffing / brute force | Rate limiting + constant-time bcrypt |
-| Machine credential enumeration | Constant-time dummy hash |
+| Service credential enumeration | Constant-time dummy hash |
 | Clickjacking | `frame-ancestors 'none'` |
 | Protocol downgrade | HSTS (1 year) |
 | PHI exposure in logs | No email / names / DOB in any log event |

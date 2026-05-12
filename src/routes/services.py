@@ -1,10 +1,10 @@
 import secrets
 from functools import wraps
 import bcrypt
-import jwt as pyjwt
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
+from authentication_in_the_middle.decorators import with_authentication
 
 from src.config import settings
 from src.db.engine import SessionLocal
@@ -16,32 +16,18 @@ from src.bootstrap.logging import log_event
 bp = Blueprint("services", __name__, url_prefix="/api/services")
 
 def require_admin(f):
+    @with_authentication(
+        public_key=settings.jwt_public_key_pem,
+        issuer=settings.jwt_issuer,
+        audience=settings.jwt_audience,
+        enforce_active_role=False
+    )
     @wraps(f)
     def decorated(*args, **kwargs):
-        auth_header = request.headers.get("Authorization", "")
-        if not auth_header.startswith("Bearer "):
-            return jsonify({"error": "unauthenticated"}), 401
-
-        raw_token = auth_header[7:]
-        try:
-            decoded = pyjwt.decode(
-                raw_token,
-                settings.jwt_public_key_pem,
-                algorithms=["RS256"],
-                issuer=settings.jwt_issuer,
-                audience=settings.jwt_audience,
-                options={"require": ["exp", "iat", "iss", "sub", "aud"]},
-            )
-        except pyjwt.ExpiredSignatureError:
-            return jsonify({"error": "token expired"}), 401
-        except pyjwt.InvalidTokenError:
-            return jsonify({"error": "invalid token"}), 401
-
-        user_id = decoded.get("sub")
-        if not user_id:
-            return jsonify({"error": "invalid token"}), 401
+        claims = getattr(g, "jwt_claims", {})
+        user_id = claims.get("sub")
             
-        roles = decoded.get(f"{settings.jwt_claim_namespace}:roles", [])
+        roles = claims.get(f"{settings.jwt_claim_namespace}:roles", [])
         if "admin" not in roles and "platform-admin" not in roles:
              return jsonify({"error": "forbidden", "message": "requires admin role"}), 403
 
@@ -80,7 +66,7 @@ def list_services(user_uuid: str):
 @require_admin
 def create_service(user_uuid: str):
     """
-    Register a new platform service and generate its machine credentials exactly once.
+    Register a new platform service and generate its service credentials exactly once.
     """
     data = request.get_json()
     if not data or not all(k in data for k in ("name", "slug", "base_url")):

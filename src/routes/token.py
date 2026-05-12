@@ -9,8 +9,8 @@ from src.config import settings
 from src.db.engine import SessionLocal
 from src.bootstrap.extensions import cookie_password, csrf, is_development, limiter, workos_client
 from src.bootstrap.logging import log_event
-from src.services import token_issuer, workos_bridge
-from src.services.machine_svc import InvalidClientError, issue_machine_token
+from src.services import tokens, workos_bridge
+from src.services.service_tokens import InvalidClientError, issue_service_token
 
 bp = Blueprint("token", __name__, url_prefix="/api")
 
@@ -50,7 +50,7 @@ def token():
        - Returns: {"access_token": "<jwt>", "token_type": "Bearer", "expires_in": <seconds>}
        - Status: 200 (success), 401 (no session), 503 (WorkOS unavailable)
 
-    2. **Client Credentials**: Issues machine JWT for service-to-service auth.
+    2. **Client Credentials**: Issues service JWT for service-to-service auth.
        - Requires: grant_type=client_credentials, Basic auth with client_id:client_secret
        - Looks up service credential, verifies secret via bcrypt, issues RS256 JWT
        - Returns: {"access_token": "<jwt>", "token_type": "Bearer", "expires_in": <seconds>}
@@ -102,7 +102,7 @@ def _handle_session_grant():
         sub = (user.get("id") if isinstance(user, dict) else getattr(user, "id", None)) or "unknown"
 
         claims = workos_bridge.extract_platform_claims(auth_response)
-        platform_token = token_issuer.issue_token(
+        platform_token = tokens.issue_token(
             sub=sub,
             token_type="human",
             roles=claims["roles"],
@@ -141,7 +141,7 @@ def _handle_session_grant():
 
 
 def _handle_client_credentials():
-    """OAuth2 client_credentials grant for machine-to-machine tokens."""
+    """OAuth2 client_credentials grant for service-to-service tokens."""
     if not settings.database_url:
         return jsonify({"error": "database not configured"}), 503
 
@@ -164,7 +164,7 @@ def _handle_client_credentials():
 
     try:
         with SessionLocal() as db:
-            machine_token = issue_machine_token(
+            service_token = issue_service_token(
                 client_id, 
                 client_secret, 
                 db, 
@@ -172,14 +172,14 @@ def _handle_client_credentials():
             )
 
         return jsonify({
-            "access_token": machine_token,
+            "access_token": service_token,
             "token_type": "Bearer",
-            "expires_in": settings.machine_token_ttl_secs,
+            "expires_in": settings.service_token_ttl_secs,
         })
     except InvalidClientError:
         return jsonify({"error": "invalid_client"}), 401
     except Exception as e:
-        log_event("machine_token_error", error_class=type(e).__name__)
+        log_event("service_token_error", error_class=type(e).__name__)
         return jsonify({"error": "token issuance failed"}), 500
 
 

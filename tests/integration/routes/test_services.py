@@ -3,7 +3,7 @@ from src.models.service import Service
 
 def _get_token(app, roles):
     with app.app_context():
-        from src.services.token_issuer import issue_token
+        from src.services.tokens import issue_token
         from src.config import settings
         return issue_token(
             sub="user_123",

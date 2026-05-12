@@ -2,7 +2,7 @@ from unittest.mock import patch
 from sqlalchemy.exc import OperationalError
 
 # If the database connection times out, we want the pod to remain alive 
-# but log that we are in a degraded state (cannot issue machine tokens).
+# but log that we are in a degraded state (cannot issue service tokens).
 @patch("src.routes.health.SessionLocal")
 @patch("src.routes.health.log_event")
 def test_health_timeout(mock_log, mock_session, client):
@@ -12,7 +12,7 @@ def test_health_timeout(mock_log, mock_session, client):
     response = client.get("/health")
     
     assert response.status_code == 200
-    assert response.json == {"status": "degraded", "detail": "database timeout, machine JWTs can not be issued"}
+    assert response.json == {"status": "degraded", "detail": "database timeout, service JWTs can not be issued"}
     mock_log.assert_called_once_with("health_check_degraded", reason="database timeout")
 
 # If the database is completely inaccessible (e.g., generic exception like OperationalError),

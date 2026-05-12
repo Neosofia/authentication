@@ -2,7 +2,7 @@ import base64
 from unittest.mock import patch, MagicMock
 import jwt
 
-from src.services.machine_svc import InvalidClientError
+from src.services.service_tokens import InvalidClientError
 
 class MockConnectionError(Exception):
     """Simulates a network timeout class."""
@@ -62,7 +62,7 @@ def test_session_grant_workos_timeout(mock_workos, mock_log, client):
 # a 500 error should be triggered alongside a telemetry log for platform_token_error.
 @patch("src.routes.token.log_event")
 @patch("src.routes.token.workos_client")
-@patch("src.routes.token.token_issuer")
+@patch("src.routes.token.tokens")
 @patch("src.routes.token.workos_bridge")
 def test_session_grant_internal_error(mock_bridge, mock_issuer, mock_workos, mock_log, client):
     client.set_cookie("wos_session", "dummy")
@@ -98,10 +98,10 @@ def test_client_credentials_missing_auth(mock_log, client):
     assert response.json == {"error": "invalid_client"}
 
 
-# If a machine uses a valid client_id but the secret does not match the database check,
+# If a service uses a valid client_id but the secret does not match the database check,
 # the service issues a clean InvalidClientError converted to 401.
 @patch("src.routes.token.log_event")
-@patch("src.routes.token.issue_machine_token")
+@patch("src.routes.token.issue_service_token")
 @patch("src.routes.token.SessionLocal")
 def test_client_credentials_invalid_client(mock_db, mock_issue, mock_log, client):
     mock_issue.side_effect = InvalidClientError("Bad secret")
@@ -109,16 +109,16 @@ def test_client_credentials_invalid_client(mock_db, mock_issue, mock_log, client
     assert response.status_code == 401
 
 
-# If the database offline or a deep internal error halts machine token generation,
-# it should result in a 500 error alongside machine_token_error telemetry.
+# If the database offline or a deep internal error halts service token generation,
+# it should result in a 500 error alongside service_token_error telemetry.
 @patch("src.routes.token.log_event")
-@patch("src.routes.token.issue_machine_token")
+@patch("src.routes.token.issue_service_token")
 @patch("src.routes.token.SessionLocal")
 def test_client_credentials_internal_error(mock_db, mock_issue, mock_log, client):
     mock_issue.side_effect = Exception("DB offline")
     response = client.post("/api/token", data={"grant_type": "client_credentials", "client_id": "test", "client_secret": "bad"})
     assert response.status_code == 500
-    mock_log.assert_called_once_with("machine_token_error", error_class="Exception")
+    mock_log.assert_called_once_with("service_token_error", error_class="Exception")
 
 
 # token-inspect requires a valid Bearer token format; missing it entirely

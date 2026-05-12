@@ -27,7 +27,7 @@ def health():
         return jsonify({"status": "ok"}), 200
     except TimeoutError:
         log_event("health_check_degraded", reason="database timeout")
-        return jsonify({"status": "degraded", "detail": "database timeout, machine JWTs can not be issued"}), 200
+        return jsonify({"status": "degraded", "detail": "database timeout, service JWTs can not be issued"}), 200
     except Exception as e:
         log_event("health_check_failed", error_class=type(e).__name__)
         return jsonify({"status": "error", "detail": "database unavailable"}), 503

@@ -23,7 +23,6 @@ def test_token_client_credentials_happy_path(client, api_spec, validate_response
     mock_cred = ServiceCredential(
         service_uuid=uuid.uuid7(),
         hashed_secret=hashed,
-        active=True,
     )
     
     with patch("src.routes.token.SessionLocal") as mock_db:
@@ -67,11 +66,11 @@ def test_token_session_grant_happy_path(client, api_spec, validate_response):
 
 def test_token_inspect_happy_path(client, api_spec, validate_response, app):
     with app.app_context():
-        from src.services.token_issuer import issue_token
+        from src.services.tokens import issue_token
         from src.config import settings
-        machine_token = issue_token(
+        service_token = issue_token(
             sub="test_service",
-            token_type="machine",
+            token_type="service",
             roles=[],
             tenant_id=None,
             ttl_secs=3600,
@@ -82,7 +81,7 @@ def test_token_inspect_happy_path(client, api_spec, validate_response, app):
         )
 
     response = client.get("/api/token-inspect", headers={
-        "Authorization": f"Bearer {machine_token}"
+        "Authorization": f"Bearer {service_token}"
     })
     
     assert response.status_code == 200

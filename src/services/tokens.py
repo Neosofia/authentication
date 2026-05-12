@@ -54,11 +54,11 @@ def issue_token(
       aud              — intended audience (RFC 7519)
       iat / exp        — issued-at and expiry (RFC 7519)
       jti              — UUID v7 for replay detection (RFC 7519)
-      azp              — authorized party / client_id (machine tokens, RFC 7519)
-      {ns}:token_type  — "human" | "machine"
+      azp              — authorized party / client_id (service tokens, RFC 7519)
+      {ns}:token_type  — "human" | "service"
       {ns}:token_version — integer schema version (increment on breaking changes)
-      {ns}:roles       — list of roles (empty for machine tokens without org membership)
-      {ns}:tenant_id   — org ID (omitted for machine credentials; present for all human tokens)
+      {ns}:roles       — list of roles (empty for service tokens without org membership)
+      {ns}:tenant_id   — org ID (omitted for service credentials; present for all human tokens)
 
     The claim namespace prefix (default "neosofia") is set via the
     JWT_CLAIM_NAMESPACE env var, allowing forks to use their own namespace

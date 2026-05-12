@@ -8,7 +8,7 @@ def test_profile_unauthorized(client, api_spec, validate_response):
 
 def test_profile_happy_path(client, api_spec, validate_response, app):
     with app.app_context():
-        from src.services.token_issuer import issue_token
+        from src.services.tokens import issue_token
         from src.config import settings
         human_token = issue_token(
             sub="user_123",

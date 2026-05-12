@@ -55,12 +55,9 @@ class Settings(BaseSettings):
     jwt_claim_namespace: str = "neosofia"
     jwt_issuer: str = "https://auth.neosofia.local"
     jwt_audience: str = "neosofia-auth-svc"
-    # TODO (M2.1): Replace with an API call to the Authorization Service endpoint /api/valid-roles
-    #              (see spec/016-authorization-service/spec.md for design) so role management
-    #              is owned by the Authorization Service rather than configured here.
     valid_roles: str  # required; comma-separated WorkOS org membership roles, e.g. "admin,member"
     access_token_ttl_secs: int = 900   # 15 minutes
-    machine_token_ttl_secs: int = 300  # 5 minutes
+    service_token_ttl_secs: int = 300  # 5 minutes
     port: int = 8014
     trusted_proxy_hops: int = 1  # set to 0 in tests; increase for CDN + load balancer topologies
     web_concurrency: int = 2

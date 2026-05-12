@@ -40,7 +40,7 @@
       "post": {
         "tags": ["OAuth2 & Tokens"],
         "summary": "Issue platform JWT",
-        "description": "Issue RS256-signed platform JWT via OAuth2 implicit (session) or client_credentials (Basic auth) grant. Supports both human authentication (via sealed WorkOS session cookie) and service-to-service authentication (via machine credentials).",
+        "description": "Issue RS256-signed platform JWT via OAuth2 implicit (session) or client_credentials (Basic auth) grant. Supports both human authentication (via sealed WorkOS session cookie) and service-to-service authentication (via service credentials).",
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
@@ -53,7 +53,7 @@
                   },
                   {
                     "type": "object",
-                    "title": "Client Credentials Grant (Machine)",
+                    "title": "Client Credentials Grant (Service)",
                     "properties": {
                       "grant_type": {
                         "type": "string",
@@ -370,12 +370,12 @@
           },
           "azp": {
             "type": "string",
-            "description": "Authorized party (RFC 7519); present on machine tokens only, set to the client_id of the machine credential"
+            "description": "Authorized party (RFC 7519); present on service tokens only, set to the client_id of the service credential"
           },
           "neosofia:token_type": {
             "type": "string",
-            "enum": ["human", "machine"],
-            "description": "Token principal class: 'human' for user sessions, 'machine' for service-to-service credentials"
+            "enum": ["human", "service"],
+            "description": "Token principal class: 'human' for user sessions, 'service' for service-to-service credentials"
           },
           "neosofia:token_version": {
             "type": "integer",
@@ -391,7 +391,7 @@
           },
           "neosofia:tenant_id": {
             "type": "string",
-            "description": "Optional: tenant/organization ID (absent for machine tokens)"
+            "description": "Optional: tenant/organization ID (absent for service tokens)"
           }
         }
       },
@@ -422,7 +422,7 @@
       "BasicAuth": {
         "type": "http",
         "scheme": "basic",
-        "description": "Base64-encoded client_id:client_secret for machine credentials grant"
+        "description": "Base64-encoded client_id:client_secret for service credentials grant"
       },
       "SessionCookie": {
         "type": "apiKey",

@@ -1,45 +1,35 @@
 from unittest.mock import patch, MagicMock
 import jwt
 
-# If the Authorization header does not start with 'Bearer ',
-# the profile endpoint should return a 401 Unauthenticated error.
 def test_profile_missing_bearer(client):
     response = client.get("/api/profile")
     assert response.status_code == 401
-    assert response.json == {"error": "unauthenticated"}
+    assert response.json["error"] == "unauthenticated"
 
-# If the JWT provides an expired signature, the PyJWT wrapper
-# throws an ExpiredSignatureError that we should catch and return as a 401.
-@patch("src.routes.profile.pyjwt.decode")
+@patch("authentication_in_the_middle.decorators.pyjwt.decode")
 def test_profile_expired_token(mock_decode, client):
     mock_decode.side_effect = jwt.ExpiredSignatureError("Expired")
     response = client.get("/api/profile", headers={"Authorization": "Bearer 123"})
     assert response.status_code == 401
-    assert response.json == {"error": "token expired"}
+    assert response.json["error"] == "unauthenticated"
 
-# For generic token format/signature problems, we catch InvalidTokenError
-# and emit a 401 reflecting the parsing breakdown.
-@patch("src.routes.profile.pyjwt.decode")
+@patch("authentication_in_the_middle.decorators.pyjwt.decode")
 def test_profile_invalid_token(mock_decode, client):
     mock_decode.side_effect = jwt.InvalidTokenError("Bad token format")
     response = client.get("/api/profile", headers={"Authorization": "Bearer 123"})
     assert response.status_code == 401
-    assert response.json == {"error": "invalid token"}
+    assert response.json["error"] == "unauthenticated"
 
-# Though PyJWT options enforce standard claims, if the sub claim is empty
-# or missing after decode, we explicitly reject with a 401.
-@patch("src.routes.profile.pyjwt.decode")
+@patch("authentication_in_the_middle.decorators.pyjwt.decode")
 def test_profile_missing_sub_claim(mock_decode, client):
     mock_decode.return_value = {"iss": "test_issuer", "aud": "test_audience"}
     response = client.get("/api/profile", headers={"Authorization": "Bearer 123"})
     assert response.status_code == 401
     assert response.json == {"error": "invalid token", "message": "Missing sub claim"}
 
-# If fetching the user from WorkOS leads to a timeout or connection loop,
-# we surface a 503 error and emit a telemetry event detailing the failure.
 @patch("src.routes.profile.log_event")
 @patch("src.routes.profile.workos_client")
-@patch("src.routes.profile.pyjwt.decode")
+@patch("authentication_in_the_middle.decorators.pyjwt.decode")
 def test_profile_workos_user_fetch_failed(mock_decode, mock_workos, mock_log, client):
     mock_decode.return_value = {"sub": "user_123"}
     mock_workos.user_management.get_user.side_effect = Exception("User API down")
@@ -49,12 +39,9 @@ def test_profile_workos_user_fetch_failed(mock_decode, mock_workos, mock_log, cl
     assert response.json == {"error": "failed to fetch user profile"}
     mock_log.assert_called_once_with("workos_user_fetch_failed", error_class="Exception", user_id="user_123")
 
-# If the tenant_id claim is present but fetching the org from WorkOS fails,
-# the service degrades gracefully: it logs the failure but returns the user payload 
-# safely with "Unknown Organization".
 @patch("src.routes.profile.log_event")
 @patch("src.routes.profile.workos_client")
-@patch("src.routes.profile.pyjwt.decode")
+@patch("authentication_in_the_middle.decorators.pyjwt.decode")
 def test_profile_workos_org_fetch_failed(mock_decode, mock_workos, mock_log, client):
     mock_decode.return_value = {"sub": "user_123", "neosofia:tenant_id": "org_123"}
     
