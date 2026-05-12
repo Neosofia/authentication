@@ -1,4 +1,7 @@
 # Multi-stage build for Authentication Service
+# Stage 0: Templates
+FROM ghcr.io/neosofia/templates:v0.1.0 AS templates
+
 # Stage 1: Build environment
 FROM python:3.14-alpine@sha256:dd4d2bd5b53d9b25a51da13addf2be586beebd5387e289e798e4083d94ca837a AS builder
 
@@ -58,6 +61,9 @@ COPY alembic.ini ./
 COPY openapi.json ./
 COPY scripts ./scripts
 COPY .env.example ./
+
+# Copy audit templates purely utilizing Docker infrastructure
+COPY --from=templates /sql/audit /app/audit-templates
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
