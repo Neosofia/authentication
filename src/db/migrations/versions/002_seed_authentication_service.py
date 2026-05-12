@@ -1,6 +1,6 @@
-"""002 seed test service credential
+"""002 seed authentication service
 
-Inserts a fixed machine credential for ``test-service`` used for manual testing.
+Inserts a fixed service and credential for ``authentication`` used for manual local testing.
 The secret is ``secret`` — this is intentionally a well-known dev/test credential,
 not a production secret.
 
@@ -21,7 +21,10 @@ down_revision = "001"
 branch_labels = None
 depends_on = None
 
-SERVICE_NAME = "test-service"
+SERVICE_NAME = "Authentication"
+SERVICE_SLUG = "authentication"
+SERVICE_BASE_URL = "http://authentication:8014"
+
 # Well-known dev/test secret — matches the value hard-coded in the test UI.
 _SECRET = "secret"
 _HASHED = bcrypt.hashpw(_SECRET.encode(), bcrypt.gensalt()).decode()
@@ -35,18 +38,36 @@ def upgrade() -> None:
     op.execute(f"SET LOCAL app.current_actor_uuid = '{sys_uuid}'")
     op.execute("SET LOCAL app.current_actor_type = '2'")  # Service
 
-    op.execute(
+    conn = op.get_bind()
+    service_uuid = conn.execute(
         sa.text(
             """
-            INSERT INTO machine_credentials (uuid, service_name, hashed_secret, active)
-            VALUES (:uuid, :service_name, :hashed_secret, true)
-            ON CONFLICT (service_name) DO UPDATE
-              SET hashed_secret = EXCLUDED.hashed_secret,
-                  active = true
+            INSERT INTO services (uuid, name, slug, base_url)
+            VALUES (:uuid, :name, :slug, :base_url)
+            ON CONFLICT (name) DO UPDATE
+              SET slug = EXCLUDED.slug,
+                  base_url = EXCLUDED.base_url
+            RETURNING uuid
             """
         ).bindparams(
             uuid=uuid.uuid7(),
-            service_name=SERVICE_NAME,
+            name=SERVICE_NAME,
+            slug=SERVICE_SLUG,
+            base_url=SERVICE_BASE_URL,
+        )
+    ).scalar_one()
+
+    conn.execute(
+        sa.text(
+            """
+            INSERT INTO service_credentials (uuid, service_uuid, hashed_secret)
+            VALUES (:uuid, :service_uuid, :hashed_secret)
+            ON CONFLICT (service_uuid) DO UPDATE
+              SET hashed_secret = EXCLUDED.hashed_secret
+            """
+        ).bindparams(
+            uuid=uuid.uuid7(),
+            service_uuid=service_uuid,
             hashed_secret=_HASHED,
         )
     )

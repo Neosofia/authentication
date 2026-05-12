@@ -52,7 +52,7 @@ def token():
 
     2. **Client Credentials**: Issues machine JWT for service-to-service auth.
        - Requires: grant_type=client_credentials, Basic auth with client_id:client_secret
-       - Looks up MachineCredential, verifies secret via bcrypt, issues RS256 JWT
+       - Looks up service credential, verifies secret via bcrypt, issues RS256 JWT
        - Returns: {"access_token": "<jwt>", "token_type": "Bearer", "expires_in": <seconds>}
        - Status: 200 (success), 401 (invalid credentials), 503 (DB/config unavailable)
 
@@ -157,12 +157,19 @@ def _handle_client_credentials():
         client_id = request.form.get("client_id", "")
         client_secret = request.form.get("client_secret", "")
 
+    requested_audience = request.form.get("audience")
+
     if not client_id or not client_secret:
         return jsonify({"error": "invalid_client"}), 401
 
     try:
         with SessionLocal() as db:
-            machine_token = issue_machine_token(client_id, client_secret, db)
+            machine_token = issue_machine_token(
+                client_id, 
+                client_secret, 
+                db, 
+                audience=requested_audience
+            )
 
         return jsonify({
             "access_token": machine_token,

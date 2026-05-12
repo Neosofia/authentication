@@ -11,7 +11,7 @@ load_dotenv()  # no-op in containers where env vars come from the runtime
 from src.config import settings  # noqa: E402
 from src.bootstrap.extensions import csrf, cookie_password, limiter  # noqa: E402
 from src.bootstrap.logging import setup_logging  # noqa: E402
-from src.routes import auth, token, profile, health, openapi  # noqa: E402
+from src.routes import auth, token, profile, health, openapi, services  # noqa: E402
 
 
 def create_app(config: dict | None = None) -> Flask:
@@ -42,7 +42,7 @@ def create_app(config: dict | None = None) -> Flask:
     app.register_blueprint(profile.bp)
     app.register_blueprint(health.bp)
     app.register_blueprint(openapi.bp)
-
+    app.register_blueprint(services.bp)
 
     # Pre-load OpenAPI spec at startup to fail fast if it's missing or invalid
     token._load_openapi_spec()

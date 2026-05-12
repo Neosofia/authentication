@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 
 from src.config import settings
 from src.bootstrap.logging import log_event
-from src.models.machine_credential import MachineCredential
+from src.models.service import Service
+from src.models.service_credential import ServiceCredential
 from src.services import token_issuer
 
 
@@ -22,16 +23,18 @@ def issue_machine_token(
     service_name: str,
     client_secret: str,
     db: Session,
+    audience: str | None = None,
 ) -> str:
     """
-    Verify a machine credential and issue a platform JWT with user_type='service'.
+    Verify a service credential and issue a platform JWT with user_type='service'.
     Raises InvalidClientError (→ 401) on any mismatch or inactive credential.
     Uses constant-time comparison to prevent timing attacks (CWE-208).
     """
     result = db.execute(
-        select(MachineCredential).where(
-            MachineCredential.service_name == service_name,
-            MachineCredential.active.is_(True),
+        select(ServiceCredential)
+        .join(Service, ServiceCredential.service_uuid == Service.uuid)
+        .where(
+            Service.name == service_name,
         )
     )
     credential = result.scalar_one_or_none()
@@ -57,7 +60,7 @@ def issue_machine_token(
         ttl_secs=settings.machine_token_ttl_secs,
         private_key_pem=settings.jwt_private_key_pem,
         issuer=settings.jwt_issuer,
-        audience=settings.jwt_audience,
+        audience=audience or settings.jwt_audience,
         claim_namespace=settings.jwt_claim_namespace,
         azp=service_name,
         public_key_pem=settings.jwt_public_key_pem,

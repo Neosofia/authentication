@@ -1,7 +1,8 @@
 import bcrypt
 import base64
+import uuid
 from unittest.mock import patch, MagicMock
-from src.models.machine_credential import MachineCredential
+from src.models.service_credential import ServiceCredential
 
 
 def test_token_unauthorized(client, api_spec, validate_response):
@@ -19,8 +20,8 @@ def test_token_client_credentials_happy_path(client, api_spec, validate_response
     client_secret = "test_secret"
     hashed = bcrypt.hashpw(client_secret.encode(), bcrypt.gensalt()).decode()
     
-    mock_cred = MachineCredential(
-        service_name=client_id,
+    mock_cred = ServiceCredential(
+        service_uuid=uuid.uuid7(),
         hashed_secret=hashed,
         active=True,
     )
