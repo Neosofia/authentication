@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Text, func
+from sqlalchemy import Boolean, DateTime, Text, func, SmallInteger
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,5 +23,5 @@ class MachineCredential(Base):
     # Audit tracking fields (automatically injected and managed by Postgres triggers)
     changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     changed_by_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    changed_by_type: Mapped[int] = mapped_column()
-    change_type: Mapped[int] = mapped_column(server_default="1")
+    changed_by_type: Mapped[int] = mapped_column(SmallInteger)
+    change_type: Mapped[int] = mapped_column(SmallInteger, server_default="1")
