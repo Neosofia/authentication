@@ -34,8 +34,8 @@ def profile():
         )
     except pyjwt.ExpiredSignatureError:
         return jsonify({"error": "token expired"}), 401
-    except pyjwt.InvalidTokenError as e:
-        return jsonify({"error": f"invalid token: {e}"}), 401
+    except pyjwt.InvalidTokenError:
+        return jsonify({"error": "invalid token"}), 401
 
     user_id = decoded.get("sub")
     if not user_id:

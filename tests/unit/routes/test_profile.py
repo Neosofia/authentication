@@ -24,7 +24,7 @@ def test_profile_invalid_token(mock_decode, client):
     mock_decode.side_effect = jwt.InvalidTokenError("Bad token format")
     response = client.get("/api/profile", headers={"Authorization": "Bearer 123"})
     assert response.status_code == 401
-    assert response.json == {"error": "invalid token: Bad token format"}
+    assert response.json == {"error": "invalid token"}
 
 # Though PyJWT options enforce standard claims, if the sub claim is empty
 # or missing after decode, we explicitly reject with a 401.

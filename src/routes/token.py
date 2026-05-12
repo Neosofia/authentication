@@ -219,5 +219,5 @@ def token_inspect():
         return jsonify({"error": "token not intended for this service"}), 401
     except pyjwt.InvalidIssuerError:
         return jsonify({"error": "token from unauthorized issuer"}), 401
-    except pyjwt.InvalidTokenError as e:
-        return jsonify({"error": f"invalid token: {e}"}), 401
+    except pyjwt.InvalidTokenError:
+        return jsonify({"error": "invalid token"}), 401

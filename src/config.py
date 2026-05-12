@@ -33,7 +33,7 @@ def _load_secrets_manager() -> dict:
         )
         response = client.get_secret_value(SecretId=arn)
         bundle: dict = json.loads(response["SecretString"])
-        logger.info("Loaded config from Secrets Manager: %s", arn)
+        logger.info("Loaded config from AWS Secrets Manager")
         return bundle
     except Exception as exc:  # noqa: BLE001
         # Surface as a hard startup failure — a misconfigured secret store

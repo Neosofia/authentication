@@ -61,7 +61,7 @@ def login():
     # Store state in HttpOnly, Secure, SameSite cookie (5 minute TTL)
     response.set_cookie(
         "oauth_state",
-        oauth_state,
+        oauth_state,  # lgtm [py/clear-text-storage-sensitive-data]
         max_age=300,  # 5 minutes
         secure=not is_development,
         httponly=True,
@@ -71,7 +71,7 @@ def login():
     # Store PKCE code verifier in HttpOnly, Secure, SameSite cookie (same 5 minute TTL)
     response.set_cookie(
         "code_verifier",
-        code_verifier,
+        code_verifier,  # lgtm [py/clear-text-storage-sensitive-data]
         max_age=300,  # 5 minutes
         secure=not is_development,
         httponly=True,
