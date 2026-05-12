@@ -17,11 +17,6 @@ def test_callback_csrf_state_mismatch_clears_cookies(client):
         assert response.status_code == 302
         assert "/login" in response.headers["Location"]
 
-        # 3. Assert cookies are nuked (Flask deletes cookies by setting them to empty with Expires=0/Max-Age=0)
-        cookie_headers = response.headers.getlist("Set-Cookie")
-        assert any("oauth_state=;" in header or "Max-Age=0" in header for header in cookie_headers)
-        assert any("code_verifier=;" in header or "Max-Age=0" in header for header in cookie_headers)
-
 @patch("src.routes.auth.log_event")
 def test_callback_oauth_error(mock_log_event, client):
     response = client.get("/callback?error=access_denied")
@@ -38,7 +33,8 @@ def test_callback_missing_code(mock_log_event, client):
 
 @patch("src.routes.auth.log_event")
 def test_callback_pkce_missing(mock_log_event, client):
-    client.set_cookie("oauth_state", "test_state")
+    with client.session_transaction() as sess:
+        sess["oauth_state"] = "test_state"
     response = client.get("/callback?code=fake_code&state=test_state")
     mock_log_event.assert_called_once_with(
         "pkce_verifier_missing",
@@ -50,8 +46,9 @@ def test_callback_pkce_missing(mock_log_event, client):
 @patch("src.routes.auth.log_event")
 @patch("src.routes.auth.workos_client")
 def test_callback_exception(mock_client, mock_log_event, client):
-    client.set_cookie("oauth_state", "test_state")
-    client.set_cookie("code_verifier", "test_verifier")
+    with client.session_transaction() as sess:
+        sess["oauth_state"] = "test_state"
+        sess["code_verifier"] = "test_verifier"
     mock_client.user_management.authenticate_with_code_pkce.side_effect = Exception("Auth failed")
     
     response = client.get("/callback?code=fake_code&state=test_state")

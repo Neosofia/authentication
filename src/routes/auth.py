@@ -8,7 +8,7 @@ from typing import cast
 
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
-from flask import Blueprint, jsonify, make_response, redirect, request, url_for
+from flask import Blueprint, jsonify, make_response, redirect, request, url_for, session
 from flask_wtf.csrf import generate_csrf
 from workos.session import seal_session_from_auth_response
 
@@ -57,27 +57,12 @@ def login():
         code_challenge_method="S256",
     )
     
+    # Store state and PKCE verifier encrypted in Flask's session object
+    session["oauth_state"] = oauth_state
+    session["code_verifier"] = code_verifier
+
     response = make_response(redirect(authorization_url))
-    # Store state in HttpOnly, Secure, SameSite cookie (5 minute TTL)
-    response.set_cookie(
-        "oauth_state",
-        oauth_state,  # lgtm [py/clear-text-storage-sensitive-data]
-        max_age=300,  # 5 minutes
-        secure=not is_development,
-        httponly=True,
-        samesite="lax",
-        path="/",
-    )
-    # Store PKCE code verifier in HttpOnly, Secure, SameSite cookie (same 5 minute TTL)
-    response.set_cookie(
-        "code_verifier",
-        code_verifier,  # lgtm [py/clear-text-storage-sensitive-data]
-        max_age=300,  # 5 minutes
-        secure=not is_development,
-        httponly=True,
-        samesite="lax",
-        path="/",
-    )
+
     log_event("login_initiated", redirect_uri=redirect_uri)
     return response
 
@@ -109,7 +94,7 @@ def callback():
         return redirect(url_for("auth.login"))
     
     # Verify OAuth state parameter (CSRF protection)
-    state_from_cookie = request.cookies.get("oauth_state")
+    state_from_cookie = session.pop("oauth_state", None)
     if not state_from_provider or not state_from_cookie or state_from_provider != state_from_cookie:
         log_event(
             "oauth_state_mismatch",
@@ -118,20 +103,16 @@ def callback():
             has_state_cookie=bool(state_from_cookie),
         )
         response = make_response(redirect(url_for("auth.login")))
-        response.delete_cookie("oauth_state", path="/")
-        response.delete_cookie("code_verifier", path="/")
         return response
     
     # Retrieve PKCE code verifier from cookie (RFC 7636) for code interception protection
-    code_verifier = request.cookies.get("code_verifier")
+    code_verifier = session.pop("code_verifier", None)
     if not code_verifier:
         log_event(
             "pkce_verifier_missing",
             reason="Code verifier not found in cookie; PKCE validation will fail",
         )
         response = make_response(redirect(url_for("auth.login")))
-        response.delete_cookie("oauth_state", path="/")
-        response.delete_cookie("code_verifier", path="/")
         return response
 
     try:
@@ -193,8 +174,6 @@ def callback():
             path="/",
         )
         # Clean up OAuth state and PKCE cookies after successful exchange
-        response.delete_cookie("oauth_state", path="/")
-        response.delete_cookie("code_verifier", path="/")
         log_event("authentication_success", user_id=user_id, method="workos")
         return response
 
@@ -206,8 +185,6 @@ def callback():
             method="workos",
         )
         response = make_response(redirect(url_for("auth.login")))
-        response.delete_cookie("oauth_state", path="/")
-        response.delete_cookie("code_verifier", path="/")
         return response
 
 
