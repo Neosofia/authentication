@@ -40,7 +40,7 @@ def issue_token(
     ttl_secs: int,
     private_key_pem: str,
     issuer: str,
-    audience: str,
+    audience: str | list[str],
     claim_namespace: str = "neosofia",
     azp: str | None = None,
     public_key_pem: str | None = None,

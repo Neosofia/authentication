@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     jwt_public_key_pem: str = ""
     jwt_claim_namespace: str = "neosofia"
     jwt_issuer: str = "https://auth.neosofia.local"
-    jwt_audience: str = "neosofia-auth-svc"
+    jwt_audience: str | list[str] = "neosofia-auth-svc"
     valid_roles: str  # required; comma-separated WorkOS org membership roles, e.g. "admin,member"
     access_token_ttl_secs: int = 900   # 15 minutes
     service_token_ttl_secs: int = 300  # 5 minutes
@@ -76,6 +76,9 @@ class Settings(BaseSettings):
             
         if not self.jwt_private_key_pem or not self.jwt_public_key_pem:
             raise ValueError("JWT_PRIVATE_KEY_PEM and JWT_PUBLIC_KEY_PEM must be set")
+            
+        if isinstance(self.jwt_audience, str) and "," in self.jwt_audience:
+            object.__setattr__(self, "jwt_audience", [a.strip() for a in self.jwt_audience.split(",")])
         
         # Decode base64 PEM keys injected via environment variables
         if self.jwt_private_key_pem and self.jwt_private_key_pem != "DEFAULT_PRIVATE_KEY":
