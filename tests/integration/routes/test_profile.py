@@ -18,7 +18,7 @@ def test_profile_happy_path(client, api_spec, validate_response, app):
             ttl_secs=3600,
             private_key_pem=settings.jwt_private_key_pem,
             issuer=settings.jwt_issuer,
-            audience=settings.jwt_audience,
+            audience=settings.jwt_web_audience,
             public_key_pem=settings.jwt_public_key_pem,
         )
 

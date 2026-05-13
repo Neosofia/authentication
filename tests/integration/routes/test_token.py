@@ -1,7 +1,9 @@
 import bcrypt
 import base64
+import jwt
 import uuid
 from unittest.mock import patch, MagicMock
+from src.config import settings
 from src.models.service_credential import ServiceCredential
 
 
@@ -20,9 +22,18 @@ def test_token_client_credentials_happy_path(client, api_spec, validate_response
     client_secret = "test_secret"
     hashed = bcrypt.hashpw(client_secret.encode(), bcrypt.gensalt()).decode()
     
+    from src.models.service import Service
+
+    service = Service(
+        uuid=uuid.uuid7(),
+        name="Test Service",
+        slug="test-service",
+        base_url="https://test-service.local",
+    )
     mock_cred = ServiceCredential(
-        service_uuid=uuid.uuid7(),
+        service_uuid=service.uuid,
         hashed_secret=hashed,
+        service=service,
     )
     
     with patch("src.routes.token.SessionLocal") as mock_db:
@@ -32,12 +43,22 @@ def test_token_client_credentials_happy_path(client, api_spec, validate_response
         
         credentials = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
         
-        response = client.post("/api/token", data={"grant_type": "client_credentials"}, headers={
+        response = client.post("/api/token", data={"grant_type": "client_credentials", "audience": "test-service"}, headers={
             "Authorization": f"Basic {credentials}"
         })
         
         assert response.status_code == 200
         validate_response(api_spec, "/api/token", "post", 200, response.json)
+
+        token = response.json["access_token"]
+        decoded = jwt.decode(
+            token,
+            settings.jwt_public_key_pem,
+            algorithms=["RS256"],
+            issuer=settings.jwt_issuer,
+            audience="test-service",
+        )
+        assert decoded["aud"] == "test-service"
 
 
 def test_token_session_grant_happy_path(client, api_spec, validate_response):
@@ -76,7 +97,7 @@ def test_token_inspect_happy_path(client, api_spec, validate_response, app):
             ttl_secs=3600,
             private_key_pem=settings.jwt_private_key_pem,
             issuer=settings.jwt_issuer,
-            audience=settings.jwt_audience,
+            audience="test-service",
             public_key_pem=settings.jwt_public_key_pem,
         )
 

@@ -62,7 +62,7 @@ Key architectural decisions:
 ### Token Issuance & Validation
 
 - **Asymmetric signing (RS256)** — all platform JWTs are signed with a 2048-bit RSA private key that lives only in env vars. The public key is published at `/.well-known/jwks.json` ([RFC 7517](https://datatracker.ietf.org/doc/html/rfc7517)) for offline validation. No HS256 / shared-secret tokens exist.
-- **Issuer + audience claims** — every token contains `iss` and `aud`. `/api/token-inspect` enforces `["exp", "iat", "iss", "sub", "aud"]` via `pyjwt`, preventing cross-service token replay ([CWE-347](https://cwe.mitre.org/data/definitions/347.html)).
+- **Issuer + audience claims** — every token contains `iss` and `aud`. Downstream services validate these claims locally; `/api/token-inspect` is a debug convenience that returns decoded JWT claims if the token is structurally valid.
 - **RFC 7638 JWK Thumbprint as `kid`** — stable across deploys; does not leak modulus bits.
 
 ### Session Management

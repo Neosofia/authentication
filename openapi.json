@@ -177,8 +177,8 @@
     "/api/token-inspect": {
       "get": {
         "tags": ["Validation"],
-        "summary": "Inspect and validate platform JWT",
-        "description": "Validate Bearer token JWT and return decoded claims. Performs stateless JWT verification via RS256 signature validation against published public key. No WorkOS API call required (Constitution §VII). Intended as a dev/debug convenience.",
+        "summary": "Inspect platform JWT (debug dump)",
+        "description": "Decode a Bearer JWT and return its claims without validating issuer, audience, or signature. Intended as a dev/debug convenience. Downstream services still perform actual JWT validation.",
         "security": [
           {
             "BearerToken": []

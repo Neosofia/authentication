@@ -52,6 +52,14 @@ def issue_service_token(
         log_event("service_auth_failure", reason="bad_secret", service=service_name)
         raise InvalidClientError("invalid_client")
 
+    audience_str = (audience or "").strip()
+    if not audience_str:
+        raise InvalidClientError("invalid_client")
+
+    target_service = db.execute(select(Service).where(Service.slug == audience_str)).scalar_one_or_none()
+    if target_service is None:
+        raise InvalidClientError("invalid_client")
+
     token = tokens.issue_token(
         sub=service_name,
         token_type="service",
@@ -60,7 +68,7 @@ def issue_service_token(
         ttl_secs=settings.service_token_ttl_secs,
         private_key_pem=settings.jwt_private_key_pem,
         issuer=settings.jwt_issuer,
-        audience=audience or settings.jwt_audience,
+        audience=audience_str,
         claim_namespace=settings.jwt_claim_namespace,
         azp=service_name,
         public_key_pem=settings.jwt_public_key_pem,

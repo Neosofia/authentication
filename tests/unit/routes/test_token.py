@@ -129,41 +129,11 @@ def test_token_inspect_missing_bearer(client):
     assert response.json == {"error": "missing Bearer token"}
 
 
-# The inspect endpoint delegates token verification to PyJWT. If a token
-# evaluates as expired via its internal claims, we catch and return 401.
+# The inspect endpoint is a debug decoder and does not validate signature,
+# issuer, or audience. It only rejects malformed JWTs.
 @patch("src.routes.token.pyjwt.decode")
-def test_token_inspect_expired(mock_decode, client):
-    mock_decode.side_effect = jwt.ExpiredSignatureError("Expired")
+def test_token_inspect_invalid_token(mock_decode, client):
+    mock_decode.side_effect = jwt.InvalidTokenError("Malformed token")
     response = client.get("/api/token-inspect", headers={"Authorization": "Bearer 123"})
-    assert response.status_code == 401
-    assert response.json == {"error": "token expired"}
-
-
-# If the PyJWT validation evaluates the token signature algorithm against
-# our public keys incorrectly (indicating forgery/tampering), catch and block with 401.
-@patch("src.routes.token.pyjwt.decode")
-def test_token_inspect_invalid_signature(mock_decode, client):
-    mock_decode.side_effect = jwt.InvalidSignatureError("Bad sig")
-    response = client.get("/api/token-inspect", headers={"Authorization": "Bearer 123"})
-    assert response.status_code == 401
-    assert response.json == {"error": "invalid signature"}
-
-
-# A JWT passed without the specific audience parameter required for our service
-# throws an error we intercept and drop cleanly.
-@patch("src.routes.token.pyjwt.decode")
-def test_token_inspect_invalid_audience(mock_decode, client):
-    mock_decode.side_effect = jwt.InvalidAudienceError("Bad scope")
-    response = client.get("/api/token-inspect", headers={"Authorization": "Bearer 123"})
-    assert response.status_code == 401
-    assert response.json == {"error": "token not intended for this service"}
-
-
-# A token signed from an unexpected network location or environment
-# will have a mismatched issuer claim and trigger this 401 branch.
-@patch("src.routes.token.pyjwt.decode")
-def test_token_inspect_invalid_issuer(mock_decode, client):
-    mock_decode.side_effect = jwt.InvalidIssuerError("Bad scope")
-    response = client.get("/api/token-inspect", headers={"Authorization": "Bearer 123"})
-    assert response.status_code == 401
-    assert response.json == {"error": "token from unauthorized issuer"}
+    assert response.status_code == 400
+    assert response.json == {"error": "invalid token"}

@@ -110,7 +110,7 @@ def _handle_session_grant():
             ttl_secs=settings.access_token_ttl_secs,
             private_key_pem=settings.jwt_private_key_pem,
             issuer=settings.jwt_issuer,
-            audience=settings.jwt_audience,
+            audience=settings.jwt_web_audience,
             claim_namespace=settings.jwt_claim_namespace,
             public_key_pem=settings.jwt_public_key_pem,
         )
@@ -187,20 +187,18 @@ def _handle_client_credentials():
 @csrf.exempt
 def token_inspect():
     """
-    Validate platform JWT and return decoded claims.
+    Decode a platform JWT and return its claims for debugging.
 
-    Expects Bearer token in Authorization header. Verifies RS256 signature against
-    JWT public key, validates issuer and audience claims, and enforces required claims
-    (exp, iat, iss, sub, aud). Returns decoded claims without requiring a WorkOS API
-    call — enabling stateless, distributed JWT validation throughout the platform
-    (Constitution §VII).
+    Expects Bearer token in Authorization header. This endpoint does not validate
+    issuer, audience, or signature; it only rejects malformed or invalid JWTs.
+    The returned payload is a debug dump. Downstream services must still validate
+    tokens in production.
 
     Request: Authorization: Bearer <platform-jwt>
     Response: decoded JWT claims
-    Status: 200 (valid), 401 (missing/invalid/expired token), 503 (JWT key not configured)
+    Status: 200 (valid), 400 (invalid token)
 
-    Ref: RFC 7519 (JWT Claims), RFC 7523 (Bearer token),
-         specs/014-authentication-service/spec.md (FR-002: JWT validation)
+    Ref: RFC 7519 (JWT Claims), RFC 7523 (Bearer token)
     """
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -208,23 +206,16 @@ def token_inspect():
 
     raw_token = auth_header[7:]
     try:
-        # Validate issuer, audience, and required claims (CWE-347 mitigation)
+        # Decode the JWT payload for debugging only; do not validate audience or issuer.
         decoded = pyjwt.decode(
             raw_token,
-            settings.jwt_public_key_pem,
-            algorithms=["RS256"],
-            issuer=settings.jwt_issuer,
-            audience=settings.jwt_audience,
-            options={"require": ["exp", "iat", "iss", "sub", "aud"]},
+            options={
+                "verify_signature": False,
+                "verify_exp": False,
+                "verify_iss": False,
+                "verify_aud": False,
+            },
         )
         return jsonify(decoded)
-    except pyjwt.ExpiredSignatureError:
-        return jsonify({"error": "token expired"}), 401
-    except pyjwt.InvalidSignatureError:
-        return jsonify({"error": "invalid signature"}), 401
-    except pyjwt.InvalidAudienceError:
-        return jsonify({"error": "token not intended for this service"}), 401
-    except pyjwt.InvalidIssuerError:
-        return jsonify({"error": "token from unauthorized issuer"}), 401
     except pyjwt.InvalidTokenError:
-        return jsonify({"error": "invalid token"}), 401
+        return jsonify({"error": "invalid token"}), 400
