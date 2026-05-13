@@ -1,6 +1,6 @@
 # Multi-stage build for Authentication Service
 # Stage 0: Templates
-FROM ghcr.io/neosofia/templates:v0.1.0 AS templates
+FROM ghcr.io/neosofia/python-template:v0.4.1 AS templates
 
 # Stage 1: Build environment
 FROM python:3.14-alpine@sha256:dd4d2bd5b53d9b25a51da13addf2be586beebd5387e289e798e4083d94ca837a AS builder
