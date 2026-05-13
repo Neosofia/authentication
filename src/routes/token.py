@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import pathlib
 
 import jwt as pyjwt
@@ -145,7 +146,10 @@ def _handle_client_credentials():
     if not settings.database_url:
         return jsonify({"error": "database not configured"}), 503
 
-    # Extract client_id / client_secret from Authorization: Basic or form body
+    # Support both application/x-www-form-urlencoded and application/json bodies
+    body: dict = request.get_json(silent=True) or {}
+
+    # Extract client_id / client_secret from Authorization: Basic or request body
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Basic "):
         try:
@@ -154,10 +158,10 @@ def _handle_client_credentials():
         except Exception:
             return jsonify({"error": "invalid_client"}), 401
     else:
-        client_id = request.form.get("client_id", "")
-        client_secret = request.form.get("client_secret", "")
+        client_id = request.form.get("client_id") or body.get("client_id", "")
+        client_secret = request.form.get("client_secret") or body.get("client_secret", "")
 
-    requested_audience = request.form.get("audience")
+    requested_audience = request.form.get("audience") or body.get("audience")
 
     if not client_id or not client_secret:
         return jsonify({"error": "invalid_client"}), 401
@@ -185,6 +189,7 @@ def _handle_client_credentials():
 
 @bp.route("/token-inspect")
 @csrf.exempt
+@limiter.limit("10 per minute")
 def token_inspect():
     """
     Decode a platform JWT and return its claims for debugging.
@@ -200,6 +205,9 @@ def token_inspect():
 
     Ref: RFC 7519 (JWT Claims), RFC 7523 (Bearer token)
     """
+    if os.getenv("ENV", "production").lower() not in ("development", "test"):
+        return jsonify({"error": "not_found"}), 404
+
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         return jsonify({"error": "missing Bearer token"}), 401

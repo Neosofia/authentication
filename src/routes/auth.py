@@ -239,55 +239,58 @@ def csrf_token():
     return jsonify({"csrfToken": token})
 
 
+def _pem_to_jwk(pem: str) -> dict:
+    """Convert a PEM-encoded RSA public key to a JWK dict (RFC 7517 / RFC 7638)."""
+    pub_key = load_pem_public_key(pem.encode())
+    if not isinstance(pub_key, RSAPublicKey):
+        raise ValueError("key is not RSA")
+    pub_numbers = cast(RSAPublicKey, pub_key).public_numbers()
+
+    def _b64url_uint(n: int) -> str:
+        length = (n.bit_length() + 7) // 8
+        return base64.urlsafe_b64encode(n.to_bytes(length, "big")).rstrip(b"=").decode()
+
+    n_b64 = _b64url_uint(pub_numbers.n)
+    e_b64 = _b64url_uint(pub_numbers.e)
+
+    # kid: RFC 7638 JWK Thumbprint (SHA-256 hash of canonical JSON representation)
+    thumbprint_data = json.dumps(
+        {"e": e_b64, "kty": "RSA", "n": n_b64},
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    kid = base64.urlsafe_b64encode(
+        hashlib.sha256(thumbprint_data.encode()).digest()
+    ).rstrip(b"=").decode()
+
+    return {"kty": "RSA", "use": "sig", "alg": "RS256", "kid": kid, "n": n_b64, "e": e_b64}
+
+
 @bp.route("/.well-known/jwks.json")
 @csrf.exempt
 def jwks():
     """
-    Publish RSA public key as JWK Set for JWT validation.
-    
-    Returns RSA public key in JWK Set format (RFC 7517). Downstream services
-    fetch once at startup and cache for 1 hour. Enables offline JWT validation
-    without requiring WorkOS API call for every token (Constitution §VII: stateless).
-    
-    Response: {\"keys\": [{\"kty\": \"RSA\", \"use\": \"sig\", \"alg\": \"RS256\", \"kid\": \"<kid>\", \"n\": \"<modulus>\", \"e\": \"<exponent>\"}]}
+    Publish RSA public key(s) as JWK Set for JWT validation.
+
+    Returns the active key and, during key-rotation overlap, the previous key
+    (JWT_PREVIOUS_PUBLIC_KEY_PEM) so consumers can verify tokens signed by
+    either key while they drain.  Downstream services fetch once at startup and
+    cache for 1 hour (kid lookup by RFC 7638 thumbprint).
+
+    Response: {"keys": [{...}, ...]}  — 1 key normally, 2 during rotation overlap.
     Cache-Control: max-age=3600 (1 hour)
-    
-    Ref: RFC 7517 (JWK), RFC 7518 (JWA), specs/014-authentication-service/spec.md (FR-004: JWKS publication)
+
+    Ref: RFC 7517 (JWK), RFC 7518 (JWA), RFC 7638 (JWK Thumbprint)
     """
     try:
-        pub_key = load_pem_public_key(settings.jwt_public_key_pem.encode())
-        if not isinstance(pub_key, RSAPublicKey):
-            return jsonify({"error": "key is not RSA"}), 500
-        pub_numbers = cast(RSAPublicKey, pub_key).public_numbers()
-
-        def _b64url_uint(n: int) -> str:
-            length = (n.bit_length() + 7) // 8
-            return base64.urlsafe_b64encode(n.to_bytes(length, "big")).rstrip(b"=").decode()
-
-        n_b64 = _b64url_uint(pub_numbers.n)
-        e_b64 = _b64url_uint(pub_numbers.e)
-
-        # kid: RFC 7638 JWK Thumbprint (SHA-256 hash of canonical JSON representation)
-        # Allows key identification without relying on key-specific fields like modulus
-        thumbprint_data = json.dumps(
-            {"e": e_b64, "kty": "RSA", "n": n_b64},  # Alphabetically sorted, required fields only
-            separators=(",", ":"),  # Compact JSON (no whitespace)
-            sort_keys=True,
-        )
-        thumbprint_hash = hashlib.sha256(thumbprint_data.encode()).digest()
-        kid = base64.urlsafe_b64encode(thumbprint_hash).rstrip(b"=").decode()
-
-        jwk = {
-            "kty": "RSA",
-            "use": "sig",
-            "alg": "RS256",
-            "kid": kid,
-            "n": n_b64,
-            "e": e_b64,
-        }
-        response = jsonify({"keys": [jwk]})
+        keys = [_pem_to_jwk(settings.jwt_public_key_pem)]
+        if settings.jwt_previous_public_key_pem:
+            keys.append(_pem_to_jwk(settings.jwt_previous_public_key_pem))
+        response = jsonify({"keys": keys})
         response.headers["Cache-Control"] = "public, max-age=3600"
         return response
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 500
     except Exception as e:
         log_event("jwks_error", error_class=type(e).__name__)
         return jsonify({"error": "failed to build JWKS"}), 500

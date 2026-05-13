@@ -90,3 +90,37 @@ def test_jwks_exception(mock_load_pem, mock_log_event, client):
     mock_log_event.assert_called_once_with("jwks_error", error_class="Exception")
     assert response.status_code == 500
     assert response.json == {"error": "failed to build JWKS"}
+
+def test_jwks_single_key(client):
+    response = client.get("/.well-known/jwks.json")
+    assert response.status_code == 200
+    keys = response.json["keys"]
+    assert len(keys) == 1
+    assert keys[0]["kty"] == "RSA"
+    assert keys[0]["alg"] == "RS256"
+    assert "kid" in keys[0]
+
+def test_jwks_dual_key_during_rotation(client):
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives import serialization
+
+    def _gen_pub_pem():
+        k = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        return k.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ).decode()
+
+    active_pem = _gen_pub_pem()
+    previous_pem = _gen_pub_pem()
+
+    with patch("src.routes.auth.settings") as mock_settings:
+        mock_settings.jwt_public_key_pem = active_pem
+        mock_settings.jwt_previous_public_key_pem = previous_pem
+        response = client.get("/.well-known/jwks.json")
+
+    assert response.status_code == 200
+    keys = response.json["keys"]
+    assert len(keys) == 2
+    kids = {k["kid"] for k in keys}
+    assert len(kids) == 2  # distinct kid per key

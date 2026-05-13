@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "authentication"
-version = "0.16.1"
+version = "0.17.0"
 description = "Neosofia Authentication Service — token issuance and introspection"
 requires-python = ">=3.13"
 authors = [{ name = "Neosofia", email = "platform@neosofia.com" }]
@@ -32,7 +32,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-authentication-in-the-middle = { url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle/v0.5.2/authentication_in_the_middle-0.5.2-py3-none-any.whl" }
+authentication-in-the-middle = { url = "https://github.com/Neosofia/sdk/releases/download/authentication-in-the-middle/v0.6.0/authentication_in_the_middle-0.6.0-py3-none-any.whl" }
 logenvelope = { url = "https://github.com/Neosofia/sdk/releases/download/logenvelope-0.3.0/logenvelope-0.3.0-py3-none-any.whl" }
 
 [dependency-groups]

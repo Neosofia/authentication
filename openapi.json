@@ -38,7 +38,9 @@
   "paths": {
     "/api/token": {
       "post": {
-        "tags": ["OAuth2 & Tokens"],
+        "tags": [
+          "OAuth2 & Tokens"
+        ],
         "summary": "Issue platform JWT",
         "description": "Issue RS256-signed platform JWT via OAuth2 implicit (session) or client_credentials (Basic auth) grant. Supports both human authentication (via sealed WorkOS session cookie) and service-to-service authentication (via service credentials).",
         "requestBody": {
@@ -57,11 +59,58 @@
                     "properties": {
                       "grant_type": {
                         "type": "string",
-                        "enum": ["client_credentials"],
+                        "enum": [
+                          "client_credentials"
+                        ],
                         "description": "Must be 'client_credentials'"
+                      },
+                      "audience": {
+                        "type": "string",
+                        "description": "Requested audience (service name) for the issued token"
                       }
                     },
-                    "required": ["grant_type"]
+                    "required": [
+                      "grant_type"
+                    ]
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "title": "Session Grant (Human)",
+                    "description": "Implicit grant: no body required, token extracted from wos_session cookie"
+                  },
+                  {
+                    "type": "object",
+                    "title": "Client Credentials Grant (Service)",
+                    "properties": {
+                      "grant_type": {
+                        "type": "string",
+                        "enum": [
+                          "client_credentials"
+                        ],
+                        "description": "Must be 'client_credentials'"
+                      },
+                      "audience": {
+                        "type": "string",
+                        "description": "Requested audience (service name) for the issued token"
+                      },
+                      "client_id": {
+                        "type": "string",
+                        "description": "Service client_id (alternative to Authorization: Basic)"
+                      },
+                      "client_secret": {
+                        "type": "string",
+                        "description": "Service client_secret (alternative to Authorization: Basic)"
+                      }
+                    },
+                    "required": [
+                      "grant_type"
+                    ]
                   }
                 ]
               }
@@ -122,11 +171,15 @@
     },
     "/api/profile": {
       "get": {
-        "tags": ["Session"],
+        "tags": [
+          "Session"
+        ],
         "summary": "Get user profile",
-        "description": "Returns user identity and organization details by verifying the platform JWT (Bearer token). Uses `sub` and `neosofia:tenant_id` claims to call WorkOS directly — no session cookie unseal required.",
+        "description": "Returns user identity and organization details by verifying the platform JWT (Bearer token). Uses `sub` and `neosofia:tenant_id` claims to call WorkOS directly \u2014 no session cookie unseal required.",
         "security": [
-          { "BearerAuth": [] }
+          {
+            "BearerAuth": []
+          }
         ],
         "responses": {
           "200": {
@@ -135,7 +188,13 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["first_name", "last_name", "email", "organization_name", "roles"],
+                  "required": [
+                    "first_name",
+                    "last_name",
+                    "email",
+                    "organization_name",
+                    "roles"
+                  ],
                   "properties": {
                     "first_name": {
                       "type": "string",
@@ -155,7 +214,9 @@
                     },
                     "roles": {
                       "type": "array",
-                      "items": { "type": "string" },
+                      "items": {
+                        "type": "string"
+                      },
                       "description": "List of active WorkOS roles for this org session"
                     }
                   }
@@ -167,7 +228,9 @@
             "description": "Unauthenticated or session invalid",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -176,9 +239,11 @@
     },
     "/api/token-inspect": {
       "get": {
-        "tags": ["Validation"],
-        "summary": "Inspect platform JWT (debug dump)",
-        "description": "Decode a Bearer JWT and return its claims without validating issuer, audience, or signature. Intended as a dev/debug convenience. Downstream services still perform actual JWT validation.",
+        "tags": [
+          "Debug"
+        ],
+        "summary": "Inspect platform JWT claims (debug, development only)",
+        "description": "Decode a Bearer JWT and return its claims without validating issuer, audience, or signature. Only available when ENV=development or ENV=test. Returns 404 in all other environments. Rate-limited to 10 requests per minute per IP.",
         "security": [
           {
             "BearerToken": []
@@ -195,6 +260,16 @@
               }
             }
           },
+          "400": {
+            "description": "Malformed or unparseable JWT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing, invalid, or expired token",
             "content": {
@@ -205,8 +280,18 @@
               }
             }
           },
-          "503": {
-            "description": "Service Unavailable (JWT key not configured)",
+          "429": {
+            "description": "Rate limit exceeded (10 requests per minute per IP)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not available outside development/test environments",
             "content": {
               "application/json": {
                 "schema": {
@@ -215,12 +300,19 @@
               }
             }
           }
-        }
+        },
+        "x-environments": [
+          "development",
+          "test"
+        ],
+        "x-debug-only": true
       }
     },
     "/health": {
       "get": {
-        "tags": ["Health"],
+        "tags": [
+          "Health"
+        ],
         "summary": "Liveness probe",
         "description": "Check service health by executing SELECT 1 against PostgreSQL with 5-second timeout. Used by Kubernetes probes and load balancers.",
         "responses": {
@@ -233,7 +325,9 @@
                   "properties": {
                     "status": {
                       "type": "string",
-                      "enum": ["ok"]
+                      "enum": [
+                        "ok"
+                      ]
                     }
                   }
                 }
@@ -249,7 +343,9 @@
                   "properties": {
                     "status": {
                       "type": "string",
-                      "enum": ["error"]
+                      "enum": [
+                        "error"
+                      ]
                     },
                     "detail": {
                       "type": "string"
@@ -264,9 +360,11 @@
     },
     "/.well-known/jwks.json": {
       "get": {
-        "tags": ["Validation"],
+        "tags": [
+          "Validation"
+        ],
         "summary": "Get JWT signing public keys",
-        "description": "Publish JWT signing public key in JWKS format (RFC 7517). 1-hour cache; used by other services to validate platform JWTs without calling back to auth service. Enables stateless, distributed JWT validation (Constitution §VII).",
+        "description": "Publish JWT signing public key in JWKS format (RFC 7517). 1-hour cache; used by other services to validate platform JWTs without calling back to auth service. Enables stateless, distributed JWT validation (Constitution \u00a7VII).",
         "responses": {
           "200": {
             "description": "JWKS set with public keys",
@@ -280,11 +378,29 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "kty": { "type": "string", "enum": ["RSA"] },
-                          "use": { "type": "string", "enum": ["sig"] },
-                          "kid": { "type": "string" },
-                          "n": { "type": "string", "description": "RSA modulus (base64url)" },
-                          "e": { "type": "string", "description": "RSA exponent (base64url)" }
+                          "kty": {
+                            "type": "string",
+                            "enum": [
+                              "RSA"
+                            ]
+                          },
+                          "use": {
+                            "type": "string",
+                            "enum": [
+                              "sig"
+                            ]
+                          },
+                          "kid": {
+                            "type": "string"
+                          },
+                          "n": {
+                            "type": "string",
+                            "description": "RSA modulus (base64url)"
+                          },
+                          "e": {
+                            "type": "string",
+                            "description": "RSA exponent (base64url)"
+                          }
                         }
                       }
                     }
@@ -298,7 +414,9 @@
     },
     "/openapi.json": {
       "get": {
-        "tags": ["Contracts"],
+        "tags": [
+          "Contracts"
+        ],
         "summary": "Get OpenAPI specification",
         "description": "Serve OpenAPI 3.0 specification for this service. Standard endpoint for API documentation tools (Swagger UI, ReDoc, Postman, etc.).",
         "responses": {
@@ -323,7 +441,11 @@
         "type": "object",
         "title": "Token Response",
         "description": "Successful token issuance response",
-        "required": ["access_token", "token_type", "expires_in"],
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in"
+        ],
         "properties": {
           "access_token": {
             "type": "string",
@@ -332,7 +454,9 @@
           },
           "token_type": {
             "type": "string",
-            "enum": ["Bearer"],
+            "enum": [
+              "Bearer"
+            ],
             "description": "Always 'Bearer' per RFC 6750"
           },
           "expires_in": {
@@ -346,7 +470,16 @@
         "type": "object",
         "title": "Platform JWT Claims",
         "description": "Standard and custom claims in platform JWT",
-        "required": ["sub", "iss", "iat", "exp", "jti", "neosofia:token_type", "neosofia:token_version", "neosofia:roles"],
+        "required": [
+          "sub",
+          "iss",
+          "iat",
+          "exp",
+          "jti",
+          "neosofia:token_type",
+          "neosofia:token_version",
+          "neosofia:roles"
+        ],
         "properties": {
           "sub": {
             "type": "string",
@@ -374,7 +507,10 @@
           },
           "neosofia:token_type": {
             "type": "string",
-            "enum": ["human", "service"],
+            "enum": [
+              "human",
+              "service"
+            ],
             "description": "Token principal class: 'human' for user sessions, 'service' for service-to-service credentials"
           },
           "neosofia:token_version": {
@@ -399,7 +535,9 @@
         "type": "object",
         "title": "Error Response",
         "description": "Standard error response format",
-        "required": ["error"],
+        "required": [
+          "error"
+        ],
         "properties": {
           "error": {
             "type": "string",

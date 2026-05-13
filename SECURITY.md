@@ -23,7 +23,7 @@ To report any security-related issue please email security@neosofia.tech — do 
 
 ```
 ┌─────────────┐    OAuth 2.0 + PKCE     ┌──────────────┐
-│   Browser   │────────────────────────▶│  WorkOS      │
+│   Browser   │───────────────────────▶│  WorkOS      │
 └──────┬──────┘                         │  AuthKit     │
        │                                └──────┬───────┘
        │ sealed session cookie                 │
@@ -33,7 +33,7 @@ To report any security-related issue please email security@neosofia.tech — do 
 │  ├─ /login, /callback        OAuth + state + PKCE    │
 │  ├─ /api/token (session)     Human JWT (15 min)      │
 │  ├─ /api/token (client_cred) Service JWT (5 min)     │
-│  ├─ /api/token-inspect        RS256 validation        │
+│  ├─ /api/token-inspect       RS256 validation        │
 │  └─ /.well-known/jwks.json   Public key publication  │
 └──────┬──────────────┬────────────────────────────────┘
        │              │
@@ -64,12 +64,14 @@ Key architectural decisions:
 - **Asymmetric signing (RS256)** — all platform JWTs are signed with a 2048-bit RSA private key that lives only in env vars. The public key is published at `/.well-known/jwks.json` ([RFC 7517](https://datatracker.ietf.org/doc/html/rfc7517)) for offline validation. No HS256 / shared-secret tokens exist.
 - **Issuer + audience claims** — every token contains `iss` and `aud`. Downstream services validate these claims locally; `/api/token-inspect` is a debug convenience that returns decoded JWT claims if the token is structurally valid.
 - **RFC 7638 JWK Thumbprint as `kid`** — stable across deploys; does not leak modulus bits.
+- **Dual-key JWKS during rotation** — `JWT_PREVIOUS_PUBLIC_KEY_PEM` can be set alongside `JWT_PUBLIC_KEY_PEM`. When set, both keys appear in `/.well-known/jwks.json` so downstream caches can verify tokens signed by either key during the rotation overlap window. See **OPERATIONS.md Appendix B** for the step-by-step runbook.
 
 ### Session Management
 
 - **Sealed session cookie (WorkOS SDK)** — AES-256-GCM + HMAC with a 32-character platform-supplied cookie password. Tampering is detected at decryption.
 - **Cookie hardening** — all cookies set with `HttpOnly`, `Secure` (production), `SameSite=Lax`, `path="/"`.
 - **Stateless architecture** — no server-side session store; satisfies Constitution §VII.
+- **`CSRF_SECRET_KEY` is the trust anchor for both CSRF and OAuth state** — the OAuth `state` parameter and PKCE `code_verifier` are stored in Flask's signed session cookie, which is protected by `CSRF_SECRET_KEY`. Compromising this key defeats both the CSRF check and the OAuth state binding. **Rotate `CSRF_SECRET_KEY` and `WORKOS_COOKIE_PASSWORD` together** on the same cadence (generate independently with `openssl rand -hex 32` / `openssl rand -base64 32`). A rotation requires a brief service restart; all in-flight sessions are invalidated at that point.
 
 ### service-to-service Credentials
 
@@ -83,12 +85,38 @@ Key architectural decisions:
 | `POST /login` | 60 / minute |
 | `GET /callback` | 60 / minute |
 | `POST /api/token` | 20 / minute |
+| `GET /api/token-inspect` | 10 / minute (development only) |
+
+### UI Token Handling
+
+The CDP UI is a public SPA client and is **not** registered as a platform service.
+
+- **JWT stored in React state (in-memory)** — The platform JWT returned by `POST /api/token` is held in JS memory, not `localStorage` or a cookie. This is the OWASP-preferred storage for SPA access tokens: in-memory state is not persisted to disk, not accessible by other origins, and is destroyed on tab close. ([OWASP Cheat Sheet: Storing tokens](https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html))
+- **Short TTL bounds exposure** — Human JWTs expire in 15 minutes. An XSS that exfiltrates the token has a maximum 15-minute replay window; the sealed `wos_session` credential remains in an `HttpOnly`/`Secure` cookie and is not accessible to JS.
+- **Real credential stays HttpOnly** — The upstream credential (`wos_session`) is sealed with AES-256-GCM and served as `HttpOnly`/`Secure`/`SameSite=Lax`. Even a successful XSS cannot exfiltrate it.
+- **CSP `script-src 'self'`** — Talisman enforces this in production, substantially narrowing the XSS surface.
+- **Rec §3.4 evaluated and accepted as-is** — Issuing the JWT into an `HttpOnly` cookie (the "Token Handler" / BFF pattern) was considered. The tradeoffs — CORS complexity, `credentials: 'include'` on every API call, additional cookie scoping requirements — outweigh the marginal gain given the 15-minute TTL and the HttpOnly sealed session already protecting the real credential. Re-evaluate if the JWT TTL is extended beyond 15 minutes or if the SPA is served from a different origin than the API.
 
 ### Web-Layer Defenses
 
 - **CSRF protection (Flask-WTF)** — all state-changing routes protected by default. `/api/token` exempted because it is bound by Basic auth or the sealed session cookie.
 - **Request body size cap** — `MAX_CONTENT_LENGTH = 16 KiB` rejects body-flood DoS before the body parser runs.
 - **Debug mode off** — gated on `ENV=development`; eliminates the Werkzeug debugger RCE surface in production ([CWE-489](https://cwe.mitre.org/data/definitions/489.html)).
+
+### CSRF Exemptions
+
+The following routes are decorated with `@csrf.exempt`. Each exemption is intentional:
+
+| Route | Reason for exemption |
+|---|---|
+| `POST /api/token` | Bound by HTTP Basic auth (`client_credentials`) or the sealed `wos_session` cookie (implicit flow). A CSRF token would add no protection because the attacker cannot read the response cross-origin and the credential check already prevents misuse. |
+| `GET /api/token-inspect` | Read-only debug endpoint; no state mutation. Additionally gated to `ENV=development`/`test` and rate-limited. |
+| `GET /.well-known/jwks.json` | Public, read-only key publication endpoint. No authentication or state change. |
+| `GET /api/profile` | Requires a valid Bearer JWT; CSRF does not apply to Bearer-authenticated routes (the token cannot be injected by a cross-origin form). |
+| `GET/POST /api/services` | Admin-only; requires Bearer JWT with `admin` role. Same reasoning as `/api/profile`. |
+| `POST /logout` | Clears the session cookie. A malicious logout (CSRF on logout) is a low-severity annoyance, not a confidentiality or integrity risk. The redirect target is hardcoded to `/`. |
+
+All non-public routes either require a Bearer JWT (admin, profile, services) or are explicitly designed for the cookie-bearing OAuth flow (`/api/token`). No route performs a privileged state mutation solely on the basis of a browser session cookie without an additional credential, so the CSRF surface is already narrow.
 
 ---
 
@@ -130,7 +158,7 @@ Key architectural decisions:
 | Item | Status | Notes |
 |---|---|---|
 | Rate limit storage is per-node (in-memory) | Accepted | Upgrade to Redis via `RATELIMIT_STORAGE_URI` when shared Redis is available |
-| `/api/token-inspect` is not rate-limited | Accepted | Downstream services validate JWTs locally; this endpoint is a dev/debug convenience |
+| `/api/token-inspect` decode-only semantics | Accepted | The endpoint does not verify signature, expiry, issuer, or audience — it only rejects structurally invalid JWTs. A caller already in possession of a JWT can read the unencrypted claims directly (they are base64-encoded, not encrypted). No confidentiality is lost, but the endpoint is gated to `ENV=development`/`test` (returns 404 in production) and rate-limited to 10 / minute to limit its use as a recon aid. |
 | WorkOS session refresh logic opaque to this service | Accepted | WorkOS SDK handles refresh internally |
 
 ---

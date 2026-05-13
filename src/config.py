@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     database_url: str = ""
     jwt_private_key_pem: str = ""
     jwt_public_key_pem: str = ""
+    jwt_previous_public_key_pem: str = ""  # set during key rotation overlap window
     jwt_claim_namespace: str = "neosofia"
     jwt_issuer: str = "https://auth.neosofia.local"
     jwt_web_audience: str | list[str] = "authentication"
@@ -104,6 +105,13 @@ class Settings(BaseSettings):
                 object.__setattr__(self, "jwt_public_key_pem", decoded)
             except Exception as e:
                 raise ValueError(f"Failed to decode base64 jwt_public_key_pem: {e}")
+
+        if self.jwt_previous_public_key_pem:
+            try:
+                decoded = base64.b64decode(self.jwt_previous_public_key_pem).decode("utf-8")
+                object.__setattr__(self, "jwt_previous_public_key_pem", decoded)
+            except Exception as e:
+                raise ValueError(f"Failed to decode base64 jwt_previous_public_key_pem: {e}")
 
 
 def _build_settings() -> Settings:
