@@ -35,7 +35,7 @@ def _compute_kid(public_key_pem: str) -> str:
 def issue_token(
     sub: str,
     token_type: str,
-    roles: list[str],
+    roles: list[str] | None,
     tenant_id: str | None,
     ttl_secs: int,
     private_key_pem: str,
@@ -44,6 +44,8 @@ def issue_token(
     claim_namespace: str = "neosofia",
     azp: str | None = None,
     public_key_pem: str | None = None,
+    actor_uuid: str | None = None,
+    tenant_uuid: str | None = None,
 ) -> str:
     """
     Sign and return a compact RS256 platform JWT.
@@ -57,8 +59,10 @@ def issue_token(
       azp              — authorized party / client_id (service tokens, RFC 7519)
       {ns}:token_type  — "human" | "service"
       {ns}:token_version — integer schema version (increment on breaking changes)
-      {ns}:roles       — list of roles (empty for service tokens without org membership)
-      {ns}:tenant_id   — org ID (omitted for service credentials; present for all human tokens)
+      {ns}:roles       — list of roles (absent for service tokens by default)
+      {ns}:tenant_id   — WorkOS org ID (present for all human tokens)
+      {ns}:actor_uuid  — platform UUID for the user (from WorkOS user external_id)
+      {ns}:tenant_uuid — platform UUID for the org (from WorkOS org external_id)
 
     The claim namespace prefix (default "neosofia") is set via the
     JWT_CLAIM_NAMESPACE env var, allowing forks to use their own namespace
@@ -77,12 +81,17 @@ def issue_token(
         "jti": str(uuid.uuid7()),
         f"{ns}:token_type": token_type,
         f"{ns}:token_version": 1,
-        f"{ns}:roles": roles,
     }
+    if roles is not None:
+        claims[f"{ns}:roles"] = roles
     if azp:
         claims["azp"] = azp
     if tenant_id:
         claims[f"{ns}:tenant_id"] = tenant_id
+    if actor_uuid:
+        claims[f"{ns}:actor_uuid"] = actor_uuid
+    if tenant_uuid:
+        claims[f"{ns}:tenant_uuid"] = tenant_uuid
 
     headers = {}
     if public_key_pem:

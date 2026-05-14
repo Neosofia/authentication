@@ -31,19 +31,16 @@ _HASHED = bcrypt.hashpw(_SECRET.encode(), bcrypt.gensalt()).decode()
 
 
 def upgrade() -> None:
-    # Set standard audit context for standard bootstrap records
-    # We use a well-known Nil-Epoch v7 UUID to represent the "System Migration Actor".
+    # Use a well-known Nil-Epoch v7 UUID to represent the "System Migration Actor".
     # This provides auditors a deterministic story for how these rows were created.
-    sys_uuid = "00000000-0000-7000-8000-000000000000"
-    op.execute(f"SET LOCAL app.current_actor_uuid = '{sys_uuid}'")
-    op.execute("SET LOCAL app.current_actor_type = '2'")  # Service
+    sys_uuid = uuid.UUID("00000000-0000-7000-8000-000000000000")
 
     conn = op.get_bind()
     service_uuid = conn.execute(
         sa.text(
             """
-            INSERT INTO services (uuid, name, slug, base_url)
-            VALUES (:uuid, :name, :slug, :base_url)
+            INSERT INTO services (uuid, name, slug, base_url, changed_by_uuid, changed_by_type)
+            VALUES (:uuid, :name, :slug, :base_url, :changed_by_uuid, :changed_by_type)
             ON CONFLICT (name) DO UPDATE
               SET slug = EXCLUDED.slug,
                   base_url = EXCLUDED.base_url
@@ -54,14 +51,16 @@ def upgrade() -> None:
             name=SERVICE_NAME,
             slug=SERVICE_SLUG,
             base_url=SERVICE_BASE_URL,
+            changed_by_uuid=sys_uuid,
+            changed_by_type=2,
         )
     ).scalar_one()
 
     conn.execute(
         sa.text(
             """
-            INSERT INTO service_credentials (uuid, service_uuid, hashed_secret)
-            VALUES (:uuid, :service_uuid, :hashed_secret)
+            INSERT INTO service_credentials (uuid, service_uuid, hashed_secret, changed_by_uuid, changed_by_type)
+            VALUES (:uuid, :service_uuid, :hashed_secret, :changed_by_uuid, :changed_by_type)
             ON CONFLICT (service_uuid) DO UPDATE
               SET hashed_secret = EXCLUDED.hashed_secret
             """
@@ -69,6 +68,8 @@ def upgrade() -> None:
             uuid=uuid.uuid7(),
             service_uuid=service_uuid,
             hashed_secret=_HASHED,
+            changed_by_uuid=sys_uuid,
+            changed_by_type=2,
         )
     )
 

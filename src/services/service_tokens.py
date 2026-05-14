@@ -36,6 +36,8 @@ def issue_service_token(
         .where(
             Service.slug == service_name,
         )
+        .order_by(ServiceCredential.changed_at.desc())
+        .limit(1)
     )
     credential = result.scalar_one_or_none()
 
@@ -63,7 +65,7 @@ def issue_service_token(
     token = tokens.issue_token(
         sub=service_name,
         token_type="service",
-        roles=[],
+        roles=None,
         tenant_id=None,
         ttl_secs=settings.service_token_ttl_secs,
         private_key_pem=settings.jwt_private_key_pem,

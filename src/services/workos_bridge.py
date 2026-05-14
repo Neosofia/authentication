@@ -5,8 +5,34 @@ Constitution §VI: Fail-closed on missing or invalid org membership.
 All users must belong to an organization; roleless authentication is rejected.
 """
 
+from typing import Any
+
 from src.config import settings
 from src.bootstrap.logging import log_event
+
+
+def _get_nested_value(source: Any, path: str) -> Any:
+    if source is None:
+        return None
+
+    parts = path.split('.')
+    current = source
+    for part in parts:
+        if current is None:
+            return None
+        if isinstance(current, dict):
+            current = current.get(part)
+        else:
+            current = getattr(current, part, None)
+    return current
+
+
+def _resolve_workos_value(auth_response: Any, *paths: str) -> Any:
+    for path in paths:
+        value = _get_nested_value(auth_response, path)
+        if value is not None:
+            return value
+    return None
 
 
 def extract_platform_claims(auth_response) -> dict:
@@ -65,7 +91,21 @@ def extract_platform_claims(auth_response) -> dict:
         if workos_role in valid_roles:
             roles.append(workos_role)
 
+    actor_uuid = _resolve_workos_value(
+        auth_response,
+        f"urn:{settings.jwt_claim_namespace}:actor_uuid",
+        "user.external_id",
+    )
+
+    tenant_uuid = _resolve_workos_value(
+        auth_response,
+        f"urn:{settings.jwt_claim_namespace}:tenant_uuid",
+        "organization.external_id",
+    )
+
     return {
         "tenant_id": organization_id,
         "roles": roles,
+        "actor_uuid": actor_uuid,
+        "tenant_uuid": tenant_uuid,
     }

@@ -1,19 +1,16 @@
-import secrets
+import uuid as _uuid
 from functools import wraps
-import bcrypt
 from flask import Blueprint, jsonify, request, g
-from sqlalchemy import select, text
-from sqlalchemy.exc import IntegrityError
 from authentication_in_the_middle.decorators import with_authentication
 
 from src.config import settings
 from src.db.engine import SessionLocal
-from src.models.service import Service
-from src.models.service_credential import ServiceCredential
 from src.bootstrap.extensions import csrf
 from src.bootstrap.logging import log_event
+from src.services import service_management
 
 bp = Blueprint("services", __name__, url_prefix="/api/services")
+
 
 def require_admin(f):
     @with_authentication(
@@ -25,16 +22,23 @@ def require_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         claims = getattr(g, "jwt_claims", {})
-        user_id = claims.get("sub")
-            
+
         roles = claims.get(f"{settings.jwt_claim_namespace}:roles", [])
         if "admin" not in roles and "platform-admin" not in roles:
              return jsonify({"error": "forbidden", "message": "requires admin role"}), 403
 
-        # Inject into request or kwargs if needed
-        kwargs["user_uuid"] = user_id
+        actor_uuid = claims.get(f"{settings.jwt_claim_namespace}:actor_uuid")
+        if not actor_uuid:
+            return jsonify({"error": "unauthenticated", "message": "re-authenticate to obtain a platform identity"}), 401
+        try:
+            _uuid.UUID(str(actor_uuid))
+        except ValueError:
+            return jsonify({"error": "unauthenticated", "message": "re-authenticate to obtain a platform identity"}), 401
+        kwargs["user_uuid"] = actor_uuid
         return f(*args, **kwargs)
     return decorated
+
+
 
 
 @bp.route("", methods=["GET"])
@@ -42,20 +46,22 @@ def require_admin(f):
 @require_admin
 def list_services(user_uuid: str):
     """
-    List all registered platform services.
+    List registered platform services with credential metadata.
+    Supports pagination and search by name, slug, or base_url.
     """
+    page = max(1, int(request.args.get("page", 1)))
+    page_size = min(100, max(1, int(request.args.get("page_size", 20))))
+    search = (request.args.get("q", "") or "").strip()
+
     try:
         with SessionLocal() as db:
-            services = db.scalars(select(Service).order_by(Service.name)).all()
-            return jsonify([
-                {
-                    "uuid": str(svc.uuid),
-                    "name": svc.name,
-                    "slug": svc.slug,
-                    "base_url": svc.base_url
-                }
-                for svc in services
-            ]), 200
+            items, total = service_management.list_services(db, page, page_size, search)
+            return jsonify({
+                "items": items,
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }), 200
     except Exception as e:
         log_event("list_services_failed", error_class=type(e).__name__)
         return jsonify({"error": "database error"}), 500
@@ -76,42 +82,118 @@ def create_service(user_uuid: str):
     slug = data["slug"].strip()
     base_url = data["base_url"].strip()
 
-    # Generate a secure random secret
-    plain_secret = secrets.token_urlsafe(32)
-    hashed_secret = bcrypt.hashpw(plain_secret.encode(), bcrypt.gensalt()).decode()
-
     try:
         with SessionLocal() as db:
-            # Audit setup (1 = User Actor)
-            db.execute(text("SET LOCAL app.current_actor_uuid = :actor").bindparams(actor=user_uuid))
-            db.execute(text("SET LOCAL app.current_actor_type = '1'"))
-
-            new_service = Service(name=name, slug=slug, base_url=base_url)
-            db.add(new_service)
-            db.flush() # flush to get uuid
-
-            new_credential = ServiceCredential(
-                service_uuid=new_service.uuid,
-                hashed_secret=hashed_secret
-            )
-            db.add(new_credential)
-
-            try:
-                db.commit()
-            except IntegrityError:
-                db.rollback()
-                return jsonify({"error": "service name or slug or base_url already exists"}), 409
-
+            result = service_management.create_service(db, user_uuid, name, slug, base_url)
             log_event("service_created", service_slug=slug, admin=user_uuid)
-            
-            return jsonify({
-                "uuid": str(new_service.uuid),
-                "name": new_service.name,
-                "slug": new_service.slug,
-                "base_url": new_service.base_url,
-                "client_secret": plain_secret  # returned EXACTLY ONCE
-            }), 201
-
+            return jsonify(result), 201
+    except service_management.ConflictError:
+        return jsonify({"error": "service name or slug or base_url already exists"}), 409
     except Exception as e:
         log_event("create_service_failed", error_class=type(e).__name__)
         return jsonify({"error": "database error"}), 500
+
+
+@bp.route("/<slug>", methods=["GET"])
+@csrf.exempt
+@require_admin
+def get_service(slug: str, user_uuid: str):
+    """Return details for a single service including its latest credential metadata."""
+    try:
+        with SessionLocal() as db:
+            result = service_management.get_service(db, slug)
+            return jsonify(result), 200
+    except service_management.NotFoundError:
+        return jsonify({"error": "not found"}), 404
+    except Exception as e:
+        log_event("get_service_failed", error_class=type(e).__name__)
+        return jsonify({"error": "database error"}), 500
+
+
+@bp.route("/<slug>", methods=["PUT"])
+@csrf.exempt
+@require_admin
+def update_service(slug: str, user_uuid: str):
+    """Update name, slug, or base_url for a service."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "request body required"}), 400
+
+    allowed = {"name", "slug", "base_url"}
+    updates = {k: v.strip() for k, v in data.items() if k in allowed and isinstance(v, str)}
+    if not updates:
+        return jsonify({"error": "no updatable fields provided"}), 400
+
+    try:
+        with SessionLocal() as db:
+            result = service_management.update_service(db, slug, user_uuid, updates)
+            log_event("service_updated", service_slug=result["slug"], admin=user_uuid)
+            return jsonify(result), 200
+    except service_management.NotFoundError:
+        return jsonify({"error": "not found"}), 404
+    except service_management.ConflictError:
+        return jsonify({"error": "name, slug, or base_url already in use"}), 409
+    except Exception as e:
+        log_event("update_service_failed", error_class=type(e).__name__)
+        return jsonify({"error": "database error"}), 500
+
+
+@bp.route("/<slug>/rotate", methods=["POST"])
+@csrf.exempt
+@require_admin
+def rotate_service(slug: str, user_uuid: str):
+    """
+    Rotate the active service credential in-place. The audit trigger captures
+    the before-image automatically so history is preserved without extra rows.
+    Returns the new plaintext secret exactly once.
+    """
+    try:
+        with SessionLocal() as db:
+            result = service_management.rotate_service(db, slug, user_uuid)
+            log_event("service_credential_rotated", service_slug=slug, admin=user_uuid)
+            return jsonify(result), 200
+    except service_management.CredentialNotFoundError:
+        return jsonify({"error": "no credential"}), 404
+    except service_management.NotFoundError:
+        return jsonify({"error": "not found"}), 404
+    except Exception as e:
+        log_event("rotate_service_failed", error_class=type(e).__name__)
+        return jsonify({"error": "database error"}), 500
+
+
+@bp.route("/<slug>/audits", methods=["GET"])
+@csrf.exempt
+@require_admin
+def get_service_audits(slug: str, user_uuid: str):
+    """Return paginated audit history for a service's credentials."""
+    page = max(1, int(request.args.get("page", 1)))
+    page_size = min(100, max(1, int(request.args.get("page_size", 20))))
+    source = request.args.get("source")
+
+    try:
+        with SessionLocal() as db:
+            service = service_management.get_service(db, slug)
+            items, total = service_management.get_service_audits(
+                db,
+                service["uuid"],
+                source,
+                page,
+                page_size,
+            )
+
+            return jsonify({
+                "service_uuid": service["uuid"],
+                "slug": service["slug"],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "items": items,
+            }), 200
+    except service_management.NotFoundError:
+        return jsonify({"error": "not found"}), 404
+    except service_management.InvalidAuditSourceError as e:
+        return jsonify({"error": "invalid source", "message": str(e)}), 400
+    except Exception as e:
+        log_event("get_service_audits_failed", error_class=type(e).__name__)
+        return jsonify({"error": "database error"}), 500
+

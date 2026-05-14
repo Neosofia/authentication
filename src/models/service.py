@@ -8,9 +8,10 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.engine import Base
+from src.models.audit_mixin import AuditColumnsMixin, HistoryColumnsMixin
 
 
-class Service(Base):
+class Service(Base, AuditColumnsMixin):
     __tablename__ = "services"
 
     uuid: Mapped[uuid.UUID] = mapped_column(
@@ -24,7 +25,11 @@ class Service(Base):
 
     credentials: Mapped[list["ServiceCredential"]] = relationship(back_populates="service")
 
-    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    changed_by_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    changed_by_type: Mapped[int] = mapped_column(SmallInteger)
-    change_type: Mapped[int] = mapped_column(SmallInteger, server_default="1")
+
+class ServiceHistory(Base, HistoryColumnsMixin):
+    __tablename__ = "services_history"
+
+    uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    slug: Mapped[str] = mapped_column(Text, nullable=False)
+    base_url: Mapped[str] = mapped_column(Text, nullable=False)

@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Text, func, SmallInteger
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.engine import Base
+from src.models.audit_mixin import AuditColumnsMixin, HistoryColumnsMixin
 
 
-class ServiceCredential(Base):
+class ServiceCredential(Base, AuditColumnsMixin):
     __tablename__ = "service_credentials"
 
     uuid: Mapped[uuid.UUID] = mapped_column(
@@ -27,7 +28,10 @@ class ServiceCredential(Base):
 
     service: Mapped["Service"] = relationship(back_populates="credentials")
 
-    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    changed_by_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    changed_by_type: Mapped[int] = mapped_column(SmallInteger)
-    change_type: Mapped[int] = mapped_column(SmallInteger, server_default="1")
+
+class ServiceCredentialHistory(Base, HistoryColumnsMixin):
+    __tablename__ = "service_credentials_history"
+
+    uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    service_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    hashed_secret: Mapped[str] = mapped_column(Text, nullable=False)

@@ -1,10 +1,17 @@
+import uuid
+from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock
+
+from sqlalchemy.exc import IntegrityError
+
+from src.config import settings
 from src.models.service import Service
+from src.models.service_credential import ServiceCredential
+
 
 def _get_token(app, roles):
     with app.app_context():
         from src.services.tokens import issue_token
-        from src.config import settings
         return issue_token(
             sub="user_123",
             token_type="human",
@@ -15,100 +22,249 @@ def _get_token(app, roles):
             issuer=settings.jwt_issuer,
             audience=settings.jwt_web_audience,
             public_key_pem=settings.jwt_public_key_pem,
+            actor_uuid="12345678-1234-5678-1234-567812345678",
+            tenant_uuid="87654321-4321-8765-4321-876543218765",
         )
+
 
 def test_services_unauthorized(client):
     response = client.get("/api/services")
     assert response.status_code == 401
 
+
 def test_services_forbidden(client, app):
-    token = _get_token(app, ["user"]) # Non-admin role
+    token = _get_token(app, ["user"])
     response = client.get("/api/services", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 403
 
-class MockService:
-    uuid = "12345678-1234-5678-1234-567812345678"
-    name = "Test"
-    slug = "test"
-    base_url = "http://test"
 
 def test_services_list_success(client, app):
     token = _get_token(app, ["admin"])
+    service = Service(
+        uuid=uuid.uuid7(),
+        name="Test Service",
+        slug="test-service",
+        base_url="http://test-service",
+    )
+    credential = ServiceCredential(
+        uuid=uuid.uuid7(),
+        service_uuid=service.uuid,
+        hashed_secret="secret",
+        service=service,
+    )
 
-    mock_db_session = MagicMock()
-    # Mock context manager
-    mock_db_session.__enter__.return_value = mock_db_session
-    mock_db_session.scalars.return_value.all.return_value = [MockService()]
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.scalar.return_value = 1
+    mock_db.execute.return_value.all.return_value = [(service, credential)]
 
-    with patch("src.routes.services.SessionLocal", return_value=mock_db_session):
+    with patch("src.routes.services.SessionLocal", return_value=mock_db):
         response = client.get("/api/services", headers={"Authorization": f"Bearer {token}"})
-    
+
     assert response.status_code == 200
-    assert len(response.json) == 1
-    assert response.json[0]["name"] == "Test"
+    assert response.json["items"][0]["name"] == "Test Service"
+    assert response.json["total"] == 1
+
 
 def test_services_create_missing_fields(client, app):
     token = _get_token(app, ["platform-admin"])
     response = client.post("/api/services", json={"name": "test"}, headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 400
 
+
 def test_services_create_success(client, app):
     token = _get_token(app, ["admin"])
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.add = MagicMock()
+    mock_db.flush = MagicMock()
+    mock_db.commit = MagicMock()
 
-    mock_db_session = MagicMock()
-    mock_db_session.__enter__.return_value = mock_db_session
-
-    with patch("src.routes.services.SessionLocal", return_value=mock_db_session):
+    with patch("src.routes.services.SessionLocal", return_value=mock_db):
         response = client.post("/api/services", json={
             "name": "New Service",
             "slug": "new-service",
             "base_url": "http://new"
         }, headers={"Authorization": f"Bearer {token}"})
-    
+
     assert response.status_code == 201
     assert "client_secret" in response.json
-    assert response.json["name"] == "New Service"
+    assert mock_db.commit.called
+
 
 def test_services_create_conflict(client, app):
-    from sqlalchemy.exc import IntegrityError
     token = _get_token(app, ["admin"])
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.add = MagicMock()
+    mock_db.flush = MagicMock()
+    mock_db.commit.side_effect = IntegrityError("msg", "params", "orig")
+    mock_db.rollback = MagicMock()
 
-    mock_db_session = MagicMock()
-    mock_db_session.__enter__.return_value = mock_db_session
-    mock_db_session.commit.side_effect = IntegrityError("msg", "params", "orig")
-
-    with patch("src.routes.services.SessionLocal", return_value=mock_db_session):
+    with patch("src.routes.services.SessionLocal", return_value=mock_db):
         response = client.post("/api/services", json={
             "name": "New Service",
             "slug": "new-service",
             "base_url": "http://new"
         }, headers={"Authorization": f"Bearer {token}"})
-    
+
     assert response.status_code == 409
+    assert mock_db.rollback.called
 
-def test_services_list_exception(client, app):
+
+def test_services_get_not_found(client, app):
     token = _get_token(app, ["admin"])
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.scalar.return_value = None
 
-    mock_db_session = MagicMock()
-    mock_db_session.__enter__.return_value = mock_db_session
-    mock_db_session.scalars.side_effect = Exception("DB error")
+    with patch("src.routes.services.SessionLocal", return_value=mock_db):
+        response = client.get("/api/services/missing-service", headers={"Authorization": f"Bearer {token}"})
 
-    with patch("src.routes.services.SessionLocal", return_value=mock_db_session):
-        response = client.get("/api/services", headers={"Authorization": f"Bearer {token}"})
-    
-    assert response.status_code == 500
+    assert response.status_code == 404
 
-def test_services_create_exception(client, app):
+
+def test_services_update_no_fields(client, app):
     token = _get_token(app, ["admin"])
+    response = client.put(
+        "/api/services/existing-service",
+        json={"not_a_field": "value"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
 
-    mock_db_session = MagicMock()
-    mock_db_session.__enter__.side_effect = Exception("DB Error")
+    assert response.status_code == 400
 
-    with patch("src.routes.services.SessionLocal", return_value=mock_db_session):
-        response = client.post("/api/services", json={
-            "name": "New Service",
-            "slug": "new-service",
-            "base_url": "http://new"
-        }, headers={"Authorization": f"Bearer {token}"})
-    
-    assert response.status_code == 500
+
+def test_services_update_conflict(client, app):
+    token = _get_token(app, ["admin"])
+    service = Service(
+        uuid=uuid.uuid7(),
+        name="Existing Service",
+        slug="existing-service",
+        base_url="http://existing",
+    )
+
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.scalar.side_effect = [service]
+    mock_db.commit.side_effect = IntegrityError("msg", "params", "orig")
+    mock_db.rollback = MagicMock()
+
+    with patch("src.routes.services.SessionLocal", return_value=mock_db):
+        response = client.put(
+            "/api/services/existing-service",
+            json={"name": "Updated Service"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 409
+    assert mock_db.rollback.called
+
+
+def test_services_rotate_success(client, app):
+    token = _get_token(app, ["admin"])
+    service = Service(
+        uuid=uuid.uuid7(),
+        name="Test Service",
+        slug="test-service",
+        base_url="http://test-service",
+    )
+    credential = ServiceCredential(
+        uuid=uuid.uuid7(),
+        service_uuid=service.uuid,
+        hashed_secret="old-hash",
+        service=service,
+    )
+
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.scalar.side_effect = [service, credential]
+    mock_db.commit = MagicMock()
+
+    with patch("src.routes.services.SessionLocal", return_value=mock_db):
+        response = client.post("/api/services/test-service/rotate", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    assert response.json["slug"] == "test-service"
+    assert response.json["client_secret"]
+    assert mock_db.commit.called
+
+
+def test_services_get_audits_invalid_source(client, app):
+    token = _get_token(app, ["admin"])
+    service = Service(
+        name="Test Service",
+        slug="test-service",
+        base_url="http://test-service",
+    )
+    credential = ServiceCredential(
+        service_uuid=service.uuid,
+        hashed_secret="secret",
+        service=service,
+    )
+
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.scalar.side_effect = [service, credential]
+
+    with patch("src.routes.services.SessionLocal", return_value=mock_db):
+        response = client.get(
+            "/api/services/test-service/audits?source=invalid",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 400
+    assert response.json["error"] == "invalid source"
+
+
+def test_services_get_success(client, app):
+    token = _get_token(app, ["admin"])
+    service = Service(
+        uuid=uuid.uuid7(),
+        name="Test Service",
+        slug="test-service",
+        base_url="http://test-service",
+    )
+    credential = ServiceCredential(
+        uuid=uuid.uuid7(),
+        service_uuid=service.uuid,
+        hashed_secret="secret",
+        service=service,
+    )
+
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.scalar.side_effect = [service, credential]
+
+    with patch("src.routes.services.SessionLocal", return_value=mock_db):
+        response = client.get("/api/services/test-service", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    assert response.json["name"] == "Test Service"
+    assert response.json["credential_uuid"] == str(credential.uuid)
+
+
+def test_services_update_success(client, app):
+    token = _get_token(app, ["admin"])
+    service = Service(
+        name="Existing Service",
+        slug="existing-service",
+        base_url="http://existing",
+    )
+
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.scalar.return_value = service
+    mock_db.commit = MagicMock()
+
+    with patch("src.routes.services.SessionLocal", return_value=mock_db):
+        response = client.put(
+            "/api/services/existing-service",
+            json={"name": "Updated Service"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    assert response.json["name"] == "Updated Service"
+    assert mock_db.commit.called
+

@@ -16,7 +16,6 @@ def test_token_inspect_unauthorized(client, api_spec, validate_response):
     response = client.get("/api/token-inspect")
     assert response.status_code == 401
     validate_response(api_spec, "/api/token-inspect", "get", 401, response.json)
-
 def test_token_client_credentials_happy_path(client, api_spec, validate_response):
     client_id = "test_client_id"
     client_secret = "test_secret"
@@ -59,14 +58,59 @@ def test_token_client_credentials_happy_path(client, api_spec, validate_response
             audience="test-service",
         )
         assert decoded["aud"] == "test-service"
+        assert decoded["sub"] == client_id
+        assert decoded["azp"] == client_id
+
+
+def test_token_client_credentials_rejects_invalid_secret(client, api_spec, validate_response):
+    client_id = "test_client_id"
+    actual_secret = "test_secret"
+    hashed = bcrypt.hashpw(actual_secret.encode(), bcrypt.gensalt()).decode()
+
+    from src.models.service import Service
+
+    service = Service(
+        uuid=uuid.uuid7(),
+        name="Test Service",
+        slug="test-service",
+        base_url="https://test-service.local",
+    )
+    mock_cred = ServiceCredential(
+        service_uuid=service.uuid,
+        hashed_secret=hashed,
+        service=service,
+    )
+
+    with patch("src.routes.token.SessionLocal") as mock_db:
+        mock_session = MagicMock()
+        mock_db.return_value.__enter__.return_value = mock_session
+        mock_result_cred = MagicMock()
+        mock_result_cred.scalar_one_or_none.return_value = mock_cred
+        mock_result_target = MagicMock()
+        mock_result_target.scalar_one_or_none.return_value = service
+        mock_session.execute.side_effect = [mock_result_cred, mock_result_target]
+
+        wrong_secret = "bad_secret"
+        credentials = base64.b64encode(f"{client_id}:{wrong_secret}".encode()).decode()
+
+        response = client.post("/api/token", data={"grant_type": "client_credentials", "audience": "test-service"}, headers={
+            "Authorization": f"Basic {credentials}"
+        })
+
+    assert response.status_code == 401
+    validate_response(api_spec, "/api/token", "post", 401, response.json)
 
 
 def test_token_session_grant_happy_path(client, api_spec, validate_response):
     auth_response = MagicMock()
     auth_response.authenticated = True
-    auth_response.user = {"id": "user_123"}
+    auth_response.user = {"id": "user_123", "external_id": "12345678-1234-5678-1234-567812345678"}
     auth_response.role = "admin"
+    auth_response.roles = None
     auth_response.organization_id = "tenant_456"
+    auth_response.organization = MagicMock(external_id="87654321-4321-8765-4321-876543218765")
+    setattr(auth_response, "urn:neosofia:actor_uuid", None)
+    setattr(auth_response, "urn:neosofia:tenant_uuid", None)
     auth_response.access_token = "workos-access-token"
     auth_response.refresh_token = "workos-refresh-token"
     auth_response.impersonator = None
@@ -92,7 +136,7 @@ def test_token_inspect_happy_path(client, api_spec, validate_response, app):
         service_token = issue_token(
             sub="test_service",
             token_type="service",
-            roles=[],
+            roles=None,
             tenant_id=None,
             ttl_secs=3600,
             private_key_pem=settings.jwt_private_key_pem,
@@ -107,3 +151,4 @@ def test_token_inspect_happy_path(client, api_spec, validate_response, app):
     
     assert response.status_code == 200
     validate_response(api_spec, "/api/token-inspect", "get", 200, response.json)
+    assert "neosofia:roles" not in response.json

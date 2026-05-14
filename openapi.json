@@ -33,6 +33,10 @@
     {
       "name": "Health",
       "description": "Service health and liveness probes"
+    },
+    {
+      "name": "Services",
+      "description": "Platform service registration and credential lifecycle management (admin only)"
     }
   ],
   "paths": {
@@ -308,6 +312,191 @@
         "x-debug-only": true
       }
     },
+    "/api/services": {
+      "get": {
+        "tags": ["Services"],
+        "summary": "List platform services",
+        "description": "Paginated list of registered services joined with latest credential metadata. Supports search by name, slug, or base_url. Sorted by credential changed_at ascending (oldest rotation first) to surface stale credentials.",
+        "security": [{"BearerToken": []}],
+        "parameters": [
+          {"name": "page", "in": "query", "schema": {"type": "integer", "default": 1, "minimum": 1}},
+          {"name": "page_size", "in": "query", "schema": {"type": "integer", "default": 20, "minimum": 1, "maximum": 100}},
+          {"name": "q", "in": "query", "description": "Filter by name, slug, or base_url (case-insensitive substring)", "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated service list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {"type": "array", "items": {"$ref": "#/components/schemas/ServiceItem"}},
+                    "total": {"type": "integer"},
+                    "page": {"type": "integer"},
+                    "page_size": {"type": "integer"}
+                  }
+                }
+              }
+            }
+          },
+          "403": {"description": "Forbidden — requires admin role", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "500": {"description": "Database error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
+        }
+      },
+      "post": {
+        "tags": ["Services"],
+        "summary": "Register a new platform service",
+        "description": "Create a service record and generate its first credential. Returns the plaintext secret exactly once.",
+        "security": [{"BearerToken": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "slug", "base_url"],
+                "properties": {
+                  "name": {"type": "string"},
+                  "slug": {"type": "string"},
+                  "base_url": {"type": "string", "format": "uri"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Service created — secret returned exactly once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "uuid": {"type": "string", "format": "uuid"},
+                    "name": {"type": "string"},
+                    "slug": {"type": "string"},
+                    "base_url": {"type": "string"},
+                    "client_secret": {"type": "string", "description": "Plaintext secret — returned exactly once"}
+                  }
+                }
+              }
+            }
+          },
+          "400": {"description": "Missing required fields", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "403": {"description": "Forbidden — requires admin role", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "409": {"description": "Name, slug, or base_url already in use", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
+        }
+      }
+    },
+    "/api/services/{slug}": {
+      "parameters": [
+        {"name": "slug", "in": "path", "required": true, "schema": {"type": "string"}}
+      ],
+      "get": {
+        "tags": ["Services"],
+        "summary": "Get service details",
+        "security": [{"BearerToken": []}],
+        "responses": {
+          "200": {"description": "Service details", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ServiceItem"}}}},
+          "403": {"description": "Forbidden", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "404": {"description": "Service not found", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
+        }
+      },
+      "put": {
+        "tags": ["Services"],
+        "summary": "Update service details",
+        "description": "Update name, slug, and/or base_url.",
+        "security": [{"BearerToken": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "slug": {"type": "string"},
+                  "base_url": {"type": "string", "format": "uri"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {"description": "Updated service", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ServiceItem"}}}},
+          "400": {"description": "No updatable fields", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "403": {"description": "Forbidden", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "404": {"description": "Not found", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "409": {"description": "Conflict — name/slug/base_url in use", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
+        }
+      }
+    },
+    "/api/services/{slug}/rotate": {
+      "parameters": [
+        {"name": "slug", "in": "path", "required": true, "schema": {"type": "string"}}
+      ],
+      "post": {
+        "tags": ["Services"],
+        "summary": "Rotate service credential",
+        "description": "Atomically deactivate all existing credentials and generate a new one. The new plaintext secret is returned exactly once.",
+        "security": [{"BearerToken": []}],
+        "responses": {
+          "200": {
+            "description": "New credential issued — secret returned exactly once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "slug": {"type": "string"},
+                    "client_secret": {"type": "string", "description": "New plaintext secret — returned exactly once"}
+                  }
+                }
+              }
+            }
+          },
+          "403": {"description": "Forbidden", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "404": {"description": "Not found", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
+        }
+      }
+    },
+    "/api/services/{slug}/audits": {
+      "parameters": [
+        {"name": "slug", "in": "path", "required": true, "schema": {"type": "string"}}
+      ],
+      "get": {
+        "tags": ["Services"],
+        "summary": "Get credential audit history for a service",
+        "security": [{"BearerToken": []}],
+        "parameters": [
+          {"name": "page", "in": "query", "schema": {"type": "integer", "default": 1, "minimum": 1}},
+          {"name": "page_size", "in": "query", "schema": {"type": "integer", "default": 20, "minimum": 1, "maximum": 100}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated audit history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "service_uuid": {"type": "string", "format": "uuid"},
+                    "slug": {"type": "string"},
+                    "total": {"type": "integer"},
+                    "page": {"type": "integer"},
+                    "page_size": {"type": "integer"},
+                    "items": {"type": "array", "items": {"$ref": "#/components/schemas/CredentialAuditItem"}}
+                  }
+                }
+              }
+            }
+          },
+          "403": {"description": "Forbidden", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "404": {"description": "Not found", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -477,8 +666,7 @@
           "exp",
           "jti",
           "neosofia:token_type",
-          "neosofia:token_version",
-          "neosofia:roles"
+          "neosofia:token_version"
         ],
         "properties": {
           "sub": {
@@ -547,6 +735,34 @@
             "type": "string",
             "description": "Optional human-readable error details"
           }
+        }
+      },
+      "ServiceItem": {
+        "type": "object",
+        "title": "Service Item",
+        "properties": {
+          "uuid": {"type": "string", "format": "uuid"},
+          "name": {"type": "string"},
+          "slug": {"type": "string"},
+          "base_url": {"type": "string"},
+          "active": {"type": "integer", "description": "1=active, 2=inactive", "nullable": true},
+          "credential_uuid": {"type": "string", "format": "uuid", "nullable": true},
+          "credential_changed_at": {"type": "string", "format": "date-time", "nullable": true},
+          "days_since_rotation": {"type": "integer", "nullable": true}
+        }
+      },
+      "CredentialAuditItem": {
+        "type": "object",
+        "title": "Credential Audit Item",
+        "properties": {
+          "history_uuid": {"type": "string", "format": "uuid"},
+          "credential_uuid": {"type": "string", "format": "uuid"},
+          "active": {"type": "integer"},
+          "rotated_at": {"type": "string", "format": "date-time", "nullable": true},
+          "changed_at": {"type": "string", "format": "date-time"},
+          "changed_by_uuid": {"type": "string", "format": "uuid"},
+          "changed_by_type": {"type": "integer"},
+          "change_type": {"type": "integer"}
         }
       }
     },
