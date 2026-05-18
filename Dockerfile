@@ -43,7 +43,7 @@ ENV PATH="/repo/.venv/bin:$PATH" \
 FROM python:3.14-alpine@sha256:dd4d2bd5b53d9b25a51da13addf2be586beebd5387e289e798e4083d94ca837a
 
 # Runtime shared libraries needed by C extensions and local env setup
-RUN apk add --no-cache bash openssl libffi libpq && addgroup -S app && adduser -S -G app app
+RUN apk update && apk upgrade && apk add --no-cache bash openssl libffi libpq && addgroup -S app && adduser -S -G app app
 
 WORKDIR /app
 
