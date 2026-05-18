@@ -170,7 +170,7 @@ def callback():
             sealed_session,
             secure=not is_development,
             httponly=True,
-            samesite="lax",
+            samesite="none" if not is_development else "lax",
             path="/",
         )
         # Clean up OAuth state and PKCE cookies after successful exchange

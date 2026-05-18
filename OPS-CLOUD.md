@@ -38,7 +38,7 @@ $EDITOR .env
 
 > **Rate limiting:** per-node limits (60/min login, 20/min token) apply in all environments. See [SECURITY.md §3.7](SECURITY.md#37-rate-limiting) for thresholds and the Redis upgrade path.
 
-> **TLS:** terminate TLS at the ingress layer (Traefik for staging, CloudFront for prod). See [SECURITY.md §3.5](SECURITY.md#35-network-isolation--transport-security) for architecture rationale and compliance notes.
+> **TLS:** terminate TLS at the ingress layer (e.g., Railway edge, AWS ALB). See [SECURITY.md §3.5](SECURITY.md#35-network-isolation--transport-security) for architecture rationale and compliance notes.
 
 ### Step 4 — Deploy
 

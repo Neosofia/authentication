@@ -143,8 +143,10 @@ See [Appendix A](#appendix-a-environment-variable-reference) for the full variab
 | `VALID_ROLES` | Comma-separated list of accepted WorkOS org roles (required; service refuses to start if unset). See [SECURITY.md §3.1](SECURITY.md#31-identity--authentication). | — |
 | `ACCESS_TOKEN_TTL_SECS` | Optional, default `900` (15 min) | — |
 | `SERVICE_TOKEN_TTL_SECS` | Optional, default `300` (5 min) | — |
-| `DATABASE_URL` | Local Postgres | `postgresql+psycopg://auth:dev_only@localhost:5014/auth` |
-| `SERVICE_TOKEN_TTL_SECS` | Optional, default `300` | — |
+| `MIGRATION_DATABASE_URL` | Migration DB URL used by Alembic. Required for service operation. | `postgresql+psycopg://auth:dev_only@localhost:5014/auth` |
+| `DATABASE_URL` | Runtime app DB URL | `postgresql+psycopg://auth:dev_only@localhost:5014/auth` |
+
+> **Note:** `MIGRATION_DATABASE_URL` is required for the authentication service to operate correctly. It is used by Alembic migrations and should generally be a separate migration role from the runtime app user. `DATABASE_URL` is used only by the running application.
 
 ---
 

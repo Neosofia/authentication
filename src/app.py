@@ -2,6 +2,7 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask
+from flask_cors import CORS
 from flask_talisman import Talisman
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -28,6 +29,11 @@ def create_app(config: dict | None = None) -> Flask:
 
     app.config["SECRET_KEY"] = csrf_secret
     app.config["WTF_CSRF_FIELD_NAME"] = "_csrf"
+    
+    # Configure CORS to explicitly trust the FRONTEND_URL if it is separated.
+    # We must allow credentials so sealed session cookies can be sent by the frontend browser.
+    CORS(app, origins=[settings.frontend_url], supports_credentials=True)
+
     # Reject request bodies larger than this to prevent body-flood DoS.
     # Bodies here are only form fields / small JSON; JWTs arrive in headers, not bodies.
     # Override via MAX_CONTENT_LENGTH env var (bytes). Default: 16 KiB.
@@ -52,11 +58,10 @@ def create_app(config: dict | None = None) -> Flask:
     is_development = os.getenv("ENV", "production").lower() in ("development", "test")
 
     if not is_development:
-        # Trust the reverse proxy in front of the service (Traefik on PVE/AWS,
-        # or Railway's internal router). ProxyFix makes Flask honour
-        # X-Forwarded-Proto/Host so url_for() generates https:// URLs and
-        # Talisman's force_https doesn't redirect-loop behind the TLS-terminating
-        # proxy. Set TRUSTED_PROXY_HOPS=2 if a CDN sits in front of the proxy.
+        # Trust the reverse proxy in front of the service (like Railway's internal
+        # router or AWS ALB). ProxyFix makes Flask honour X-Forwarded-Proto/Host
+        # so url_for() generates https:// URLs and Talisman's force_https doesn't
+        # redirect-loop behind the TLS-terminating proxy.
         app.wsgi_app = ProxyFix(
             app.wsgi_app,
             x_for=settings.trusted_proxy_hops,
