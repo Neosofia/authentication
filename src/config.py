@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     jwt_previous_public_key_pem: str = ""  # set during key rotation overlap window
     jwt_claim_namespace: str = "neosofia"
     jwt_issuer: str = "https://auth.neosofia.local"
+    env: str = "production"
     jwt_web_audience: str | list[str] = "authentication"
     valid_roles: str  # required; comma-separated WorkOS org membership roles, e.g. "admin,member"
     access_token_ttl_secs: int = 900   # 15 minutes
