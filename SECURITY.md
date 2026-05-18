@@ -15,7 +15,7 @@ To report any security-related issue please email security@neosofia.tech — do 
 | **OAuth 2.0 / OIDC** | [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749), [RFC 6819](https://datatracker.ietf.org/doc/html/rfc6819) (Threat Model), [RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636) (PKCE), [RFC 8252](https://datatracker.ietf.org/doc/html/rfc8252) (Native Apps BCP) |
 | **JSON Web Tokens** | [RFC 7515](https://datatracker.ietf.org/doc/html/rfc7515) (JWS), [RFC 7517](https://datatracker.ietf.org/doc/html/rfc7517) (JWK), [RFC 7518](https://datatracker.ietf.org/doc/html/rfc7518) (JWA), [RFC 7519](https://datatracker.ietf.org/doc/html/rfc7519) (JWT), [RFC 7638](https://datatracker.ietf.org/doc/html/rfc7638) (JWK Thumbprint) |
 | **Identity Guidelines** | [NIST SP 800-63B](https://pages.nist.gov/800-63-3/sp800-63b.html) |
-| **Internal Governance** | [ADR-0007](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md) (never roll your own authentication), Constitution §VII (stateless), §VIII (defense in depth) |
+| **Internal Governance** | [ADR-0007](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md) (never roll your own authentication), Constitution §VII (scalability by design) |
 
 ---
 
@@ -70,7 +70,7 @@ Key architectural decisions:
 
 - **Sealed session cookie (WorkOS SDK)** — AES-256-GCM + HMAC with a 32-character platform-supplied cookie password. Tampering is detected at decryption.
 - **Cookie hardening** — all cookies set with `HttpOnly`, `Secure` (production), `SameSite=Lax`, `path="/"`.
-- **Stateless architecture** — no server-side session store; satisfies Constitution §VII.
+- **Stateless architecture** — no server-side session store; aligns with Constitution §VII.
 - **`CSRF_SECRET_KEY` is the trust anchor for both CSRF and OAuth state** — the OAuth `state` parameter and PKCE `code_verifier` are stored in Flask's signed session cookie, which is protected by `CSRF_SECRET_KEY`. Compromising this key defeats both the CSRF check and the OAuth state binding. **Rotate `CSRF_SECRET_KEY` and `WORKOS_COOKIE_PASSWORD` together** on the same cadence (generate independently with `openssl rand -hex 32` / `openssl rand -base64 32`). A rotation requires a brief service restart; all in-flight sessions are invalidated at that point.
 
 ### service-to-service Credentials

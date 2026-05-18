@@ -232,7 +232,7 @@ def csrf_token():
     Token is bound to session and validated by @csrf.protect middleware.
     
     Returns: {\"csrfToken\": \"<token>\"}
-    Ref: Flask-WTF CSRF protection (Constitution §VIII: defense in depth)
+    Ref: Flask-WTF CSRF protection (defense in depth)
     """
     token = generate_csrf()
     log_event("csrf_token_issued")

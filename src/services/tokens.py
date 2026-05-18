@@ -68,7 +68,7 @@ def issue_token(
     JWT_CLAIM_NAMESPACE env var, allowing forks to use their own namespace
     without code changes.
 
-    Ref: RFC 7519 (JWT Claims), Constitution §VII (stateless validation)
+    Ref: RFC 7519 (JWT Claims), Constitution §VII (scalability by design / stateless validation)
     """
     now = int(datetime.now(timezone.utc).timestamp())
     ns = claim_namespace
