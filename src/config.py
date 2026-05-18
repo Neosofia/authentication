@@ -71,6 +71,13 @@ class Settings(BaseSettings):
     def model_post_init(self, __context: object) -> None:
         if not self.database_url.strip():
             raise ValueError("DATABASE_URL must be set")
+
+        if self.database_url.startswith("postgresql://"):
+            object.__setattr__(
+                self,
+                "database_url",
+                self.database_url.replace("postgresql://", "postgresql+psycopg://", 1),
+            )
             
         if not self.valid_roles.strip():
             raise ValueError("VALID_ROLES must be set to a non-empty comma-separated list of accepted WorkOS org roles")
