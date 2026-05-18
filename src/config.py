@@ -77,6 +77,12 @@ class Settings(BaseSettings):
             
         if not self.jwt_private_key_pem or not self.jwt_public_key_pem:
             raise ValueError("JWT_PRIVATE_KEY_PEM and JWT_PUBLIC_KEY_PEM must be set")
+
+        if self.env.lower() not in ("development", "test"):
+            if not self.frontend_url.strip():
+                raise ValueError("FRONTEND_URL must be set in non-development environments")
+            if self.frontend_url.startswith("http://") and "localhost" not in self.frontend_url:
+                raise ValueError("FRONTEND_URL must use https in non-development environments")
             
         if isinstance(self.jwt_web_audience, str) and "," in self.jwt_web_audience:
             object.__setattr__(self, "jwt_web_audience", [a.strip() for a in self.jwt_web_audience.split(",")])
