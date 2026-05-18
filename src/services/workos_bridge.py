@@ -91,6 +91,20 @@ def extract_platform_claims(auth_response) -> dict:
         if workos_role in valid_roles:
             roles.append(workos_role)
 
+    if not roles:
+        log_event(
+            "token_rejected_no_valid_roles",
+            user_id=user_id,
+            organization_id=organization_id,
+            valid_roles=list(valid_roles),
+            workos_roles=workos_roles,
+            workos_role=workos_role,
+        )
+        raise ValueError(
+            "User has no valid roles; token issuance denied. "
+            "Verify that WorkOS roles match VALID_ROLES."
+        )
+
     actor_uuid = _resolve_workos_value(
         auth_response,
         f"urn:{settings.jwt_claim_namespace}:actor_uuid",
