@@ -1,5 +1,3 @@
-import os
-
 from alembic import context
 from sqlalchemy import create_engine
 
@@ -17,9 +15,7 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-# Migrations run as the superuser. Fall back to DATABASE_URL so plain
-# `alembic upgrade head` still works in environments that only set one URL.
-_migration_url = os.environ.get("MIGRATION_DATABASE_URL") or settings.database_url
+_migration_url = settings.database_url
 
 
 def run_migrations_offline() -> None:
