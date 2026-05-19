@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from typing import Optional
-from sqlalchemy import Text, SmallInteger
+from sqlalchemy import Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 

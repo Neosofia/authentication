@@ -16,6 +16,8 @@ def test_token_inspect_unauthorized(client, api_spec, validate_response):
     response = client.get("/api/token-inspect")
     assert response.status_code == 401
     validate_response(api_spec, "/api/token-inspect", "get", 401, response.json)
+
+
 def test_token_client_credentials_happy_path(client, api_spec, validate_response):
     client_id = "test_client_id"
     client_secret = "test_secret"

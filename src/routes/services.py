@@ -25,7 +25,7 @@ def require_admin(f):
 
         roles = claims.get(f"{settings.jwt_claim_namespace}:roles", [])
         if "admin" not in roles and "platform-admin" not in roles:
-             return jsonify({"error": "forbidden", "message": "requires admin role"}), 403
+            return jsonify({"error": "forbidden", "message": "requires admin role"}), 403
 
         user_uuid = claims.get("sub")
         if not user_uuid:
@@ -62,8 +62,8 @@ def list_services(user_uuid: str):
                 "page": page,
                 "page_size": page_size,
             }), 200
-    except Exception as e:
-        log_event("list_services_failed", error_class=type(e).__name__)
+    except Exception as exc:
+        log_event("list_services_failed", error_class=type(exc).__name__)
         return jsonify({"error": "database error"}), 500
 
 
@@ -89,8 +89,8 @@ def create_service(user_uuid: str):
             return jsonify(result), 201
     except service_management.ConflictError:
         return jsonify({"error": "service name or slug or base_url already exists"}), 409
-    except Exception as e:
-        log_event("create_service_failed", error_class=type(e).__name__)
+    except Exception as exc:
+        log_event("create_service_failed", error_class=type(exc).__name__)
         return jsonify({"error": "database error"}), 500
 
 
@@ -105,8 +105,8 @@ def get_service(slug: str, user_uuid: str):
             return jsonify(result), 200
     except service_management.NotFoundError:
         return jsonify({"error": "not found"}), 404
-    except Exception as e:
-        log_event("get_service_failed", error_class=type(e).__name__)
+    except Exception as exc:
+        log_event("get_service_failed", error_class=type(exc).__name__)
         return jsonify({"error": "database error"}), 500
 
 
@@ -133,8 +133,8 @@ def update_service(slug: str, user_uuid: str):
         return jsonify({"error": "not found"}), 404
     except service_management.ConflictError:
         return jsonify({"error": "name, slug, or base_url already in use"}), 409
-    except Exception as e:
-        log_event("update_service_failed", error_class=type(e).__name__)
+    except Exception as exc:
+        log_event("update_service_failed", error_class=type(exc).__name__)
         return jsonify({"error": "database error"}), 500
 
 
@@ -156,8 +156,8 @@ def rotate_service(slug: str, user_uuid: str):
         return jsonify({"error": "no credential"}), 404
     except service_management.NotFoundError:
         return jsonify({"error": "not found"}), 404
-    except Exception as e:
-        log_event("rotate_service_failed", error_class=type(e).__name__)
+    except Exception as exc:
+        log_event("rotate_service_failed", error_class=type(exc).__name__)
         return jsonify({"error": "database error"}), 500
 
 
@@ -191,8 +191,8 @@ def get_service_audits(slug: str, user_uuid: str):
             }), 200
     except service_management.NotFoundError:
         return jsonify({"error": "not found"}), 404
-    except service_management.InvalidAuditSourceError as e:
-        return jsonify({"error": "invalid source", "message": str(e)}), 400
+    except service_management.InvalidAuditSourceError:
+        return jsonify({"error": "invalid source", "message": "source must be 'service' or 'credential'"}), 400
     except Exception as exc:
         log_event("get_service_audits_failed", error_class=type(exc).__name__)
         return jsonify({"error": "database error"}), 500

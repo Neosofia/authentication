@@ -33,43 +33,58 @@ def sync_identity_data(
     
     def _do_sync():
         nonlocal user_uuid_out, tenant_uuid_out
-        with SessionLocal() as db:
-            if idp_tenant_id:
-                tenant = db.scalar(select(Tenant).filter_by(idp_id=idp_tenant_id))
-                if not tenant:
-                    tenant = Tenant(
-                        idp_id=idp_tenant_id,
-                        name=tenant_name or "Unknown Tenant",
-                        uuid=uuid.UUID(tenant_uuid) if tenant_uuid else None,
-                        changed_by_uuid=SYSTEM_ACTOR_UUID,
-                        changed_by_type=SYSTEM_ACTOR_TYPE,
-                    )
-                    db.add(tenant)
-                else:
-                    if tenant_name:
-                        tenant.name = tenant_name
-                db.commit()
-                tenant_uuid_out = str(tenant.uuid)
+        db = None
+        try:
+            with SessionLocal() as db:
+                if idp_tenant_id:
+                    tenant = db.scalar(select(Tenant).filter_by(idp_id=idp_tenant_id))
+                    if not tenant:
+                        tenant = Tenant(
+                            idp_id=idp_tenant_id,
+                            name=tenant_name or "Unknown Tenant",
+                            uuid=uuid.UUID(tenant_uuid) if tenant_uuid else None,
+                            changed_by_uuid=SYSTEM_ACTOR_UUID,
+                            changed_by_type=SYSTEM_ACTOR_TYPE,
+                        )
+                        db.add(tenant)
+                    else:
+                        if tenant_name:
+                            tenant.name = tenant_name
+                    db.commit()
+                    tenant_uuid_out = str(tenant.uuid)
 
-            if idp_user_id:
-                user = db.scalar(select(User).filter_by(idp_id=idp_user_id))
-                if not user:
-                    user = User(
-                        idp_id=idp_user_id,
-                        first_name=first_name,
-                        last_name=last_name,
-                        email=email,
-                        uuid=uuid.UUID(user_uuid) if user_uuid else None,
-                        changed_by_uuid=SYSTEM_ACTOR_UUID,
-                        changed_by_type=SYSTEM_ACTOR_TYPE,
-                    )
-                    db.add(user)
-                else:
-                    if first_name: user.first_name = first_name
-                    if last_name: user.last_name = last_name
-                    if email: user.email = email
-                db.commit()
-                user_uuid_out = str(user.uuid)
+                if idp_user_id:
+                    user = db.scalar(select(User).filter_by(idp_id=idp_user_id))
+                    if not user:
+                        user = User(
+                            idp_id=idp_user_id,
+                            first_name=first_name,
+                            last_name=last_name,
+                            email=email,
+                            uuid=uuid.UUID(user_uuid) if user_uuid else None,
+                            changed_by_uuid=SYSTEM_ACTOR_UUID,
+                            changed_by_type=SYSTEM_ACTOR_TYPE,
+                        )
+                        db.add(user)
+                    else:
+                        if first_name: user.first_name = first_name
+                        if last_name: user.last_name = last_name
+                        if email: user.email = email
+                    db.commit()
+                    user_uuid_out = str(user.uuid)
+        except Exception as exc:
+            if db is not None:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+            log_event(
+                "identity_sync_error",
+                idp_user_id=idp_user_id,
+                idp_tenant_id=idp_tenant_id,
+                error_class=type(exc).__name__,
+                error=str(exc),
+            )
 
     thread = threading.Thread(target=_do_sync)
     thread.start()

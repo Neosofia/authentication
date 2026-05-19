@@ -114,7 +114,6 @@ def test_services_require_admin_without_admin_role_returns_403(mock_decode, clie
         "iss": settings.jwt_issuer,
         "aud": settings.jwt_web_audience,
         "neosofia:roles": ["user"],
-        "sub": "12345678-1234-5678-1234-567812345678",
     }
 
     with patch("src.routes.services.SessionLocal"):
@@ -150,11 +149,10 @@ def test_services_require_admin_missing_user_uuid_returns_401(mock_decode, clien
 @patch("authentication_in_the_middle.decorators.pyjwt.decode")
 def test_services_require_admin_invalid_user_uuid_returns_401(mock_decode, client):
     mock_decode.return_value = {
-        "sub": "019e02e1-94e1-722b-bd61-f7f95fb1602a",
+        "sub": "not-a-uuid",
         "iss": settings.jwt_issuer,
         "aud": settings.jwt_web_audience,
         "neosofia:roles": ["admin"],
-        "sub": "not-a-uuid",
     }
 
     with patch("src.routes.services.SessionLocal"):
