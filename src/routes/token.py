@@ -144,9 +144,9 @@ def _handle_session_grant():
             response.set_cookie(
                 "wos_session",
                 sealed_session,
-                secure=not is_development,
+                secure=True,
                 httponly=True,
-                samesite="lax",
+                samesite="none",
                 path="/",
             )
 

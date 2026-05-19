@@ -55,6 +55,8 @@ def test_callback_happy_path(client):
         assert response.headers["Location"] == "/"
         cookie_headers = response.headers.getlist("Set-Cookie")
         assert any("wos_session=" in header for header in cookie_headers)
+        assert any("SameSite=None" in header for header in cookie_headers)
+        assert any("Secure" in header for header in cookie_headers)
         
         with client.session_transaction() as sess:
             assert "oauth_state" not in sess

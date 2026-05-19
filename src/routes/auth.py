@@ -174,9 +174,9 @@ def callback():
         response.set_cookie(
             "wos_session",
             sealed_session,
-            secure=not is_development,
+            secure=True,
             httponly=True,
-            samesite="none" if not is_development else "lax",
+            samesite="none",
             path="/",
         )
         # Clean up OAuth state and PKCE cookies after successful exchange

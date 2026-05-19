@@ -124,6 +124,10 @@ def test_token_session_grant_happy_path(client, api_spec, validate_response):
         response = client.post("/api/token", data={})
 
         assert response.status_code == 200
+        cookie_headers = response.headers.getlist("Set-Cookie")
+        assert any("wos_session=" in header for header in cookie_headers)
+        assert any("SameSite=None" in header for header in cookie_headers)
+        assert any("Secure" in header for header in cookie_headers)
         validate_response(api_spec, "/api/token", "post", 200, response.json)
 
 
