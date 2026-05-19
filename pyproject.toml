@@ -29,6 +29,7 @@ dependencies = [
     "logenvelope",
     "gunicorn>=21.2.0",
     "urllib3>=2.7.0",
+    "idna>=3.14",
     "flask-cors>=6.0.2",
 ]
 
