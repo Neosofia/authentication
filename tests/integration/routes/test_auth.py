@@ -29,7 +29,7 @@ def test_callback_happy_path(client):
     auth_response.access_token = "access-token"
     auth_response.refresh_token = "refresh-token"
     auth_response.impersonator = None
-    auth_response.organization_id = "org_123"
+    auth_response.tenant_id = "org_123"
 
     updated_user = MagicMock()
     updated_user.to_dict.return_value = {"id": "user_123", "external_id": "user-uuid"}
@@ -41,7 +41,7 @@ def test_callback_happy_path(client):
     with patch("src.routes.auth.workos_client") as mock_workos, patch("src.routes.auth.seal_session_from_auth_response") as mock_seal:
         mock_workos.user_management.authenticate_with_code_pkce.return_value = auth_response
         mock_workos.user_management.update_user.return_value = updated_user
-        mock_workos.organizations.get_organization.return_value = org
+        mock_workos.tenants.get_tenant.return_value = org
         mock_seal.return_value = sealed_value
 
         with client.session_transaction() as sess:

@@ -1,10 +1,9 @@
 from unittest.mock import patch, MagicMock
 
 def test_profile_unauthorized(client, api_spec, validate_response):
-    with patch("src.routes.profile.workos_client"):
-        response = client.get("/api/profile")
-        assert response.status_code == 401
-        validate_response(api_spec, "/api/profile", "get", 401, response.json)
+    response = client.get("/api/profile")
+    assert response.status_code == 401
+    validate_response(api_spec, "/api/profile", "get", 401, response.json)
 
 def test_profile_happy_path(client, api_spec, validate_response, app):
     with app.app_context():
@@ -22,21 +21,28 @@ def test_profile_happy_path(client, api_spec, validate_response, app):
             public_key_pem=settings.jwt_public_key_pem,
         )
 
-    with patch("src.routes.profile.workos_client") as mock_workos:
+    with patch("src.routes.profile.SessionLocal") as mock_db_session:
+        mock_db = MagicMock()
+        mock_db_session.return_value.__enter__.return_value = mock_db
+        
         mock_user = MagicMock()
+        mock_user.uuid = "user_123"
         mock_user.first_name = "Jane"
         mock_user.last_name = "Doe"
         mock_user.email = "jane@example.com"
         
         mock_org = MagicMock()
+        mock_org.uuid = "tenant_456"
         mock_org.name = "Acme Corp"
         
-        mock_workos.user_management.get_user.return_value = mock_user
-        mock_workos.organizations.get_organization.return_value = mock_org
+        # When querying for User or Tenant
+        mock_db.scalar.side_effect = [mock_user, mock_org]
 
         response = client.get("/api/profile", headers={
             "Authorization": f"Bearer {human_token}"
         })
         
         assert response.status_code == 200
+        assert response.json["first_name"] == "Jane"
+        assert response.json["tenant_name"] == "Acme Corp"
         validate_response(api_spec, "/api/profile", "get", 200, response.json)

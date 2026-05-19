@@ -9,7 +9,7 @@ from src.services.tokens import issue_token
 def _get_token(app, roles):
     with app.app_context():
         return issue_token(
-            sub="user_123",
+            sub="12345678-1234-5678-1234-567812345678",
             token_type="human",
             roles=roles,
             tenant_id="tenant_456",
@@ -18,8 +18,6 @@ def _get_token(app, roles):
             issuer=settings.jwt_issuer,
             audience=settings.jwt_web_audience,
             public_key_pem=settings.jwt_public_key_pem,
-            actor_uuid="12345678-1234-5678-1234-567812345678",
-            tenant_uuid="87654321-4321-8765-4321-876543218765",
         )
 
 
@@ -116,7 +114,7 @@ def test_services_require_admin_without_admin_role_returns_403(mock_decode, clie
         "iss": settings.jwt_issuer,
         "aud": settings.jwt_web_audience,
         "neosofia:roles": ["user"],
-        "neosofia:actor_uuid": "12345678-1234-5678-1234-567812345678",
+        "sub": "12345678-1234-5678-1234-567812345678",
     }
 
     with patch("src.routes.services.SessionLocal"):
@@ -131,7 +129,7 @@ def test_services_require_admin_without_admin_role_returns_403(mock_decode, clie
 
 
 @patch("authentication_in_the_middle.decorators.pyjwt.decode")
-def test_services_require_admin_missing_actor_uuid_returns_401(mock_decode, client):
+def test_services_require_admin_missing_user_uuid_returns_401(mock_decode, client):
     mock_decode.return_value = {
         "sub": "user_123",
         "iss": settings.jwt_issuer,
@@ -151,13 +149,13 @@ def test_services_require_admin_missing_actor_uuid_returns_401(mock_decode, clie
 
 
 @patch("authentication_in_the_middle.decorators.pyjwt.decode")
-def test_services_require_admin_invalid_actor_uuid_returns_401(mock_decode, client):
+def test_services_require_admin_invalid_user_uuid_returns_401(mock_decode, client):
     mock_decode.return_value = {
         "sub": "user_123",
         "iss": settings.jwt_issuer,
         "aud": settings.jwt_web_audience,
         "neosofia:roles": ["admin"],
-        "neosofia:actor_uuid": "not-a-uuid",
+        "sub": "not-a-uuid",
     }
 
     with patch("src.routes.services.SessionLocal"):

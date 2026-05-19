@@ -48,7 +48,16 @@ Copy the **environment-level credentials** from **API Keys** on the overview pag
 
 ### JWT Template
 
-The Auth Service reads role and organization ID directly from the WorkOS SDK session response (`auth_response.role`, `auth_response.organization_id`) — no custom JWT template is required. You may leave the WorkOS JWT template empty or at its default.
+To guarantee performance without losing Organization data, the authentication service expects a specific payload format to be configured via the custom claims functionality within WorkOS to map the raw ID string array into a dictionary object with the explicit target parameters.
+
+1. Go to **Organizations** and configure your organization settings.
+2. Under **Custom Claims** add the following template:
+
+```json
+{
+  "org_name": "{{ organization.name }}"
+}
+```
 
 > **Note**: All users must have an organization membership with a recognized role. Users without an org are rejected at token issuance.
 

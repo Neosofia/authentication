@@ -103,22 +103,20 @@ def _handle_session_grant():
         sub = (user.get("id") if isinstance(user, dict) else getattr(user, "id", None)) or "unknown"
 
         claims = workos_bridge.extract_platform_claims(auth_response)
-        actor_uuid = claims.get("actor_uuid")
+        user_uuid = claims.get("user_uuid")
         tenant_uuid = claims.get("tenant_uuid")
 
         platform_token = tokens.issue_token(
-            sub=sub,
+            sub=user_uuid or sub,
             token_type="human",
             roles=claims["roles"],
-            tenant_id=claims.get("tenant_id"),
+            tenant_id=tenant_uuid or claims.get("tenant_id"),
             ttl_secs=settings.access_token_ttl_secs,
             private_key_pem=settings.jwt_private_key_pem,
             issuer=settings.jwt_issuer,
             audience=settings.jwt_web_audience,
             claim_namespace=settings.jwt_claim_namespace,
             public_key_pem=settings.jwt_public_key_pem,
-            actor_uuid=actor_uuid,
-            tenant_uuid=tenant_uuid,
         )
         log_event("platform_token_issued", user_id=sub)
 

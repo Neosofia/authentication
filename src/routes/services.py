@@ -27,14 +27,14 @@ def require_admin(f):
         if "admin" not in roles and "platform-admin" not in roles:
              return jsonify({"error": "forbidden", "message": "requires admin role"}), 403
 
-        actor_uuid = claims.get(f"{settings.jwt_claim_namespace}:actor_uuid")
-        if not actor_uuid:
+        user_uuid = claims.get("sub")
+        if not user_uuid:
             return jsonify({"error": "unauthenticated", "message": "re-authenticate to obtain a platform identity"}), 401
         try:
-            _uuid.UUID(str(actor_uuid))
+            _uuid.UUID(str(user_uuid))
         except ValueError:
             return jsonify({"error": "unauthenticated", "message": "re-authenticate to obtain a platform identity"}), 401
-        kwargs["user_uuid"] = actor_uuid
+        kwargs["user_uuid"] = user_uuid
         return f(*args, **kwargs)
     return decorated
 

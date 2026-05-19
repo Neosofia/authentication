@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import jwt
 import os
 import secrets
 import uuid
@@ -10,11 +11,15 @@ from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from flask import Blueprint, jsonify, make_response, redirect, request, url_for, session
 from flask_wtf.csrf import generate_csrf
+from sqlalchemy import select
 from workos.session import seal_session_from_auth_response
 
 from src.config import settings
 from src.bootstrap.extensions import cookie_password, csrf, is_development, limiter, workos_client
 from src.bootstrap.logging import log_event
+from src.db.engine import SessionLocal
+from src.models.tenant import Tenant
+from src.services.identity import sync_identity_data
 
 bp = Blueprint("auth", __name__)
 
@@ -141,20 +146,62 @@ def callback():
                 log_event("person_id_generation_error", error_class=type(e).__name__, user_id=user_id)
                 # Keep going with the old user data so login does not fail entirely
 
-        # Check for UUIDv7 on WorkOS Organization, or generate/persist one
-        organization_id = getattr(auth_response, "organization_id", None)
-        if organization_id:
+        # Check for UUIDv7 on WorkOS Tenant, or generate/persist one
+        tenant_id = getattr(auth_response, "tenant_id", None)
+        tenant_uuid = None
+        tenant_name = "Unknown Tenant"
+        
+        if tenant_id:
+            # Avoid hitting WorkOS API entirely. The tenant name is dynamically injected
+            # into the JWT via WorkOS Custom Claims under the `org_name` claim.
             try:
-                org = workos_client.organizations.get_organization(id=organization_id)
-                if not getattr(org, "external_id", None):
-                    new_org_id = str(uuid.uuid7())
-                    workos_client.organizations.update_organization(
-                        id=organization_id,
-                        external_id=new_org_id,
-                    )
-                    log_event("org_internal_id_generated", organization_id=organization_id, internal_org_id=new_org_id)
+                wos_jwt = jwt.decode(auth_response.access_token, options={"verify_signature": False})
+                if "org_name" in wos_jwt:
+                    tenant_name = wos_jwt["org_name"]
             except Exception as e:
-                log_event("org_id_generation_error", error_class=type(e).__name__, organization_id=organization_id)
+                log_event("wos_jwt_decode_failed", error_class=type(e).__name__)
+
+            # Try to resolve tenant_uuid by looking up the cached provider ID in the database.
+            try:
+                with SessionLocal() as db:
+                    local_tenant = db.scalar(select(Tenant).filter_by(idp_id=tenant_id))
+                    if local_tenant:
+                        tenant_uuid = str(local_tenant.uuid)
+            except Exception as e:
+                log_event("local_tenant_lookup_failed", error_class=type(e).__name__, tenant_id=tenant_id)
+
+            # If it's a completely fresh tenant, persist our local UUID to WorkOS external_id.
+            if not tenant_uuid:
+                try:
+                    tenant = workos_client.tenants.get_tenant(id=tenant_id)
+                    if not getattr(tenant, "external_id", None):
+                        new_tenant_uuid = str(uuid.uuid7())
+                        workos_client.tenants.update_tenant(
+                            id=tenant_id,
+                            external_id=new_tenant_uuid,
+                        )
+                        tenant_uuid = new_tenant_uuid
+                        log_event(
+                            "tenant_internal_id_generated",
+                            tenant_id=tenant_id,
+                            internal_tenant_uuid=new_tenant_uuid,
+                        )
+                    else:
+                        tenant_uuid = getattr(tenant, "external_id", None)
+                except Exception as e:
+                    log_event("tenant_id_generation_error", error_class=type(e).__name__, tenant_id=tenant_id)
+
+        # Best effort DB sync for caching profile data
+        sync_identity_data(
+            user_uuid=user_data.get("external_id"),
+            tenant_uuid=tenant_uuid,
+            idp_user_id=user_id,
+            first_name=user_data.get("first_name"),
+            last_name=user_data.get("last_name"),
+            email=user_data.get("email"),
+            idp_tenant_id=tenant_id,
+            tenant_name=tenant_name,
+        )
 
         sealed_session = seal_session_from_auth_response(
             access_token=auth_response.access_token,

@@ -2,7 +2,7 @@
 WorkOS bridge — extracts platform claims from WorkOS session responses.
 
 Constitution §VI: Fail-closed on missing or invalid org membership.
-All users must belong to an organization; roleless authentication is rejected.
+All users must belong to an tenant; roleless authentication is rejected.
 """
 
 from typing import Any
@@ -40,7 +40,7 @@ def extract_platform_claims(auth_response) -> dict:
     Extract platform claims from a WorkOS session authenticate response
     (AuthenticateWithSessionCookieSuccessResponse).
 
-    The SDK surfaces role and organization_id directly on the response — no
+    The SDK surfaces role and tenant_id directly on the response — no
     JWT decoding required.
 
     Requires the user to have an org membership with a valid role.
@@ -51,7 +51,7 @@ def extract_platform_claims(auth_response) -> dict:
 
     Returns:
         {
-            "tenant_id": str,        # org ID from WorkOS organization_id
+            "tenant_id": str,        # org ID from WorkOS tenant_id
             "roles": list[str],      # WorkOS role slug wrapped in a list
         }
 
@@ -64,7 +64,7 @@ def extract_platform_claims(auth_response) -> dict:
     valid_roles = frozenset(r.strip() for r in settings.valid_roles.split(",") if r.strip())
     workos_roles = getattr(auth_response, "roles", None)
     workos_role = getattr(auth_response, "role", None)
-    organization_id = getattr(auth_response, "organization_id", None)
+    tenant_id = getattr(auth_response, "tenant_id", None)
 
     user = getattr(auth_response, "user", None)
     if isinstance(user, dict):
@@ -72,13 +72,13 @@ def extract_platform_claims(auth_response) -> dict:
     else:
         user_id = getattr(user, "id", "unknown") if user else "unknown"
 
-    if organization_id is None:
+    if tenant_id is None:
         log_event(
             "token_rejected_no_org",
             user_id=user_id,
-            reason="user has no organization membership",
+            reason="user has no tenant membership",
         )
-        raise ValueError("User has no organization membership; token issuance denied")
+        raise ValueError("User has no tenant membership; token issuance denied")
 
     roles: list[str] = []
     if workos_roles is not None:
@@ -95,7 +95,7 @@ def extract_platform_claims(auth_response) -> dict:
         log_event(
             "token_rejected_no_valid_roles",
             user_id=user_id,
-            organization_id=organization_id,
+            tenant_id=tenant_id,
             valid_roles=list(valid_roles),
             workos_roles=workos_roles,
             workos_role=workos_role,
@@ -105,21 +105,13 @@ def extract_platform_claims(auth_response) -> dict:
             "Verify that WorkOS roles match VALID_ROLES."
         )
 
-    actor_uuid = _resolve_workos_value(
-        auth_response,
-        f"urn:{settings.jwt_claim_namespace}:actor_uuid",
-        "user.external_id",
-    )
+    user_uuid = _resolve_workos_value(auth_response, "user.external_id")
 
-    tenant_uuid = _resolve_workos_value(
-        auth_response,
-        f"urn:{settings.jwt_claim_namespace}:tenant_uuid",
-        "organization.external_id",
-    )
+    tenant_uuid = _resolve_workos_value(auth_response, "tenant.external_id")
 
     return {
-        "tenant_id": organization_id,
+        "tenant_id": tenant_id,
         "roles": roles,
-        "actor_uuid": actor_uuid,
+        "user_uuid": user_uuid,
         "tenant_uuid": tenant_uuid,
     }

@@ -1,9 +1,13 @@
 from flask import Blueprint, jsonify, request, g
 from authentication_in_the_middle.decorators import with_authentication
+from sqlalchemy import select
 
 from src.config import settings
-from src.bootstrap.extensions import csrf, workos_client
+from src.bootstrap.extensions import csrf
 from src.bootstrap.logging import log_event
+from src.db.engine import SessionLocal
+from src.models.user import User
+from src.models.tenant import Tenant
 
 bp = Blueprint("profile", __name__, url_prefix="/api")
 
@@ -18,35 +22,39 @@ bp = Blueprint("profile", __name__, url_prefix="/api")
 )
 def profile():
     """
-    Retrieve user profile and organization details using the platform JWT.
+    Retrieve user profile and tenant details using the platform JWT.
 
-    Verifies the Bearer token (RS256), then uses the `sub` (WorkOS user ID) and
-    `neosofia:tenant_id` (org ID) claims to call WorkOS directly — no session
-    cookie unseal required.
+    Verifies the Bearer token (RS256), then uses the `sub` (local user UUID) and
+    `neosofia:tenant_id` (local tenant UUID) claims to fetch profile data from the
+    local cache database.
     """
     claims = getattr(g, "jwt_claims", {})
-    user_id = claims.get("sub")
-    if not user_id:
+    user_uuid = claims.get("sub")
+    if not user_uuid:
         return jsonify({"error": "invalid token", "message": "Missing sub claim"}), 401
 
-    tenant_id = claims.get(f"{settings.jwt_claim_namespace}:tenant_id")
+    tenant_uuid = claims.get(f"{settings.jwt_claim_namespace}:tenant_id")
+
+    first_name = ""
+    last_name = ""
+    email = ""
+    tenant_name = "Unknown Tenant"
 
     try:
-        wos_user = workos_client.user_management.get_user(user_id)
-        first_name = getattr(wos_user, "first_name", "") or ""
-        last_name = getattr(wos_user, "last_name", "") or ""
-        email = getattr(wos_user, "email", "") or ""
+        with SessionLocal() as db:
+            user = db.scalar(select(User).filter_by(uuid=user_uuid))
+            if user:
+                first_name = user.first_name or ""
+                last_name = user.last_name or ""
+                email = user.email or ""
+                
+            if tenant_uuid:
+                tenant = db.scalar(select(Tenant).filter_by(uuid=tenant_uuid))
+                if tenant:
+                    tenant_name = tenant.name
     except Exception as e:
-        log_event("workos_user_fetch_failed", error_class=type(e).__name__, user_id=user_id)
+        log_event("profile_db_fetch_failed", error_class=type(e).__name__, user_uuid=user_uuid)
         return jsonify({"error": "failed to fetch user profile"}), 503
-
-    org_name = "Unknown Organization"
-    if tenant_id:
-        try:
-            org = workos_client.organizations.get_organization(tenant_id)
-            org_name = org.name
-        except Exception as e:
-            log_event("workos_org_fetch_failed", error_class=type(e).__name__, org_id=tenant_id)
 
     roles = claims.get(f"{settings.jwt_claim_namespace}:roles", [])
 
@@ -54,6 +62,6 @@ def profile():
         "first_name": first_name,
         "last_name": last_name,
         "email": email,
-        "organization_name": org_name,
+        "tenant_name": tenant_name,
         "roles": roles,
     })

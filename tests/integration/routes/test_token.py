@@ -107,10 +107,8 @@ def test_token_session_grant_happy_path(client, api_spec, validate_response):
     auth_response.user = {"id": "user_123", "external_id": "12345678-1234-5678-1234-567812345678"}
     auth_response.role = "admin"
     auth_response.roles = None
-    auth_response.organization_id = "tenant_456"
-    auth_response.organization = MagicMock(external_id="87654321-4321-8765-4321-876543218765")
-    setattr(auth_response, "urn:neosofia:actor_uuid", None)
-    setattr(auth_response, "urn:neosofia:tenant_uuid", None)
+    auth_response.tenant_id = "tenant_456"
+    auth_response.tenant = MagicMock(external_id="87654321-4321-8765-4321-876543218765")
     auth_response.access_token = "workos-access-token"
     auth_response.refresh_token = "workos-refresh-token"
     auth_response.impersonator = None

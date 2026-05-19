@@ -13,7 +13,7 @@ def _get_token(app, roles):
     with app.app_context():
         from src.services.tokens import issue_token
         return issue_token(
-            sub="user_123",
+            sub="12345678-1234-5678-1234-567812345678",
             token_type="human",
             roles=roles,
             tenant_id="tenant_456",
@@ -22,8 +22,6 @@ def _get_token(app, roles):
             issuer=settings.jwt_issuer,
             audience=settings.jwt_web_audience,
             public_key_pem=settings.jwt_public_key_pem,
-            actor_uuid="12345678-1234-5678-1234-567812345678",
-            tenant_uuid="87654321-4321-8765-4321-876543218765",
         )
 
 

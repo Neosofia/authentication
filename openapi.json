@@ -179,7 +179,7 @@
           "Session"
         ],
         "summary": "Get user profile",
-        "description": "Returns user identity and organization details by verifying the platform JWT (Bearer token). Uses `sub` and `neosofia:tenant_id` claims to call WorkOS directly \u2014 no session cookie unseal required.",
+        "description": "Returns user identity and tenant details by verifying the platform JWT (Bearer token). Uses `sub` and `neosofia:tenant_id` claims to call WorkOS directly \u2014 no session cookie unseal required.",
         "security": [
           {
             "BearerAuth": []
@@ -196,7 +196,7 @@
                     "first_name",
                     "last_name",
                     "email",
-                    "organization_name",
+                    "tenant_name",
                     "roles"
                   ],
                   "properties": {
@@ -212,9 +212,9 @@
                       "type": "string",
                       "description": "User's email address"
                     },
-                    "organization_name": {
+                    "tenant_name": {
                       "type": "string",
-                      "description": "Name of the organization the user belongs to"
+                      "description": "Name of the tenant the user belongs to"
                     },
                     "roles": {
                       "type": "array",
@@ -715,7 +715,7 @@
           },
           "neosofia:tenant_id": {
             "type": "string",
-            "description": "Optional: tenant/organization ID (absent for service tokens)"
+            "description": "Optional: tenant/tenant ID (absent for service tokens)"
           }
         }
       },

@@ -69,7 +69,7 @@ def list_services(db, page: int, page_size: int, search: str) -> tuple[list[dict
 
 
 def create_service(db, user_uuid: str, name: str, slug: str, base_url: str) -> dict:
-    actor_uuid = _uuid.UUID(str(user_uuid))
+    changed_by_uuid = _uuid.UUID(str(user_uuid))
     plain_secret = secrets.token_urlsafe(32)
     hashed_secret = bcrypt.hashpw(plain_secret.encode(), bcrypt.gensalt()).decode()
 
@@ -77,7 +77,7 @@ def create_service(db, user_uuid: str, name: str, slug: str, base_url: str) -> d
         name=name,
         slug=slug,
         base_url=base_url,
-        changed_by_uuid=actor_uuid,
+        changed_by_uuid=changed_by_uuid,
         changed_by_type=1,
     )
     db.add(new_service)
@@ -86,7 +86,7 @@ def create_service(db, user_uuid: str, name: str, slug: str, base_url: str) -> d
     new_credential = ServiceCredential(
         service_uuid=new_service.uuid,
         hashed_secret=hashed_secret,
-        changed_by_uuid=actor_uuid,
+        changed_by_uuid=changed_by_uuid,
         changed_by_type=1,
     )
     db.add(new_credential)
