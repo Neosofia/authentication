@@ -76,8 +76,14 @@ def sync_identity_data(
             if db is not None:
                 try:
                     db.rollback()
-                except Exception:
-                    pass
+                except Exception as rollback_exc:
+                    log_event(
+                        "identity_sync_rollback_failed",
+                        idp_user_id=idp_user_id,
+                        idp_tenant_id=idp_tenant_id,
+                        error_class=type(rollback_exc).__name__,
+                        error=str(rollback_exc),
+                    )
             log_event(
                 "identity_sync_error",
                 idp_user_id=idp_user_id,

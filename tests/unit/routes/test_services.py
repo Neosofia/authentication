@@ -166,7 +166,7 @@ def test_services_require_admin_invalid_user_uuid_returns_401(mock_decode, clien
     assert response.json["message"] == "re-authenticate to obtain a platform identity"
 
 
-def test_services_get_not_found_returns_404(client, app):
+def test_services_rotate_credential_not_found_returns_404(client, app):
     token = _get_token(app, ["admin"])
 
     with patch("src.routes.services.SessionLocal"), \

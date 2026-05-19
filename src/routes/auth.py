@@ -181,7 +181,7 @@ def callback():
         return response
 
     except Exception as e:
-        # Log error class and message for debugging (allows distinguishing error types)
+        # Log only the exception class for safe diagnostics.
         log_event(
             "callback_error",
             error_class=type(e).__name__,

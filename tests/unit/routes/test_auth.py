@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-def test_callback_csrf_state_mismatch_clears_cookies(client):
+def test_callback_csrf_state_mismatch_logs_and_redirects(client):
     with patch("src.routes.auth.log_event") as mock_log_event:
         # Act: Provide an auth code and provider state, but NO state cookie
         response = client.get("/callback?code=fake_code&state=provider_state")
@@ -79,6 +79,7 @@ def test_logout_exception(mock_client, mock_log_event, client):
 def test_jwks_not_rsa(mock_load_pem, mock_log_event, client):
     mock_load_pem.return_value = "not_an_rsa_key"
     response = client.get("/.well-known/jwks.json")
+    mock_log_event.assert_called_once_with("jwks_error", reason="invalid public key", error_class="ValueError")
     assert response.status_code == 500
     assert response.json == {"error": "failed to build JWKS"}
 
