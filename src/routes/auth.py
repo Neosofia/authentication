@@ -295,8 +295,9 @@ def jwks():
         response = jsonify({"keys": keys})
         response.headers["Cache-Control"] = "public, max-age=3600"
         return response
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 500
-    except Exception as e:
-        log_event("jwks_error", error_class=type(e).__name__)
+    except ValueError:
+        log_event("jwks_error", reason="invalid public key")
+        return jsonify({"error": "failed to build JWKS"}), 500
+    except Exception:
+        log_event("jwks_error")
         return jsonify({"error": "failed to build JWKS"}), 500

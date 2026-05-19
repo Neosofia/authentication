@@ -193,7 +193,7 @@ def get_service_audits(slug: str, user_uuid: str):
         return jsonify({"error": "not found"}), 404
     except service_management.InvalidAuditSourceError as e:
         return jsonify({"error": "invalid source", "message": str(e)}), 400
-    except Exception as e:
-        log_event("get_service_audits_failed", error_class=type(e).__name__)
+    except Exception:
+        log_event("get_service_audits_failed")
         return jsonify({"error": "database error"}), 500
 
