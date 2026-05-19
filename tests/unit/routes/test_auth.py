@@ -80,7 +80,7 @@ def test_jwks_not_rsa(mock_load_pem, mock_log_event, client):
     mock_load_pem.return_value = "not_an_rsa_key"
     response = client.get("/.well-known/jwks.json")
     assert response.status_code == 500
-    assert response.json == {"error": "key is not RSA"}
+    assert response.json == {"error": "failed to build JWKS"}
 
 @patch("src.routes.auth.log_event")
 @patch("src.routes.auth.load_pem_public_key")
