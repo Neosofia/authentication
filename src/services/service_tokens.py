@@ -66,7 +66,7 @@ def issue_service_token(
         sub=service_name,
         token_type="service",
         roles=None,
-        tenant_id=None,
+        tenant_uuid=None,
         ttl_secs=settings.service_token_ttl_secs,
         private_key_pem=settings.jwt_private_key_pem,
         issuer=settings.jwt_issuer,

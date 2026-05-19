@@ -25,7 +25,7 @@ def profile():
     Retrieve user profile and tenant details using the platform JWT.
 
     Verifies the Bearer token (RS256), then uses the `sub` (local user UUID) and
-    `neosofia:tenant_id` (local tenant UUID) claims to fetch profile data from the
+    `neosofia:tenant_uuid` (local tenant UUID) claims to fetch profile data from the
     local cache database.
     """
     claims = getattr(g, "jwt_claims", {})
@@ -33,7 +33,7 @@ def profile():
     if not user_uuid:
         return jsonify({"error": "invalid token", "message": "Missing sub claim"}), 401
 
-    tenant_uuid = claims.get(f"{settings.jwt_claim_namespace}:tenant_id")
+    tenant_uuid = claims.get(f"{settings.jwt_claim_namespace}:tenant_uuid")
 
     first_name = ""
     last_name = ""

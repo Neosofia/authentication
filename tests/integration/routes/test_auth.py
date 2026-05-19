@@ -26,10 +26,11 @@ def test_callback_happy_path(client):
     auth_response.user = MagicMock(id="user_123")
     # Missing external_id on user triggers user UUID generation
     auth_response.user.to_dict.return_value = {"id": "user_123"}
-    auth_response.access_token = "access-token"
+    auth_response.roles = ["admin"]
+    auth_response.access_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3b3Jrb3NfdGVuYW50X2lkIjoib3JnXzEyMyIsIndvcmtvc190ZW5hbnRfbmFtZSI6IlRlc3QgT3JnIiwidGVuYW50X3V1aWQiOiIwMTllMDJlMS05NGUxLTcyMmItYmQ2MS1mN2Y5NWZiMTYwNGMiLCJyb2xlIjoiYWRtaW4ifQ.fake_sig"
     auth_response.refresh_token = "refresh-token"
     auth_response.impersonator = None
-    auth_response.tenant_id = "org_123"
+    auth_response.workos_tenant_id = "org_123"
 
     updated_user = MagicMock()
     updated_user.to_dict.return_value = {"id": "user_123", "external_id": "user-uuid"}

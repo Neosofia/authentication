@@ -107,9 +107,9 @@ def test_token_session_grant_happy_path(client, api_spec, validate_response):
     auth_response.user = {"id": "user_123", "external_id": "12345678-1234-5678-1234-567812345678"}
     auth_response.role = "admin"
     auth_response.roles = None
-    auth_response.tenant_id = "tenant_456"
+    auth_response.workos_tenant_id = "tenant_456"
     auth_response.tenant = MagicMock(external_id="87654321-4321-8765-4321-876543218765")
-    auth_response.access_token = "workos-access-token"
+    auth_response.access_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3b3Jrb3NfdGVuYW50X2lkIjoiMDE5ZTAyZTEtOTRlMS03MjJiLWJkNjEtZjdmOTVmYjE2MDFmIiwid29ya29zX3RlbmFudF9uYW1lIjoiVGVzdCBPcmciLCJ0ZW5hbnRfdXVpZCI6IjAxOWUwMmUxLTk0ZTEtNzIyYi1iZDYxLWY3Zjk1ZmIxNjAxZiIsInJvbGUiOiJhZG1pbiJ9.fake_sig"
     auth_response.refresh_token = "workos-refresh-token"
     auth_response.impersonator = None
     auth_response.sealed_session = "dummy-sealed-session"
@@ -135,7 +135,7 @@ def test_token_inspect_happy_path(client, api_spec, validate_response, app):
             sub="test_service",
             token_type="service",
             roles=None,
-            tenant_id=None,
+            tenant_uuid=None,
             ttl_secs=3600,
             private_key_pem=settings.jwt_private_key_pem,
             issuer=settings.jwt_issuer,

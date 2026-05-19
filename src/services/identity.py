@@ -9,6 +9,9 @@ from src.models.user import User
 from src.models.tenant import Tenant
 from src.bootstrap.logging import log_event
 
+SYSTEM_ACTOR_UUID = uuid.UUID("00000000-0000-7000-8000-000000000000")
+SYSTEM_ACTOR_TYPE = 2
+
 # Use a timeout context for the session
 def sync_identity_data(
     user_uuid: Optional[str],
@@ -40,6 +43,8 @@ def sync_identity_data(
                         idp_id=idp_tenant_id,
                         name=tenant_name or "Unknown Tenant",
                         uuid=uuid.UUID(tenant_uuid) if tenant_uuid else None,
+                        changed_by_uuid=SYSTEM_ACTOR_UUID,
+                        changed_by_type=SYSTEM_ACTOR_TYPE,
                     )
                     db.add(tenant)
                 else:
@@ -57,6 +62,8 @@ def sync_identity_data(
                         last_name=last_name,
                         email=email,
                         uuid=uuid.UUID(user_uuid) if user_uuid else None,
+                        changed_by_uuid=SYSTEM_ACTOR_UUID,
+                        changed_by_type=SYSTEM_ACTOR_TYPE,
                     )
                     db.add(user)
                 else:

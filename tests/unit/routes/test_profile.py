@@ -31,7 +31,7 @@ def test_profile_missing_sub_claim(mock_decode, client):
 @patch("src.routes.profile.SessionLocal")
 @patch("authentication_in_the_middle.decorators.pyjwt.decode")
 def test_profile_db_fetch_user_failed(mock_decode, mock_db_session, mock_log, client):
-    mock_decode.return_value = {"sub": "user_123"}
+    mock_decode.return_value = {"sub": "019e02b4-47e1-778a-9331-476e9f927bd9"}
     mock_db = MagicMock()
     mock_db_session.return_value.__enter__.return_value = mock_db
     mock_db.scalar.side_effect = Exception("DB down")
@@ -39,12 +39,12 @@ def test_profile_db_fetch_user_failed(mock_decode, mock_db_session, mock_log, cl
     response = client.get("/api/profile", headers={"Authorization": "Bearer 123"})
     assert response.status_code == 503
     assert response.json == {"error": "failed to fetch user profile"}
-    mock_log.assert_called_once_with("profile_db_fetch_failed", error_class="Exception", user_uuid="user_123")
+    mock_log.assert_called_once_with("profile_db_fetch_failed", error_class="Exception", user_uuid="019e02b4-47e1-778a-9331-476e9f927bd9")
 
 @patch("src.routes.profile.SessionLocal")
 @patch("authentication_in_the_middle.decorators.pyjwt.decode")
 def test_profile_db_fetch_org_missing(mock_decode, mock_db_session, client):
-    mock_decode.return_value = {"sub": "user_123", "neosofia:tenant_id": "org_123"}
+    mock_decode.return_value = {"sub": "019e02b4-47e1-778a-9331-476e9f927bd9", "neosofia:tenant_uuid": "019e02e1-94e1-722b-bd61-f7f95fb1604c"}
     
     # Return user, but None for org
     mock_db = MagicMock()
@@ -58,3 +58,5 @@ def test_profile_db_fetch_org_missing(mock_decode, mock_db_session, client):
     response = client.get("/api/profile", headers={"Authorization": "Bearer 123"})
     assert response.status_code == 200
     assert response.json["tenant_name"] == "Unknown Tenant"
+
+

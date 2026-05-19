@@ -12,7 +12,7 @@ def _get_token(app, roles):
             sub="12345678-1234-5678-1234-567812345678",
             token_type="human",
             roles=roles,
-            tenant_id="tenant_456",
+            tenant_uuid="019e02e1-94e1-722b-bd61-f7f95fb1601f",
             ttl_secs=3600,
             private_key_pem=settings.jwt_private_key_pem,
             issuer=settings.jwt_issuer,
@@ -110,7 +110,7 @@ def test_services_update_invalid_json_returns_400(client, app):
 @patch("authentication_in_the_middle.decorators.pyjwt.decode")
 def test_services_require_admin_without_admin_role_returns_403(mock_decode, client):
     mock_decode.return_value = {
-        "sub": "user_123",
+        "sub": "019e02e1-94e1-722b-bd61-f7f95fb1602a",
         "iss": settings.jwt_issuer,
         "aud": settings.jwt_web_audience,
         "neosofia:roles": ["user"],
@@ -131,7 +131,6 @@ def test_services_require_admin_without_admin_role_returns_403(mock_decode, clie
 @patch("authentication_in_the_middle.decorators.pyjwt.decode")
 def test_services_require_admin_missing_user_uuid_returns_401(mock_decode, client):
     mock_decode.return_value = {
-        "sub": "user_123",
         "iss": settings.jwt_issuer,
         "aud": settings.jwt_web_audience,
         "neosofia:roles": ["admin"],
@@ -151,7 +150,7 @@ def test_services_require_admin_missing_user_uuid_returns_401(mock_decode, clien
 @patch("authentication_in_the_middle.decorators.pyjwt.decode")
 def test_services_require_admin_invalid_user_uuid_returns_401(mock_decode, client):
     mock_decode.return_value = {
-        "sub": "user_123",
+        "sub": "019e02e1-94e1-722b-bd61-f7f95fb1602a",
         "iss": settings.jwt_issuer,
         "aud": settings.jwt_web_audience,
         "neosofia:roles": ["admin"],

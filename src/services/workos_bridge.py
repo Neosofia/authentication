@@ -6,6 +6,7 @@ All users must belong to an tenant; roleless authentication is rejected.
 """
 
 from typing import Any
+import jwt
 
 from src.config import settings
 from src.bootstrap.logging import log_event
@@ -35,36 +36,21 @@ def _resolve_workos_value(auth_response: Any, *paths: str) -> Any:
     return None
 
 
-def extract_platform_claims(auth_response) -> dict:
-    """
-    Extract platform claims from a WorkOS session authenticate response
-    (AuthenticateWithSessionCookieSuccessResponse).
+def _decode_access_token_claims(auth_response: Any, access_token_str: str | None = None) -> dict[str, Any]:
+    access_token = access_token_str or getattr(auth_response, "access_token", None)
+    if not access_token:
+        return {}
 
-    The SDK surfaces role and tenant_id directly on the response — no
-    JWT decoding required.
+    try:
+        decoded = jwt.decode(access_token, options={"verify_signature": False})
+        return decoded if isinstance(decoded, dict) else {}
+    except Exception as exc:
+        log_event("workos_access_token_decode_failed", error_class=type(exc).__name__)
+        return {}
 
-    Requires the user to have an org membership with a valid role.
-    Rejects missing or unknown roles fail-closed.
 
-    Args:
-        auth_response: WorkOS AuthenticateWithSessionCookieSuccessResponse
-
-    Returns:
-        {
-            "tenant_id": str,        # org ID from WorkOS tenant_id
-            "roles": list[str],      # WorkOS role slug wrapped in a list
-        }
-
-    Raises:
-        ValueError: If the user has no org membership or an unrecognised role
-
-    References:
-        CWE-863 (Incorrect Authorization), CWE-269 (Improper Access Control)
-    """
+def extract_platform_claims(auth_response, *, access_token_str: str | None = None) -> dict:
     valid_roles = frozenset(r.strip() for r in settings.valid_roles.split(",") if r.strip())
-    workos_roles = getattr(auth_response, "roles", None)
-    workos_role = getattr(auth_response, "role", None)
-    tenant_id = getattr(auth_response, "tenant_id", None)
 
     user = getattr(auth_response, "user", None)
     if isinstance(user, dict):
@@ -72,13 +58,33 @@ def extract_platform_claims(auth_response) -> dict:
     else:
         user_id = getattr(user, "id", "unknown") if user else "unknown"
 
-    if tenant_id is None:
+    access_token_claims = _decode_access_token_claims(auth_response, access_token_str)
+
+    # Roles come from the access token JWT claims, not the auth response object
+    workos_roles = access_token_claims.get("roles")
+    workos_role = access_token_claims.get("role")
+    
+    # Contract: Extract the truth ONLY from Custom Claims
+    workos_tenant_id = access_token_claims.get("workos_tenant_id")
+    workos_tenant_name = access_token_claims.get("workos_tenant_name")
+    tenant_uuid = access_token_claims.get("tenant_uuid")
+    
+    if not workos_tenant_id:
         log_event(
             "token_rejected_no_org",
             user_id=user_id,
-            reason="user has no tenant membership",
+            reason="missing workos_tenant_id in template",
         )
-        raise ValueError("User has no tenant membership; token issuance denied")
+        raise ValueError("User has no workos_tenant_id in token; token issuance denied")
+        
+    if not tenant_uuid:
+        log_event(
+            "token_rejected_no_tenant_uuid",
+            user_id=user_id,
+            workos_tenant_id=workos_tenant_id,
+            reason="missing tenant_uuid in template",
+        )
+        raise ValueError("User has no tenant_uuid in token; token issuance denied")
 
     roles: list[str] = []
     if workos_roles is not None:
@@ -95,7 +101,7 @@ def extract_platform_claims(auth_response) -> dict:
         log_event(
             "token_rejected_no_valid_roles",
             user_id=user_id,
-            tenant_id=tenant_id,
+            workos_tenant_id=workos_tenant_id,
             valid_roles=list(valid_roles),
             workos_roles=workos_roles,
             workos_role=workos_role,
@@ -107,11 +113,10 @@ def extract_platform_claims(auth_response) -> dict:
 
     user_uuid = _resolve_workos_value(auth_response, "user.external_id")
 
-    tenant_uuid = _resolve_workos_value(auth_response, "tenant.external_id")
-
     return {
-        "tenant_id": tenant_id,
-        "roles": roles,
-        "user_uuid": user_uuid,
+        "workos_tenant_id": workos_tenant_id,
+        "workos_tenant_name": workos_tenant_name,
         "tenant_uuid": tenant_uuid,
+        "user_uuid": user_uuid,
+        "roles": roles,
     }

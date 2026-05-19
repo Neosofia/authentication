@@ -10,10 +10,10 @@ def test_profile_happy_path(client, api_spec, validate_response, app):
         from src.services.tokens import issue_token
         from src.config import settings
         human_token = issue_token(
-            sub="user_123",
+            sub="019e02e1-94e1-722b-bd61-f7f95fb1602a",
             token_type="human",
             roles=["admin"],
-            tenant_id="tenant_456",
+            tenant_uuid="019e02e1-94e1-722b-bd61-f7f95fb1601f",
             ttl_secs=3600,
             private_key_pem=settings.jwt_private_key_pem,
             issuer=settings.jwt_issuer,
@@ -26,13 +26,13 @@ def test_profile_happy_path(client, api_spec, validate_response, app):
         mock_db_session.return_value.__enter__.return_value = mock_db
         
         mock_user = MagicMock()
-        mock_user.uuid = "user_123"
+        mock_user.uuid = "019e02e1-94e1-722b-bd61-f7f95fb1602a"
         mock_user.first_name = "Jane"
         mock_user.last_name = "Doe"
         mock_user.email = "jane@example.com"
         
         mock_org = MagicMock()
-        mock_org.uuid = "tenant_456"
+        mock_org.uuid = "019e02e1-94e1-722b-bd61-f7f95fb1601f"
         mock_org.name = "Acme Corp"
         
         # When querying for User or Tenant

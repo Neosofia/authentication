@@ -70,7 +70,7 @@ def test_session_grant_internal_error(mock_bridge, mock_issuer, mock_workos, moc
     mock_auth_response = MagicMock(authenticated=True)
     mock_session.authenticate.return_value = mock_auth_response
     mock_workos.user_management.load_sealed_session.return_value = mock_session
-    mock_bridge.extract_platform_claims.return_value = {"roles": [], "tenant_id": None}
+    mock_bridge.extract_platform_claims.return_value = {"roles": [], "workos_tenant_id": None}
     
     mock_issuer.issue_token.side_effect = Exception("Signing error")
     

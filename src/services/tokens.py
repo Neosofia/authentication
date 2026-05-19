@@ -36,7 +36,7 @@ def issue_token(
     sub: str,
     token_type: str,
     roles: list[str] | None,
-    tenant_id: str | None,
+    tenant_uuid: str | None,
     ttl_secs: int,
     private_key_pem: str,
     issuer: str,
@@ -58,7 +58,7 @@ def issue_token(
       {ns}:token_type  — "human" | "service"
       {ns}:token_version — integer schema version (increment on breaking changes)
       {ns}:roles       — list of roles (absent for service tokens by default)
-      {ns}:tenant_id   — platform UUID for the org (present for all human tokens)
+      {ns}:tenant_uuid — platform UUID for the org (present for all human tokens)
 
     The claim namespace prefix (default "neosofia") is set via the
     JWT_CLAIM_NAMESPACE env var, allowing forks to use their own namespace
@@ -82,8 +82,8 @@ def issue_token(
         claims[f"{ns}:roles"] = roles
     if azp:
         claims["azp"] = azp
-    if tenant_id:
-        claims[f"{ns}:tenant_id"] = tenant_id
+    if tenant_uuid:
+        claims[f"{ns}:tenant_uuid"] = tenant_uuid
 
     headers = {}
     if public_key_pem:

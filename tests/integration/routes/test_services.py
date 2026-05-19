@@ -16,7 +16,7 @@ def _get_token(app, roles):
             sub="12345678-1234-5678-1234-567812345678",
             token_type="human",
             roles=roles,
-            tenant_id="tenant_456",
+            tenant_uuid="019e02e1-94e1-722b-bd61-f7f95fb1601f",
             ttl_secs=3600,
             private_key_pem=settings.jwt_private_key_pem,
             issuer=settings.jwt_issuer,

@@ -48,18 +48,20 @@ Copy the **environment-level credentials** from **API Keys** on the overview pag
 
 ### JWT Template
 
-To guarantee performance without losing Organization data, the authentication service expects a specific payload format to be configured via the custom claims functionality within WorkOS to map the raw ID string array into a dictionary object with the explicit target parameters.
+The authentication service requires a WorkOS custom claims template that exposes tenant metadata in the session JWT. Configure this in your IdP so the service can map the organization into its expected tenant fields.
 
 1. Go to **Organizations** and configure your organization settings.
 2. Under **Custom Claims** add the following template:
 
 ```json
 {
-  "org_name": "{{ organization.name }}"
+  "workos_tenant_name": "{{ organization.name }}",
+  "workos_tenant_id": "{{ organization.id }}",
+  "tenant_uuid": "{{ organization.external_id }}"
 }
 ```
 
-> **Note**: All users must have an organization membership with a recognized role. Users without an org are rejected at token issuance.
+> **Note**: This template is required for the auth service to recognize the tenant. All users must also have an organization membership with a recognized role. Users without an org are rejected at token issuance.
 
 ### Session Timeouts
 

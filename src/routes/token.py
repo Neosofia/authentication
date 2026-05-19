@@ -5,6 +5,7 @@ import pathlib
 
 import jwt as pyjwt
 from flask import Blueprint, jsonify, make_response, request
+from workos.session import unseal_data
 
 from src.config import settings
 from src.db.engine import SessionLocal
@@ -102,7 +103,18 @@ def _handle_session_grant():
         user = getattr(auth_response, "user", None)
         sub = (user.get("id") if isinstance(user, dict) else getattr(user, "id", None)) or "unknown"
 
-        claims = workos_bridge.extract_platform_claims(auth_response)
+        # The session cookie response doesn't expose custom JWT claims (workos_tenant_id,
+        # workos_tenant_name, tenant_uuid). Unseal the appropriate session to get the raw
+        # access_token JWT so extract_platform_claims can decode all claims from it.
+        # After refresh, the new sealed session is on auth_response.sealed_session.
+        session_to_unseal = getattr(auth_response, "sealed_session", None) or sealed
+        try:
+            raw_session = unseal_data(session_to_unseal, cookie_password)
+            raw_access_token = raw_session.get("access_token")
+        except Exception:
+            raw_access_token = None
+
+        claims = workos_bridge.extract_platform_claims(auth_response, access_token_str=raw_access_token)
         user_uuid = claims.get("user_uuid")
         tenant_uuid = claims.get("tenant_uuid")
 
@@ -110,7 +122,7 @@ def _handle_session_grant():
             sub=user_uuid or sub,
             token_type="human",
             roles=claims["roles"],
-            tenant_id=tenant_uuid or claims.get("tenant_id"),
+            tenant_uuid=tenant_uuid,
             ttl_secs=settings.access_token_ttl_secs,
             private_key_pem=settings.jwt_private_key_pem,
             issuer=settings.jwt_issuer,
