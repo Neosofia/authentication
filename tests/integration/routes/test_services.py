@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock
 
 from sqlalchemy.exc import IntegrityError

@@ -4,7 +4,6 @@ import time
 import requests
 import pytest
 from testcontainers.core.container import DockerContainer
-from testcontainers.core.waiting_utils import wait_container_is_ready
 
 # The image tag we'll build and use for testing
 IMAGE_TAG = "auth-svc-test:latest"
@@ -22,7 +21,6 @@ def build_container_image():
     )
     yield
     # Cleanup is optional; docker image rm auth-svc-test:latest
-    pass
 
 @pytest.fixture(scope="module")
 def app_container():
@@ -57,7 +55,7 @@ def app_container():
         ready = False
         while time.time() - start < 15:
             try:
-                res = requests.get(url, timeout=1)
+                requests.get(url, timeout=1)
                 # App is up! (It may be 503 due to missing DB, but it responded)
                 ready = True
                 break

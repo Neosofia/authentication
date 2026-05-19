@@ -1,7 +1,6 @@
 import base64
 import hashlib
 import json
-import jwt
 import os
 import secrets
 import uuid
@@ -11,14 +10,12 @@ from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from flask import Blueprint, jsonify, make_response, redirect, request, url_for, session
 from flask_wtf.csrf import generate_csrf
-from sqlalchemy import select
 from workos.session import seal_session_from_auth_response
 
 from src.config import settings
-from src.bootstrap.extensions import cookie_password, csrf, is_development, limiter, workos_client
+from src.bootstrap.extensions import cookie_password, csrf, limiter, workos_client
 from src.bootstrap.logging import log_event
 from src.db.engine import SessionLocal
-from src.models.tenant import Tenant
 from src.services.identity import sync_identity_data
 from src.services import workos_bridge
 
@@ -295,9 +292,9 @@ def jwks():
         response = jsonify({"keys": keys})
         response.headers["Cache-Control"] = "public, max-age=3600"
         return response
-    except ValueError:
-        log_event("jwks_error", reason="invalid public key")
+    except ValueError as exc:
+        log_event("jwks_error", reason="invalid public key", error_class=type(exc).__name__)
         return jsonify({"error": "failed to build JWKS"}), 500
-    except Exception:
-        log_event("jwks_error")
+    except Exception as exc:
+        log_event("jwks_error", error_class=type(exc).__name__)
         return jsonify({"error": "failed to build JWKS"}), 500

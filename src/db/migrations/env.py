@@ -1,16 +1,19 @@
 import os
 
 from alembic import context
+from importlib import import_module
 from sqlalchemy import create_engine
 
 from src.config import settings
 from src.db.engine import Base
 
-# Import all models so their tables are registered on Base.metadata
-from src.models.user import User, UserHistory  # noqa: F401
-from src.models.tenant import Tenant, TenantHistory  # noqa: F401
-from src.models.service import Service, ServiceHistory  # noqa: F401
-from src.models.service_credential import ServiceCredential, ServiceCredentialHistory  # noqa: F401
+# Import all models so their tables are registered on Base.metadata.
+# import_module keeps the import for Alembic metadata while avoiding
+# unused local-name warnings from CodeQL.
+import_module("src.models.user")
+import_module("src.models.tenant")
+import_module("src.models.service")
+import_module("src.models.service_credential")
 
 config = context.config
 if config.config_file_name is not None:

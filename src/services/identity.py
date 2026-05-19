@@ -1,9 +1,7 @@
 import uuid
 import threading
-from typing import Optional, Dict, Any
-from sqlalchemy.orm import Session
+from typing import Optional
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
 from src.db.engine import SessionLocal
 from src.models.user import User
 from src.models.tenant import Tenant

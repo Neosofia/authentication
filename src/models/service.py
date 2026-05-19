@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Text, func, SmallInteger
+from sqlalchemy import Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

@@ -1,6 +1,5 @@
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, jsonify, g
 from authentication_in_the_middle.decorators import with_authentication
-from sqlalchemy import select
 
 from src.config import settings
 from src.bootstrap.extensions import csrf

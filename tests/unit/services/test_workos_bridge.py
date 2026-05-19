@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 import pytest
-from src.services.workos_bridge import extract_platform_claims, _decode_access_token_claims
+from src.services.workos_bridge import extract_platform_claims
 import jwt
 
 def _auth_response_with_token(token_claims):

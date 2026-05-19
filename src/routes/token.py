@@ -9,7 +9,7 @@ from workos.session import unseal_data
 
 from src.config import settings
 from src.db.engine import SessionLocal
-from src.bootstrap.extensions import cookie_password, csrf, is_development, limiter, workos_client
+from src.bootstrap.extensions import cookie_password, csrf, limiter, workos_client
 from src.bootstrap.logging import log_event
 from src.services import tokens, workos_bridge
 from src.services.service_tokens import InvalidClientError, issue_service_token
