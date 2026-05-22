@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from src.models.service import Service, ServiceHistory
 from src.models.service_credential import ServiceCredential, ServiceCredentialHistory
+from src.models.user import User
 
 
 class NotFoundError(Exception):
@@ -178,21 +179,45 @@ def get_service_audits(
 ) -> tuple[list[dict], int]:
     if source == "service":
         history_table = ServiceHistory.__table__
-        query = select(history_table).where(history_table.c.uuid == _uuid.UUID(service_uuid))
+        where_clause = history_table.c.uuid == _uuid.UUID(service_uuid)
         ordering = history_table.c.changed_at.desc()
     elif source == "credential":
         history_table = ServiceCredentialHistory.__table__
-        query = select(history_table).where(history_table.c.service_uuid == _uuid.UUID(service_uuid))
+        where_clause = history_table.c.service_uuid == _uuid.UUID(service_uuid)
         ordering = history_table.c.changed_at.desc()
     else:
         raise InvalidAuditSourceError("source must be 'service' or 'credential'")
 
-    query = query.order_by(ordering)
-    total = db.scalar(select(func.count()).select_from(query.subquery()))
+    users_table = User.__table__
+    # Left outer join to users — only matches human actors (changed_by_type == 1).
+    # Non-human actors (services, bootstrap) have no users row and return NULL names.
+    from_clause = history_table.outerjoin(
+        users_table,
+        (users_table.c.uuid == history_table.c.changed_by_uuid)
+        & (history_table.c.changed_by_type == 1),
+    )
+    query = (
+        select(
+            history_table,
+            users_table.c.first_name,
+            users_table.c.last_name,
+        )
+        .select_from(from_clause)
+        .where(where_clause)
+        .order_by(ordering)
+    )
+
+    total = db.scalar(select(func.count()).select_from(
+        select(history_table).where(where_clause).subquery()
+    ))
     rows = db.execute(query.offset((page - 1) * page_size).limit(page_size)).mappings().all()
 
-    items = [
-        {
+    items = []
+    for row in rows:
+        first = row.get("first_name") or ""
+        last = row.get("last_name") or ""
+        full_name = f"{first} {last}".strip() or None
+        items.append({
             "history_uuid": str(row["history_uuid"]) if row["history_uuid"] else None,
             "source": source,
             "credential_uuid": str(row["uuid"]) if source == "credential" else None,
@@ -202,9 +227,8 @@ def get_service_audits(
             "changed_at": row["changed_at"].isoformat() if row["changed_at"] else None,
             "changed_by_uuid": str(row["changed_by_uuid"]),
             "changed_by_type": row["changed_by_type"],
+            "changed_by_name": full_name,
             "change_type": row["change_type"],
-        }
-        for row in rows
-    ]
+        })
 
     return items, total
