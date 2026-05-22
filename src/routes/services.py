@@ -15,7 +15,6 @@ bp = Blueprint("services", __name__, url_prefix="/api/services")
 def require_admin(f):
     @with_authentication(
         public_key=settings.jwt_public_key_pem,
-        issuer=settings.jwt_issuer,
         audience=settings.jwt_web_audience,
         enforce_active_role=False
     )

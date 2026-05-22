@@ -125,7 +125,6 @@ def _handle_session_grant():
             tenant_uuid=tenant_uuid,
             ttl_secs=settings.access_token_ttl_secs,
             private_key_pem=settings.jwt_private_key_pem,
-            issuer=settings.jwt_issuer,
             audience=settings.jwt_web_audience,
             claim_namespace=settings.jwt_claim_namespace,
             public_key_pem=settings.jwt_public_key_pem,

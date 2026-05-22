@@ -16,7 +16,6 @@ def test_profile_happy_path(client, api_spec, validate_response, app):
             tenant_uuid="019e02e1-94e1-722b-bd61-f7f95fb1601f",
             ttl_secs=3600,
             private_key_pem=settings.jwt_private_key_pem,
-            issuer=settings.jwt_issuer,
             audience=settings.jwt_web_audience,
             public_key_pem=settings.jwt_public_key_pem,
         )

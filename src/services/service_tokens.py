@@ -69,7 +69,6 @@ def issue_service_token(
         tenant_uuid=None,
         ttl_secs=settings.service_token_ttl_secs,
         private_key_pem=settings.jwt_private_key_pem,
-        issuer=settings.jwt_issuer,
         audience=audience_str,
         claim_namespace=settings.jwt_claim_namespace,
         azp=service_name,

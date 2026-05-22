@@ -34,7 +34,6 @@ $EDITOR .env
 |----------|-------|
 | `FRONTEND_URL` | The public base URL of the UI service (e.g. `https://staging.neosofia.tech`). The auth service redirects human users back here after they successfully log in or out via WorkOS. |
 | `WORKOS_REDIRECT_URI` | `https://auth.<env>.<base-domain>/callback` |
-| `JWT_ISSUER` | `https://auth.<env>.<base-domain>` |
 
 > **Rate limiting:** per-node limits (60/min login, 20/min token) apply in all environments. See [SECURITY.md §3.7](SECURITY.md#37-rate-limiting) for thresholds and the Redis upgrade path.
 

@@ -16,7 +16,6 @@ bp = Blueprint("profile", __name__, url_prefix="/api")
 @csrf.exempt
 @with_authentication(
     public_key=settings.jwt_public_key_pem,
-    issuer=settings.jwt_issuer,
     audience=settings.jwt_web_audience,
     enforce_active_role=False
 )

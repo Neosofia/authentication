@@ -39,7 +39,6 @@ def issue_token(
     tenant_uuid: str | None,
     ttl_secs: int,
     private_key_pem: str,
-    issuer: str,
     audience: str | list[str],
     claim_namespace: str = "neosofia",
     azp: str | None = None,
@@ -50,7 +49,6 @@ def issue_token(
 
     Claims:
       sub              — platform UUID for the user or service name (RFC 7519)
-      iss              — configured issuer URL (RFC 7519)
       aud              — intended audience (RFC 7519)
       iat / exp        — issued-at and expiry (RFC 7519)
       jti              — UUID v7 for replay detection (RFC 7519)
@@ -70,7 +68,6 @@ def issue_token(
     ns = claim_namespace
     claims: dict = {
         "sub": sub,
-        "iss": issuer,
         "aud": audience,
         "iat": now,
         "exp": now + ttl_secs,

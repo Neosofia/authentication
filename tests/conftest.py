@@ -26,7 +26,6 @@ os.environ["WORKOS_COOKIE_PASSWORD"] = "test-cookie-password-must-be-min-32-char
 os.environ["ENV"] = "test"
 os.environ["JWT_PRIVATE_KEY_PEM"] = base64.b64encode(TEST_PRIVATE_KEY_PEM.encode("utf-8")).decode("utf-8")
 os.environ["JWT_PUBLIC_KEY_PEM"] = base64.b64encode(TEST_PUBLIC_KEY_PEM.encode("utf-8")).decode("utf-8")
-os.environ["JWT_ISSUER"] = "http://testserver"
 os.environ["VALID_ROLES"] = "admin,user"
 os.environ["DATABASE_URL"] = "postgresql+psycopg://dummy:dummy@localhost/dummy"
 os.environ["WORKOS_API_KEY"] = "sk_test_dummy_key"

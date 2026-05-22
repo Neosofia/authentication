@@ -56,7 +56,6 @@ def test_token_client_credentials_happy_path(client, api_spec, validate_response
             token,
             settings.jwt_public_key_pem,
             algorithms=["RS256"],
-            issuer=settings.jwt_issuer,
             audience="test-service",
         )
         assert decoded["aud"] == "test-service"
@@ -144,7 +143,6 @@ def test_token_inspect_happy_path(client, api_spec, validate_response, app):
             tenant_uuid=None,
             ttl_secs=3600,
             private_key_pem=settings.jwt_private_key_pem,
-            issuer=settings.jwt_issuer,
             audience="test-service",
             public_key_pem=settings.jwt_public_key_pem,
         )
