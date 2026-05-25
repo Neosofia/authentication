@@ -38,7 +38,8 @@ ops.env.sample
 docker-compose.override.yml
 
 # IDE/editor
-.vscode/
+.vscode/*
+!.vscode/settings.json
 *.swp
 *.swo
 .DS_Store
