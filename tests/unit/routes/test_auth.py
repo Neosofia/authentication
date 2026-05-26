@@ -52,7 +52,12 @@ def test_callback_exception(mock_client, mock_log_event, client):
     mock_client.user_management.authenticate_with_code_pkce.side_effect = Exception("Auth failed")
     
     response = client.get("/callback?code=fake_code&state=test_state")
-    mock_log_event.assert_called_once_with("callback_error", error_class="Exception", method="workos")
+    mock_log_event.assert_called_once_with(
+        "callback_error",
+        error_class="Exception",
+        reason="Auth failed",
+        method="workos",
+    )
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
 

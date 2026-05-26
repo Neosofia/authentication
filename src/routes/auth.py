@@ -185,6 +185,7 @@ def callback():
         log_event(
             "callback_error",
             error_class=type(e).__name__,
+            reason=str(e),
             method="workos",
         )
         response = make_response(redirect(url_for("auth.login")))

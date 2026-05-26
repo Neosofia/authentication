@@ -1,11 +1,15 @@
 """
 WorkOS bridge — extracts platform claims from WorkOS session responses.
 
-Constitution §VI: Fail-closed on missing or invalid org membership.
-All users must belong to an tenant; roleless authentication is rejected.
+Constitution §VI: Fail-closed on missing or invalid tenant membership.
+All users must belong to a tenant; roleless authentication is rejected.
+
+Platform tenant claims (workos_tenant_id, workos_tenant_name, tenant_uuid) are read
+only from the WorkOS access-token JWT custom-claims template — no fallbacks.
 """
 
 from typing import Any
+
 import jwt
 
 from src.config import settings
@@ -36,6 +40,13 @@ def _resolve_workos_value(auth_response: Any, *paths: str) -> Any:
     return None
 
 
+def _non_empty_str(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
 def _decode_access_token_claims(auth_response: Any, access_token_str: str | None = None) -> dict[str, Any]:
     access_token = access_token_str or getattr(auth_response, "access_token", None)
     if not access_token:
@@ -49,7 +60,11 @@ def _decode_access_token_claims(auth_response: Any, access_token_str: str | None
         return {}
 
 
-def extract_platform_claims(auth_response, *, access_token_str: str | None = None) -> dict:
+def extract_platform_claims(
+    auth_response,
+    *,
+    access_token_str: str | None = None,
+) -> dict:
     valid_roles = frozenset(r.strip() for r in settings.valid_roles.split(",") if r.strip())
 
     user = getattr(auth_response, "user", None)
@@ -60,23 +75,22 @@ def extract_platform_claims(auth_response, *, access_token_str: str | None = Non
 
     access_token_claims = _decode_access_token_claims(auth_response, access_token_str)
 
-    # Roles come from the access token JWT claims, not the auth response object
     workos_roles = access_token_claims.get("roles")
     workos_role = access_token_claims.get("role")
-    
-    # Contract: Extract the truth ONLY from Custom Claims
-    workos_tenant_id = access_token_claims.get("workos_tenant_id")
-    workos_tenant_name = access_token_claims.get("workos_tenant_name")
-    tenant_uuid = access_token_claims.get("tenant_uuid")
-    
+
+    # Custom-claims template only — no org_id, organization_id, or API fallbacks.
+    workos_tenant_id = _non_empty_str(access_token_claims.get("workos_tenant_id"))
+    workos_tenant_name = _non_empty_str(access_token_claims.get("workos_tenant_name"))
+    tenant_uuid = _non_empty_str(access_token_claims.get("tenant_uuid"))
+
     if not workos_tenant_id:
         log_event(
-            "token_rejected_no_org",
+            "token_rejected_no_workos_tenant_id",
             user_id=user_id,
             reason="missing workos_tenant_id in template",
         )
         raise ValueError("User has no workos_tenant_id in token; token issuance denied")
-        
+
     if not tenant_uuid:
         log_event(
             "token_rejected_no_tenant_uuid",
@@ -111,7 +125,7 @@ def extract_platform_claims(auth_response, *, access_token_str: str | None = Non
             "Verify that WorkOS roles match VALID_ROLES."
         )
 
-    user_uuid = _resolve_workos_value(auth_response, "user.external_id")
+    user_uuid = _non_empty_str(_resolve_workos_value(auth_response, "user.external_id"))
 
     return {
         "workos_tenant_id": workos_tenant_id,
