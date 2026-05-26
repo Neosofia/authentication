@@ -15,7 +15,7 @@ import jwt
 
 from src.config import settings
 from src.bootstrap.extensions import workos_client
-from src.bootstrap.logging import log_event
+from src.bootstrap.logging import log_event, log_exception
 
 
 def _get_nested_value(source: Any, path: str) -> Any:
@@ -62,7 +62,7 @@ def provision_user_external_id(user_id: str, user_data: dict[str, Any]) -> tuple
         log_event("person_id_generated", user_id=user_id, person_id=new_person_id)
         return updated_user.to_dict(), True
     except Exception as exc:
-        log_event("person_id_generation_error", error_class=type(exc).__name__, user_id=user_id)
+        log_exception("person_id_generation_error", exc, user_id=user_id)
         return user_data, False
 
 
@@ -75,9 +75,9 @@ def provision_organization_external_id(workos_tenant_id: str) -> bool:
         log_event("tenant_uuid_provisioned", workos_tenant_id=workos_tenant_id)
         return True
     except Exception as exc:
-        log_event(
+        log_exception(
             "tenant_uuid_provision_error",
-            error_class=type(exc).__name__,
+            exc,
             workos_tenant_id=workos_tenant_id,
         )
         return False
@@ -99,9 +99,9 @@ def refresh_workos_session(auth_response: Any, *, workos_tenant_id: str) -> Any:
             organization_id=workos_tenant_id,
         )
     except Exception as exc:
-        log_event(
+        log_exception(
             "session_refresh_error",
-            error_class=type(exc).__name__,
+            exc,
             workos_tenant_id=workos_tenant_id,
         )
         return auth_response
@@ -139,7 +139,7 @@ def decode_access_token_claims(auth_response: Any, access_token_str: str | None 
         decoded = jwt.decode(access_token, options={"verify_signature": False})
         return decoded if isinstance(decoded, dict) else {}
     except Exception as exc:
-        log_event("workos_access_token_decode_failed", error_class=type(exc).__name__)
+        log_exception("workos_access_token_decode_failed", exc)
         return {}
 
 

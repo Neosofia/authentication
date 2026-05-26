@@ -5,8 +5,8 @@ from authentication_in_the_middle.decorators import with_authentication
 
 from src.config import settings
 from src.db.engine import SessionLocal
-from src.bootstrap.extensions import csrf
-from src.bootstrap.logging import log_event
+from src.bootstrap.extensions import limiter
+from src.bootstrap.logging import log_event, log_exception
 from src.services import service_management
 
 bp = Blueprint("services", __name__, url_prefix="/api/services")
@@ -41,7 +41,7 @@ def require_admin(f):
 
 
 @bp.route("", methods=["GET"])
-@csrf.exempt
+@limiter.limit("60 per minute")
 @require_admin
 def list_services(user_uuid: str):
     """
@@ -62,12 +62,12 @@ def list_services(user_uuid: str):
                 "page_size": page_size,
             }), 200
     except Exception as exc:
-        log_event("list_services_failed", error_class=type(exc).__name__)
+        log_exception("list_services_failed", exc)
         return jsonify({"error": "database error"}), 500
 
 
 @bp.route("", methods=["POST"])
-@csrf.exempt
+@limiter.limit("60 per minute")
 @require_admin
 def create_service(user_uuid: str):
     """
@@ -89,12 +89,12 @@ def create_service(user_uuid: str):
     except service_management.ConflictError:
         return jsonify({"error": "service name or slug or base_url already exists"}), 409
     except Exception as exc:
-        log_event("create_service_failed", error_class=type(exc).__name__)
+        log_exception("create_service_failed", exc)
         return jsonify({"error": "database error"}), 500
 
 
 @bp.route("/<slug>", methods=["GET"])
-@csrf.exempt
+@limiter.limit("60 per minute")
 @require_admin
 def get_service(slug: str, user_uuid: str):
     """Return details for a single service including its latest credential metadata."""
@@ -105,12 +105,12 @@ def get_service(slug: str, user_uuid: str):
     except service_management.NotFoundError:
         return jsonify({"error": "not found"}), 404
     except Exception as exc:
-        log_event("get_service_failed", error_class=type(exc).__name__)
+        log_exception("get_service_failed", exc)
         return jsonify({"error": "database error"}), 500
 
 
 @bp.route("/<slug>", methods=["PUT"])
-@csrf.exempt
+@limiter.limit("60 per minute")
 @require_admin
 def update_service(slug: str, user_uuid: str):
     """Update name, slug, or base_url for a service."""
@@ -133,12 +133,12 @@ def update_service(slug: str, user_uuid: str):
     except service_management.ConflictError:
         return jsonify({"error": "name, slug, or base_url already in use"}), 409
     except Exception as exc:
-        log_event("update_service_failed", error_class=type(exc).__name__)
+        log_exception("update_service_failed", exc)
         return jsonify({"error": "database error"}), 500
 
 
 @bp.route("/<slug>/rotate", methods=["POST"])
-@csrf.exempt
+@limiter.limit("60 per minute")
 @require_admin
 def rotate_service(slug: str, user_uuid: str):
     """
@@ -156,12 +156,12 @@ def rotate_service(slug: str, user_uuid: str):
     except service_management.NotFoundError:
         return jsonify({"error": "not found"}), 404
     except Exception as exc:
-        log_event("rotate_service_failed", error_class=type(exc).__name__)
+        log_exception("rotate_service_failed", exc)
         return jsonify({"error": "database error"}), 500
 
 
 @bp.route("/<slug>/audits", methods=["GET"])
-@csrf.exempt
+@limiter.limit("60 per minute")
 @require_admin
 def get_service_audits(slug: str, user_uuid: str):
     """Return paginated audit history for a service's credentials."""
@@ -193,6 +193,6 @@ def get_service_audits(slug: str, user_uuid: str):
     except service_management.InvalidAuditSourceError:
         return jsonify({"error": "invalid source", "message": "source must be 'service' or 'credential'"}), 400
     except Exception as exc:
-        log_event("get_service_audits_failed", error_class=type(exc).__name__)
+        log_exception("get_service_audits_failed", exc)
         return jsonify({"error": "database error"}), 500
 

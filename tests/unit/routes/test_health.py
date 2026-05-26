@@ -18,7 +18,7 @@ def test_health_timeout(mock_log, mock_session, client):
 # If the database is completely inaccessible (e.g., generic exception like OperationalError),
 # the health check returns a 503 to signal orchestrators to restart or stop traffic.
 @patch("src.routes.health.SessionLocal")
-@patch("src.routes.health.log_event")
+@patch("src.routes.health.log_exception")
 def test_health_exception(mock_log, mock_session, client):
     mock_db = mock_session.return_value.__enter__.return_value
     mock_db.execute.side_effect = OperationalError("SELECT 1", {}, "DB down")
@@ -27,4 +27,5 @@ def test_health_exception(mock_log, mock_session, client):
     
     assert response.status_code == 503
     assert response.json == {"status": "error", "detail": "database unavailable"}
-    mock_log.assert_called_once_with("health_check_failed", error_class="OperationalError")
+    mock_log.assert_called_once()
+    assert mock_log.call_args[0][0] == "health_check_failed"

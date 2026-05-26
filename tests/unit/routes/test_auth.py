@@ -1,4 +1,7 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
+
+from src.config import settings
+
 
 def test_callback_csrf_state_mismatch_logs_and_redirects(client):
     with patch("src.routes.auth.log_event") as mock_log_event:
@@ -43,21 +46,16 @@ def test_callback_pkce_missing(mock_log_event, client):
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
 
-@patch("src.routes.auth.log_event")
+@patch("src.routes.auth.log_exception")
 @patch("src.routes.auth.workos_client")
-def test_callback_exception(mock_client, mock_log_event, client):
+def test_callback_exception(mock_client, mock_log_exception, client):
     with client.session_transaction() as sess:
         sess["oauth_state"] = "test_state"
         sess["code_verifier"] = "test_verifier"
     mock_client.user_management.authenticate_with_code_pkce.side_effect = Exception("Auth failed")
     
     response = client.get("/callback?code=fake_code&state=test_state")
-    mock_log_event.assert_called_once_with(
-        "callback_error",
-        error_class="Exception",
-        reason="Auth failed",
-        method="workos",
-    )
+    mock_log_exception.assert_called_once_with("callback_error", ANY, method="workos")
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
 
@@ -66,18 +64,18 @@ def test_logout_no_session(mock_log_event, client):
     response = client.get("/logout")
     mock_log_event.assert_called_once_with("logout_failure", reason="No session found")
     assert response.status_code == 302
-    assert response.headers["Location"] == "/"
+    assert response.headers["Location"] == settings.frontend_url
 
-@patch("src.routes.auth.log_event")
+@patch("src.routes.auth.log_exception")
 @patch("src.routes.auth.workos_client")
-def test_logout_exception(mock_client, mock_log_event, client):
+def test_logout_exception(mock_client, mock_log_exception, client):
     client.set_cookie("wos_session", "dummy-session")
     mock_client.user_management.load_sealed_session.side_effect = Exception("Logout failed")
 
     response = client.get("/logout")
-    mock_log_event.assert_called_once_with("logout_failure", error_class="Exception")
+    mock_log_exception.assert_called_once_with("logout_failure", ANY)
     assert response.status_code == 302
-    assert response.headers["Location"] == "/"
+    assert response.headers["Location"] == settings.frontend_url
 
 
 @patch("src.routes.auth.log_event")
@@ -94,24 +92,24 @@ def test_logout_uses_authenticate_before_refresh(mock_client, mock_log_event, cl
     session.refresh.assert_not_called()
     mock_client.user_management.get_logout_url.assert_called_once_with(
         session_id="session_abc",
-        return_to="/",
+        return_to=settings.frontend_url,
     )
     
-@patch("src.routes.auth.log_event")
-@patch("src.routes.auth.load_pem_public_key")
-def test_jwks_not_rsa(mock_load_pem, mock_log_event, client):
+@patch("src.routes.auth.log_exception")
+@patch("src.services.jwks.load_pem_public_key")
+def test_jwks_not_rsa(mock_load_pem, mock_log_exception, client):
     mock_load_pem.return_value = "not_an_rsa_key"
     response = client.get("/.well-known/jwks.json")
-    mock_log_event.assert_called_once_with("jwks_error", reason="invalid public key", error_class="ValueError")
+    mock_log_exception.assert_called_once_with("jwks_error", ANY, reason="invalid public key")
     assert response.status_code == 500
     assert response.json == {"error": "failed to build JWKS"}
 
-@patch("src.routes.auth.log_event")
-@patch("src.routes.auth.load_pem_public_key")
-def test_jwks_exception(mock_load_pem, mock_log_event, client):
+@patch("src.routes.auth.log_exception")
+@patch("src.services.jwks.load_pem_public_key")
+def test_jwks_exception(mock_load_pem, mock_log_exception, client):
     mock_load_pem.side_effect = Exception("Bad key")
     response = client.get("/.well-known/jwks.json")
-    mock_log_event.assert_called_once_with("jwks_error", error_class="Exception")
+    mock_log_exception.assert_called_once_with("jwks_error", ANY)
     assert response.status_code == 500
     assert response.json == {"error": "failed to build JWKS"}
 

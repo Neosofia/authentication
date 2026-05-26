@@ -1,35 +1,9 @@
-import base64
-import hashlib
-import json
 import uuid
 from datetime import datetime, timezone
-from typing import cast
 
 import jwt
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
-from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
-def _compute_kid(public_key_pem: str) -> str:
-    """Compute the RFC 7638 JWK Thumbprint for a given RSA public key."""
-    pub_key = load_pem_public_key(public_key_pem.encode("utf-8"))
-    if not isinstance(pub_key, RSAPublicKey):
-        raise TypeError("public key must be an RSA public key")
-    pub_numbers = cast(RSAPublicKey, pub_key).public_numbers()
-
-    def _b64url_uint(n: int) -> str:
-        length = (n.bit_length() + 7) // 8
-        return base64.urlsafe_b64encode(n.to_bytes(length, "big")).rstrip(b"=").decode()
-
-    n_b64 = _b64url_uint(pub_numbers.n)
-    e_b64 = _b64url_uint(pub_numbers.e)
-
-    thumbprint_data = json.dumps(
-        {"e": e_b64, "kty": "RSA", "n": n_b64},
-        separators=(",", ":"),
-        sort_keys=True,
-    )
-    thumbprint_hash = hashlib.sha256(thumbprint_data.encode()).digest()
-    return base64.urlsafe_b64encode(thumbprint_hash).rstrip(b"=").decode()
+from src.services.jwks import compute_kid
 
 
 def issue_token(
@@ -84,6 +58,6 @@ def issue_token(
 
     headers = {}
     if public_key_pem:
-        headers["kid"] = _compute_kid(public_key_pem)
+        headers["kid"] = compute_kid(public_key_pem)
 
     return jwt.encode(claims, private_key_pem, algorithm="RS256", headers=headers)

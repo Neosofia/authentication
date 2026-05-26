@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "authentication"
-version = "0.25.0"
+version = "0.26.0"
 description = "Neosofia Authentication Service — token issuance and introspection"
 requires-python = ">=3.13"
 authors = [{ name = "Neosofia", email = "platform@neosofia.com" }]
@@ -12,7 +12,6 @@ authors = [{ name = "Neosofia", email = "platform@neosofia.com" }]
 dependencies = [
     "flask>=3.0.0",
     "flask-limiter>=3.5.0",
-    "flask-wtf>=1.2.0",
     "flask-talisman>=1.1.0",
     "workos>=1.0.0",
     "sqlalchemy>=2.0.0",

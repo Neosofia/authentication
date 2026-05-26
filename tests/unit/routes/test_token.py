@@ -59,7 +59,7 @@ def test_session_grant_workos_timeout(mock_workos, mock_log, client):
 
 # If token construction fails internally (e.g. an unexpected runtime exception),
 # a 500 error should be triggered alongside a telemetry log for platform_token_error.
-@patch("src.routes.token.log_event")
+@patch("src.routes.token.log_exception")
 @patch("src.routes.token.workos_client")
 @patch("src.routes.token.tokens")
 @patch("src.routes.token.workos_bridge")
@@ -75,7 +75,8 @@ def test_session_grant_internal_error(mock_bridge, mock_issuer, mock_workos, moc
     
     response = client.post("/api/token")
     assert response.status_code == 500
-    mock_log.assert_called_once_with("platform_token_error", error_class="Exception")
+    mock_log.assert_called_once()
+    assert mock_log.call_args[0][0] == "platform_token_error"
 
 
 # When using the client_credentials grant, if the Authorization header
@@ -110,14 +111,15 @@ def test_client_credentials_invalid_client(mock_db, mock_issue, mock_log, client
 
 # If the database offline or a deep internal error halts service token generation,
 # it should result in a 500 error alongside service_token_error telemetry.
-@patch("src.routes.token.log_event")
+@patch("src.routes.token.log_exception")
 @patch("src.routes.token.issue_service_token")
 @patch("src.routes.token.SessionLocal")
 def test_client_credentials_internal_error(mock_db, mock_issue, mock_log, client):
     mock_issue.side_effect = Exception("DB offline")
     response = client.post("/api/token", data={"grant_type": "client_credentials", "client_id": "test", "client_secret": "bad"})
     assert response.status_code == 500
-    mock_log.assert_called_once_with("service_token_error", error_class="Exception")
+    mock_log.assert_called_once()
+    assert mock_log.call_args[0][0] == "service_token_error"
 
 
 # token-inspect requires a valid Bearer token format; missing it entirely

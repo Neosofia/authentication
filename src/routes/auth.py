@@ -1,43 +1,19 @@
 import base64
 import hashlib
-import json
-import os
 import secrets
-from typing import cast
 
-from cryptography.hazmat.primitives.serialization import load_pem_public_key
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from flask import Blueprint, jsonify, make_response, redirect, request, url_for, session
-from flask_wtf.csrf import generate_csrf
 from workos.session import seal_session_from_auth_response
 
 from src.config import settings
-from src.bootstrap.extensions import cookie_password, csrf, limiter, workos_client
-from src.bootstrap.logging import log_event
-from src.db.engine import SessionLocal
+from src.bootstrap.extensions import limiter, workos_client
+from src.bootstrap.logging import log_event, log_exception
+from src.services.cookies import clear_wos_session_cookie, set_wos_session_cookie
+from src.services.jwks import pem_to_jwk
 from src.services.identity import sync_identity_data
 from src.services import workos_bridge
 
 bp = Blueprint("auth", __name__)
-
-_WOS_SESSION_COOKIE = {"path": "/", "secure": True, "httponly": True, "samesite": "none"}
-
-
-def _set_wos_session_cookie(response, value: str):
-    response.set_cookie("wos_session", value, **_WOS_SESSION_COOKIE)
-    return response
-
-
-def _clear_wos_session_cookie(response):
-    response.delete_cookie("wos_session", **_WOS_SESSION_COOKIE)
-    return response
-
-
-def _frontend_auth_callback_url() -> str:
-    base = os.getenv("FRONTEND_URL", "/").rstrip("/")
-    if not base:
-        return "/?auth=callback"
-    return f"{base}?auth=callback"
 
 
 def _resolve_workos_session_id(session) -> str | None:
@@ -71,7 +47,7 @@ def login():
     Returns: 302 redirect to WorkOS authorization endpoint
     Ref: ADR-0007 (never roll your own authentication), specs/014-authentication-service/spec.md
     """
-    redirect_uri = os.getenv("WORKOS_REDIRECT_URI", "http://localhost:8014/callback")
+    redirect_uri = settings.workos_redirect_uri
     
     # Generate cryptographically random state for CSRF protection (RFC 6819 §4.4.1.8)
     oauth_state = secrets.token_urlsafe(32)
@@ -175,29 +151,29 @@ def callback():
             refresh_token=auth_response.refresh_token,
             user=user_data,
             impersonator=auth_response.impersonator.to_dict() if auth_response.impersonator else None,
-            cookie_password=cookie_password,
+            cookie_password=settings.workos_cookie_password,
         )
 
-        response = make_response(redirect(_frontend_auth_callback_url()))
-        _set_wos_session_cookie(response, sealed_session)
+        response = make_response(redirect(settings.frontend_auth_callback_url()))
+        set_wos_session_cookie(response, sealed_session)
         # Clean up OAuth state and PKCE cookies after successful exchange
-        log_event("authentication_success", user_id=user_id, method="workos")
+        log_event(
+            "authentication_success",
+            user_id=user_id,
+            user_uuid=claims.get("user_uuid"),
+            method="workos",
+        )
         return response
 
     except Exception as e:
         # Log only the exception class for safe diagnostics.
-        log_event(
-            "callback_error",
-            error_class=type(e).__name__,
-            reason=str(e),
-            method="workos",
-        )
+        log_exception("callback_error", e, method="workos")
         response = make_response(redirect(url_for("auth.login")))
         return response
 
 
 @bp.route("/logout", methods=["POST", "GET"])
-@csrf.exempt
+@limiter.limit("60 per minute")
 def logout():
     """
     Session revocation and cookie cleanup.
@@ -208,17 +184,17 @@ def logout():
     Returns: 302 redirect to / after revoking session and clearing cookie
     Ref: specs/014-authentication-service/spec.md (session revocation)
     """
-    frontend_url = os.getenv("FRONTEND_URL", "/")
+    frontend_url = settings.frontend_url
 
     try:
         sealed_session = request.cookies.get("wos_session")
         if not sealed_session:
             log_event("logout_failure", reason="No session found")
-            return _clear_wos_session_cookie(make_response(redirect(frontend_url)))
+            return clear_wos_session_cookie(make_response(redirect(frontend_url)))
 
         session = workos_client.user_management.load_sealed_session(
             session_data=sealed_session,
-            cookie_password=cookie_password,
+            cookie_password=settings.workos_cookie_password,
         )
         session_id = _resolve_workos_session_id(session)
 
@@ -233,58 +209,14 @@ def logout():
             log_event("logout_failure", reason="Could not resolve WorkOS session for logout")
             response = make_response(redirect(frontend_url))
 
-        return _clear_wos_session_cookie(response)
+        return clear_wos_session_cookie(response)
 
     except Exception as e:
-        log_event("logout_failure", error_class=type(e).__name__)
-        return _clear_wos_session_cookie(make_response(redirect(frontend_url)))
-
-
-@bp.route("/csrf-token")
-def csrf_token():
-    """
-    Issue CSRF token for API requests.
-    
-    Generates Flask-WTF CSRF token for inclusion in subsequent POST/PUT/DELETE requests.
-    Token is bound to session and validated by @csrf.protect middleware.
-    
-    Returns: {\"csrfToken\": \"<token>\"}
-    Ref: Flask-WTF CSRF protection (defense in depth)
-    """
-    token = generate_csrf()
-    log_event("csrf_token_issued")
-    return jsonify({"csrfToken": token})
-
-
-def _pem_to_jwk(pem: str) -> dict:
-    """Convert a PEM-encoded RSA public key to a JWK dict (RFC 7517 / RFC 7638)."""
-    pub_key = load_pem_public_key(pem.encode())
-    if not isinstance(pub_key, RSAPublicKey):
-        raise ValueError("key is not RSA")
-    pub_numbers = cast(RSAPublicKey, pub_key).public_numbers()
-
-    def _b64url_uint(n: int) -> str:
-        length = (n.bit_length() + 7) // 8
-        return base64.urlsafe_b64encode(n.to_bytes(length, "big")).rstrip(b"=").decode()
-
-    n_b64 = _b64url_uint(pub_numbers.n)
-    e_b64 = _b64url_uint(pub_numbers.e)
-
-    # kid: RFC 7638 JWK Thumbprint (SHA-256 hash of canonical JSON representation)
-    thumbprint_data = json.dumps(
-        {"e": e_b64, "kty": "RSA", "n": n_b64},
-        separators=(",", ":"),
-        sort_keys=True,
-    )
-    kid = base64.urlsafe_b64encode(
-        hashlib.sha256(thumbprint_data.encode()).digest()
-    ).rstrip(b"=").decode()
-
-    return {"kty": "RSA", "use": "sig", "alg": "RS256", "kid": kid, "n": n_b64, "e": e_b64}
+        log_exception("logout_failure", e)
+        return clear_wos_session_cookie(make_response(redirect(frontend_url)))
 
 
 @bp.route("/.well-known/jwks.json")
-@csrf.exempt
 def jwks():
     """
     Publish RSA public key(s) as JWK Set for JWT validation.
@@ -300,15 +232,15 @@ def jwks():
     Ref: RFC 7517 (JWK), RFC 7518 (JWA), RFC 7638 (JWK Thumbprint)
     """
     try:
-        keys = [_pem_to_jwk(settings.jwt_public_key_pem)]
+        keys = [pem_to_jwk(settings.jwt_public_key_pem)]
         if settings.jwt_previous_public_key_pem:
-            keys.append(_pem_to_jwk(settings.jwt_previous_public_key_pem))
+            keys.append(pem_to_jwk(settings.jwt_previous_public_key_pem))
         response = jsonify({"keys": keys})
         response.headers["Cache-Control"] = "public, max-age=3600"
         return response
     except ValueError as exc:
-        log_event("jwks_error", reason="invalid public key", error_class=type(exc).__name__)
+        log_exception("jwks_error", exc, reason="invalid public key")
         return jsonify({"error": "failed to build JWKS"}), 500
     except Exception as exc:
-        log_event("jwks_error", error_class=type(exc).__name__)
+        log_exception("jwks_error", exc)
         return jsonify({"error": "failed to build JWKS"}), 500

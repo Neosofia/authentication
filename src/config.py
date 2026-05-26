@@ -67,11 +67,34 @@ class Settings(BaseSettings):
     gunicorn_keepalive: int = 5
     log_level: str = "info"
     frontend_url: str = "http://localhost:5173"
+    csrf_secret_key: str = ""
+    workos_api_key: str = ""
+    workos_client_id: str = ""
+    workos_cookie_password: str = ""
+    workos_redirect_uri: str = "http://localhost:8014/callback"
+    ratelimit_storage_uri: str = "memory://"
+    max_content_length: int = 16_384
+
+    @property
+    def is_non_production(self) -> bool:
+        return self.env.lower() in ("development", "test")
+
+    def frontend_auth_callback_url(self) -> str:
+        base = self.frontend_url.rstrip("/")
+        if not base:
+            return "/?auth=callback"
+        return f"{base}?auth=callback"
 
     def model_post_init(self, __context: object) -> None:
         if not self.database_url.strip():
             raise ValueError("DATABASE_URL must be set")
-            
+
+        if not self.csrf_secret_key.strip():
+            raise ValueError("CSRF_SECRET_KEY must be set")
+
+        if not self.workos_cookie_password.strip():
+            raise ValueError("WORKOS_COOKIE_PASSWORD must be set")
+
         if not self.valid_roles.strip():
             raise ValueError("VALID_ROLES must be set to a non-empty comma-separated list of accepted WorkOS org roles")
             

@@ -1,7 +1,4 @@
 import base64
-import json
-import os
-import pathlib
 
 import jwt as pyjwt
 from flask import Blueprint, jsonify, make_response, request
@@ -9,37 +6,16 @@ from workos.session import unseal_data
 
 from src.config import settings
 from src.db.engine import SessionLocal
-from src.bootstrap.extensions import cookie_password, csrf, limiter, workos_client
-from src.bootstrap.logging import log_event
+from src.bootstrap.extensions import limiter, workos_client
+from src.bootstrap.logging import exc_type_name, log_event, log_exception
+from src.services.cookies import set_wos_session_cookie
 from src.services import tokens, workos_bridge
 from src.services.service_tokens import InvalidClientError, issue_service_token
 
 bp = Blueprint("token", __name__, url_prefix="/api")
 
-# Cache the OpenAPI spec in memory (loaded once at startup)
-_openapi_spec_cache = None
-
-
-def _load_openapi_spec():
-    """Load and cache the OpenAPI specification."""
-    global _openapi_spec_cache
-
-    if _openapi_spec_cache is not None:
-        return _openapi_spec_cache
-
-    openapi_file = pathlib.Path(__file__).parent.parent.parent / "openapi.json"
-
-    if not openapi_file.exists():
-        raise FileNotFoundError(f"OpenAPI specification not found at {openapi_file}")
-
-    with open(openapi_file) as f:
-        _openapi_spec_cache = json.load(f)
-
-    return _openapi_spec_cache
-
 
 @bp.route("/token", methods=["POST"])
-@csrf.exempt
 @limiter.limit("20 per minute")
 def token():
     """
@@ -82,7 +58,7 @@ def _handle_session_grant():
     try:
         session = workos_client.user_management.load_sealed_session(
             session_data=sealed,
-            cookie_password=cookie_password,
+            cookie_password=settings.workos_cookie_password,
         )
         auth_response = session.authenticate()
 
@@ -93,7 +69,7 @@ def _handle_session_grant():
         if not auth_response.authenticated:
             return jsonify({"error": "session invalid or expired"}), 401
     except Exception as e:
-        exc_name = type(e).__name__
+        exc_name = exc_type_name(e)
         if any(w in exc_name.lower() + type(e).__module__.lower() + str(e).lower() for w in ("timeout", "connect", "network", "unreachable", "connection")):
             log_event("workos_unavailable", error_class=exc_name)
             return jsonify({"error": "authentication provider unavailable"}), 503
@@ -109,7 +85,7 @@ def _handle_session_grant():
         # After refresh, the new sealed session is on auth_response.sealed_session.
         session_to_unseal = getattr(auth_response, "sealed_session", None) or sealed
         try:
-            raw_session = unseal_data(session_to_unseal, cookie_password)
+            raw_session = unseal_data(session_to_unseal, settings.workos_cookie_password)
             raw_access_token = raw_session.get("access_token")
         except Exception:
             raw_access_token = None
@@ -140,18 +116,11 @@ def _handle_session_grant():
         # If the session was refreshed, persist the newly sealed session back to the client
         sealed_session = getattr(auth_response, "sealed_session", None)
         if sealed_session:
-            response.set_cookie(
-                "wos_session",
-                sealed_session,
-                secure=True,
-                httponly=True,
-                samesite="none",
-                path="/",
-            )
+            set_wos_session_cookie(response, sealed_session)
 
         return response
     except Exception as e:
-        log_event("platform_token_error", error_class=type(e).__name__)
+        log_exception("platform_token_error", e)
         return jsonify({"error": "token issuance failed"}), 500
 
 
@@ -197,12 +166,11 @@ def _handle_client_credentials():
     except InvalidClientError:
         return jsonify({"error": "invalid_client"}), 401
     except Exception as e:
-        log_event("service_token_error", error_class=type(e).__name__)
+        log_exception("service_token_error", e)
         return jsonify({"error": "token issuance failed"}), 500
 
 
 @bp.route("/token-inspect")
-@csrf.exempt
 @limiter.limit("10 per minute")
 def token_inspect():
     """
@@ -219,7 +187,7 @@ def token_inspect():
 
     Ref: RFC 7519 (JWT Claims), RFC 7523 (Bearer token)
     """
-    if os.getenv("ENV", "production").lower() not in ("development", "test"):
+    if not settings.is_non_production:
         return jsonify({"error": "not_found"}), 404
 
     auth_header = request.headers.get("Authorization", "")

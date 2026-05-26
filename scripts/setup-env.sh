@@ -7,7 +7,7 @@
 #
 # What it does:
 #   1. Copies .env.example → .env (skips if .env already exists, unless --force)
-#   2. Generates CSRF_SECRET_KEY  (openssl rand -hex 32)
+#   2. Generates CSRF_SECRET_KEY  (Flask session signing; openssl rand -hex 32)
 #   3. Generates WORKOS_COOKIE_PASSWORD  (44-char Fernet key via Python)
 #   4. Generates an RSA-2048 keypair and writes JWT_PRIVATE_KEY_PEM /
 #      JWT_PUBLIC_KEY_PEM as properly-escaped single-line values
@@ -43,7 +43,7 @@ else
   echo "Created .env from .env.example"
 fi
 
-# ── Step 2: CSRF secret ───────────────────────────────────────────────────────
+# ── Step 2: Flask session secret ──────────────────────────────────────────────
 CSRF_SECRET=$(openssl rand -hex 32)
 python3 - <<PYEOF
 import pathlib, re

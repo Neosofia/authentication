@@ -1,6 +1,7 @@
 from unittest.mock import patch, MagicMock
 
-import jwt
+from src.config import settings
+from tests.conftest import encode_test_access_token
 
 
 def test_login_happy_path(client):
@@ -23,24 +24,20 @@ def test_callback_happy_path(client):
     initial = MagicMock(refresh_token="refresh-token", impersonator=None)
     initial.user = MagicMock(id="user_123")
     initial.user.to_dict.return_value = {"id": "user_123"}
-    initial.access_token = jwt.encode(
+    initial.access_token = encode_test_access_token(
         {"workos_tenant_id": "org_123", "workos_tenant_name": "Test Org", "role": "admin"},
-        "secret",
-        algorithm="HS256",
     )
 
     refreshed = MagicMock(refresh_token="refresh-token", impersonator=None)
     refreshed.user = MagicMock(id="user_123", external_id="user-uuid")
     refreshed.user.to_dict.return_value = {"id": "user_123", "external_id": "user-uuid"}
-    refreshed.access_token = jwt.encode(
+    refreshed.access_token = encode_test_access_token(
         {
             "workos_tenant_id": "org_123",
             "workos_tenant_name": "Test Org",
             "tenant_uuid": "019e02e1-94e1-722b-bd61-f7f95fb1604c",
             "role": "admin",
         },
-        "secret",
-        algorithm="HS256",
     )
 
     with (
@@ -61,7 +58,7 @@ def test_callback_happy_path(client):
         response = client.get("/callback?code=authorization_code&state=test_state")
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/?auth=callback"
+    assert response.headers["Location"] == settings.frontend_auth_callback_url()
     mock_wos.organizations.update_organization.assert_called_once()
     mock_wos.user_management.authenticate_with_refresh_token.assert_called_once()
     assert any("wos_session=" in h for h in response.headers.getlist("Set-Cookie"))
@@ -84,15 +81,9 @@ def test_logout_happy_path(client):
         assert response.headers["Location"] == logout_url
         mock_workos.user_management.get_logout_url.assert_called_once_with(
             session_id="session_123",
-            return_to="/",
+            return_to=settings.frontend_url,
         )
         assert any("wos_session=;" in header for header in response.headers.getlist("Set-Cookie"))
-
-
-def test_csrf_token_endpoint(client):
-    response = client.get("/csrf-token")
-    assert response.status_code == 200
-    assert response.json and "csrfToken" in response.json
 
 
 def test_jwks_endpoint(client, api_spec, validate_response):

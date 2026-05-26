@@ -5,7 +5,7 @@ from sqlalchemy import select
 from src.db.engine import SessionLocal
 from src.models.user import User
 from src.models.tenant import Tenant
-from src.bootstrap.logging import log_event
+from src.bootstrap.logging import log_event, log_exception
 
 SYSTEM_ACTOR_UUID = uuid.UUID("00000000-0000-7000-8000-000000000000")
 SYSTEM_ACTOR_TYPE = 2
@@ -77,19 +77,17 @@ def sync_identity_data(
                 try:
                     db.rollback()
                 except Exception as rollback_exc:
-                    log_event(
+                    log_exception(
                         "identity_sync_rollback_failed",
+                        rollback_exc,
                         idp_user_id=idp_user_id,
                         idp_tenant_id=idp_tenant_id,
-                        error_class=type(rollback_exc).__name__,
-                        error=str(rollback_exc),
                     )
-            log_event(
+            log_exception(
                 "identity_sync_error",
+                exc,
                 idp_user_id=idp_user_id,
                 idp_tenant_id=idp_tenant_id,
-                error_class=type(exc).__name__,
-                error=str(exc),
             )
 
     thread = threading.Thread(target=_do_sync)

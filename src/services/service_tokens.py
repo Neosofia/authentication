@@ -27,7 +27,7 @@ def issue_service_token(
 ) -> str:
     """
     Verify a service credential and issue a platform JWT with user_type='service'.
-    Raises InvalidClientError (→ 401) on any mismatch or inactive credential.
+    Raises InvalidClientError (→ 401) on any mismatch. Revoke access by rotating the credential.
     Uses constant-time comparison to prevent timing attacks (CWE-208).
     """
     result = db.execute(

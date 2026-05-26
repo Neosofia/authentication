@@ -2,14 +2,12 @@ from flask import Blueprint, jsonify
 from sqlalchemy import text
 
 from src.db.engine import SessionLocal
-from src.bootstrap.extensions import csrf
-from src.bootstrap.logging import log_event
+from src.bootstrap.logging import log_event, log_exception
 
 bp = Blueprint("health", __name__, url_prefix="")
 
 
 @bp.route("/health")
-@csrf.exempt
 def health():
     """
     Liveness and readiness probe for Kubernetes/Docker orchestration.
@@ -29,5 +27,5 @@ def health():
         log_event("health_check_degraded", reason="database timeout")
         return jsonify({"status": "degraded", "detail": "database timeout, service JWTs can not be issued"}), 200
     except Exception as e:
-        log_event("health_check_failed", error_class=type(e).__name__)
+        log_exception("health_check_failed", e)
         return jsonify({"status": "error", "detail": "database unavailable"}), 503

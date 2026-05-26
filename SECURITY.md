@@ -72,11 +72,11 @@ Key architectural decisions:
 - **Sealed session cookie (WorkOS SDK)** — AES-256-GCM + HMAC with a 32-character platform-supplied cookie password. Tampering is detected at decryption.
 - **Cookie hardening** — the sealed `wos_session` cookie is set (and cleared on logout) with `HttpOnly`, `Secure`, `SameSite=None`, and `path="/"`. `SameSite=None` is required because the CDP UI and this service run on different origins and the browser sends the cookie on credentialed `POST /api/token` requests via CORS. Set and delete must use identical attributes or browsers retain the cookie. OAuth `state` and PKCE verifier are not separate browser cookies; they live in Flask's signed session.
 - **Stateless architecture** — no server-side session store; aligns with Constitution §VII.
-- **`CSRF_SECRET_KEY` is the trust anchor for both CSRF and OAuth state** — the OAuth `state` parameter and PKCE `code_verifier` are stored in Flask's signed session cookie, which is protected by `CSRF_SECRET_KEY`. Compromising this key defeats both the CSRF check and the OAuth state binding. **Rotate `CSRF_SECRET_KEY` and `WORKOS_COOKIE_PASSWORD` together** on the same cadence (generate independently with `openssl rand -hex 32` / `openssl rand -base64 32`). A rotation requires a brief service restart; all in-flight sessions are invalidated at that point.
+- **`CSRF_SECRET_KEY` signs the Flask session cookie** — the OAuth `state` parameter and PKCE `code_verifier` are stored in Flask's signed session (not a separate browser cookie). Compromising this key defeats OAuth state binding. **Rotate `CSRF_SECRET_KEY` and `WORKOS_COOKIE_PASSWORD` together** on the same cadence (generate independently with `openssl rand -hex 32` / `openssl rand -base64 32`). A rotation requires a brief service restart; all in-flight OAuth flows are invalidated at that point.
 
 ### service-to-service Credentials
 
-- **bcrypt-hashed secrets** — stored at cost factor 12; never reversible. `ServiceCredential.active` flag enables immediate revocation.
+- **bcrypt-hashed secrets** — stored at cost factor 12; never reversible. Compromised credentials are revoked by **rotating** the service secret via `POST /api/services/{slug}/rotate` (replaces the bcrypt hash in place; audit history preserved).
 - **Constant-time verification** — a dummy hash is pre-computed at import; unknown `client_id` submissions still run `bcrypt.checkpw` to prevent enumeration via timing side-channel ([CWE-208](https://cwe.mitre.org/data/definitions/208.html)).
 
 ### Rate Limits
@@ -87,6 +87,9 @@ Key architectural decisions:
 | `GET /callback` | 60 / minute |
 | `POST /api/token` | 20 / minute |
 | `GET /api/token-inspect` | 10 / minute (development only) |
+| `GET /api/profile` | 60 / minute |
+| `GET/POST /api/services/*` | 60 / minute |
+| `GET/POST /logout` | 60 / minute |
 
 ### UI Token Handling
 
@@ -100,26 +103,11 @@ The CDP UI is a public SPA client and is **not** registered as a platform servic
 
 ### Web-Layer Defenses
 
-- **CSRF protection (Flask-WTF)** — all state-changing routes protected by default. `/api/token` exempted because it is bound by Basic auth or the sealed session cookie.
+- **Bearer JWT for privileged API routes** — `/api/profile` and `/api/services/*` require `Authorization: Bearer`. Cross-origin sites cannot inject the in-memory platform JWT, so classic CSRF does not apply to those mutations.
+- **`POST /api/token`** — bound by HTTP Basic auth (`client_credentials`) or the sealed `wos_session` cookie; attackers cannot read token responses cross-origin.
 - **Request body size cap** — `MAX_CONTENT_LENGTH = 16 KiB` rejects body-flood DoS before the body parser runs.
 - **Debug mode off** — gated on `ENV=development`; eliminates the Werkzeug debugger RCE surface in production ([CWE-489](https://cwe.mitre.org/data/definitions/489.html)).
 
-### CSRF Exemptions
-
-The following routes are decorated with `@csrf.exempt`. Each exemption is intentional:
-
-| Route | Reason for exemption |
-|---|---|
-| `POST /api/token` | Bound by HTTP Basic auth (`client_credentials`) or the sealed `wos_session` cookie (implicit flow). A CSRF token would add no protection because the attacker cannot read the response cross-origin and the credential check already prevents misuse. |
-| `GET /api/token-inspect` | Read-only debug endpoint; no state mutation. Additionally gated to `ENV=development`/`test` and rate-limited. |
-| `GET /.well-known/jwks.json` | Public, read-only key publication endpoint. No authentication or state change. |
-| `GET /api/profile` | Requires a valid Bearer JWT; CSRF does not apply to Bearer-authenticated routes (the token cannot be injected by a cross-origin form). |
-| `GET/POST /api/services` | Admin-only; requires Bearer JWT with `admin` role. Same reasoning as `/api/profile`. |
-| `POST /logout` | Clears the session cookie. A malicious logout (CSRF on logout) is a low-severity annoyance, not a confidentiality or integrity risk. The redirect target is hardcoded to `/`. |
-
-All non-public routes either require a Bearer JWT (admin, profile, services) or are explicitly designed for the cookie-bearing OAuth flow (`/api/token`). No route performs a privileged state mutation solely on the basis of a browser session cookie without an additional credential, so the CSRF surface is already narrow.
-
----
 
 ## Threat Model Summary
 
@@ -128,7 +116,7 @@ All non-public routes either require a Bearer JWT (admin, profile, services) or 
 | Threat | Control |
 |---|---|
 | Credential theft of signing key | Private key only in env vars; unprivileged container user |
-| JWT forgery | RS256 + iss + aud + exp validation |
+| JWT forgery | RS256 + JWKS signature + `aud` + `exp` validation (no `iss` claim — see Token Issuance) |
 | Session hijacking | `HttpOnly`, `Secure`, `SameSite=None`; AES-256-GCM sealed cookie |
 | Session fixation / OAuth CSRF | `state` + PKCE |
 | Auth code interception | PKCE (RFC 7636) |

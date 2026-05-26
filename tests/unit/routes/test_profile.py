@@ -1,4 +1,4 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import ANY, MagicMock, patch
 import jwt
 
 def test_profile_missing_bearer(client):
@@ -27,7 +27,7 @@ def test_profile_missing_sub_claim(mock_decode, client):
     assert response.status_code == 401
     assert response.json == {"error": "invalid token", "message": "Missing sub claim"}
 
-@patch("src.routes.profile.log_event")
+@patch("src.routes.profile.log_exception")
 @patch("src.routes.profile.SessionLocal")
 @patch("authentication_in_the_middle.decorators.pyjwt.decode")
 def test_profile_db_fetch_user_failed(mock_decode, mock_db_session, mock_log, client):
@@ -39,7 +39,11 @@ def test_profile_db_fetch_user_failed(mock_decode, mock_db_session, mock_log, cl
     response = client.get("/api/profile", headers={"Authorization": "Bearer 123"})
     assert response.status_code == 503
     assert response.json == {"error": "failed to fetch user profile"}
-    mock_log.assert_called_once_with("profile_db_fetch_failed", error_class="Exception", user_uuid="019e02b4-47e1-778a-9331-476e9f927bd9")
+    mock_log.assert_called_once_with(
+        "profile_db_fetch_failed",
+        ANY,
+        user_uuid="019e02b4-47e1-778a-9331-476e9f927bd9",
+    )
 
 @patch("src.routes.profile.SessionLocal")
 @patch("authentication_in_the_middle.decorators.pyjwt.decode")

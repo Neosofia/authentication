@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-import jwt
 import pytest
 
 from src.services.workos_bridge import (
@@ -8,13 +7,14 @@ from src.services.workos_bridge import (
     prepare_auth_session,
     provision_organization_external_id,
 )
+from tests.conftest import encode_test_access_token
 
 _ORG = "org_123"
 
 
 def _auth(claims, *, user_data=None, refresh="refresh-token"):
     r = MagicMock()
-    r.access_token = jwt.encode(claims, "secret", algorithm="HS256")
+    r.access_token = encode_test_access_token(claims)
     r.refresh_token = refresh
     r.user = MagicMock(id="user_123", external_id=(user_data or {}).get("external_id"))
     r.user.to_dict.return_value = user_data or {"id": "user_123"}

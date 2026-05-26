@@ -81,9 +81,3 @@ def test_container_builds_and_runs(app_container):
         assert res.json() == {"status": "error", "detail": "database unavailable"}
     else:
         assert res.json() == {"status": "ok"}
-
-def test_container_openapi_spec(app_container):
-    """Test that openapi.json is served properly from within the container."""
-    res = requests.get(f"{app_container}/openapi.json")
-    assert res.status_code == 200
-    assert "openapi" in res.json()

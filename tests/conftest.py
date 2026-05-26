@@ -1,6 +1,8 @@
 import base64
 import json
 import os
+
+import jwt
 import pytest
 from pathlib import Path
 from jsonschema import validate
@@ -19,6 +21,15 @@ TEST_PUBLIC_KEY_PEM = test_private_key.public_key().public_bytes(
     encoding=serialization.Encoding.PEM,
     format=serialization.PublicFormat.SubjectPublicKeyInfo
 ).decode("utf-8")
+
+# RFC 7518 §3.2: HS256 keys should be >= 32 bytes (avoids PyJWT InsecureKeyLengthWarning).
+TEST_HS256_SIGNING_KEY = "test-workos-access-token-signing-key-32b"
+
+
+def encode_test_access_token(claims: dict) -> str:
+    """Encode a mock WorkOS access-token JWT for tests."""
+    return jwt.encode(claims, TEST_HS256_SIGNING_KEY, algorithm="HS256")
+
 
 # Set required environment variables before importing app
 os.environ["CSRF_SECRET_KEY"] = "test-csrf-secret"

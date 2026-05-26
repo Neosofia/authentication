@@ -3,8 +3,8 @@ from authentication_in_the_middle.decorators import with_authentication
 from sqlalchemy import select
 
 from src.config import settings
-from src.bootstrap.extensions import csrf
-from src.bootstrap.logging import log_event
+from src.bootstrap.extensions import limiter
+from src.bootstrap.logging import log_exception
 from src.db.engine import SessionLocal
 from src.models.user import User
 from src.models.tenant import Tenant
@@ -13,7 +13,7 @@ bp = Blueprint("profile", __name__, url_prefix="/api")
 
 
 @bp.route("/profile")
-@csrf.exempt
+@limiter.limit("60 per minute")
 @with_authentication(
     public_key=settings.jwt_public_key_pem,
     audience=settings.jwt_web_audience,
@@ -52,7 +52,7 @@ def profile():
                 if tenant:
                     tenant_name = tenant.name
     except Exception as e:
-        log_event("profile_db_fetch_failed", error_class=type(e).__name__, user_uuid=user_uuid)
+        log_exception("profile_db_fetch_failed", e, user_uuid=user_uuid)
         return jsonify({"error": "failed to fetch user profile"}), 503
 
     roles = claims.get(f"{settings.jwt_claim_namespace}:roles", [])
