@@ -8,11 +8,13 @@ Platform tenant claims (workos_tenant_id, workos_tenant_name, tenant_uuid) are r
 only from the WorkOS access-token JWT custom-claims template — no fallbacks.
 """
 
+import uuid
 from typing import Any
 
 import jwt
 
 from src.config import settings
+from src.bootstrap.extensions import workos_client
 from src.bootstrap.logging import log_event
 
 
@@ -47,7 +49,88 @@ def _non_empty_str(value: Any) -> str | None:
     return stripped or None
 
 
-def _decode_access_token_claims(auth_response: Any, access_token_str: str | None = None) -> dict[str, Any]:
+def provision_user_external_id(user_id: str, user_data: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    if _non_empty_str(user_data.get("external_id")):
+        return user_data, False
+
+    new_person_id = str(uuid.uuid7())
+    try:
+        updated_user = workos_client.user_management.update_user(
+            id=user_id,
+            external_id=new_person_id,
+        )
+        log_event("person_id_generated", user_id=user_id, person_id=new_person_id)
+        return updated_user.to_dict(), True
+    except Exception as exc:
+        log_event("person_id_generation_error", error_class=type(exc).__name__, user_id=user_id)
+        return user_data, False
+
+
+def provision_organization_external_id(workos_tenant_id: str) -> bool:
+    try:
+        workos_client.organizations.update_organization(
+            id=workos_tenant_id,
+            external_id=str(uuid.uuid7()),
+        )
+        log_event("tenant_uuid_provisioned", workos_tenant_id=workos_tenant_id)
+        return True
+    except Exception as exc:
+        log_event(
+            "tenant_uuid_provision_error",
+            error_class=type(exc).__name__,
+            workos_tenant_id=workos_tenant_id,
+        )
+        return False
+
+
+def refresh_workos_session(auth_response: Any, *, workos_tenant_id: str) -> Any:
+    refresh_token = getattr(auth_response, "refresh_token", None)
+    if not refresh_token:
+        log_event(
+            "session_refresh_skipped",
+            reason="no refresh_token",
+            workos_tenant_id=workos_tenant_id,
+        )
+        return auth_response
+
+    try:
+        return workos_client.user_management.authenticate_with_refresh_token(
+            refresh_token=refresh_token,
+            organization_id=workos_tenant_id,
+        )
+    except Exception as exc:
+        log_event(
+            "session_refresh_error",
+            error_class=type(exc).__name__,
+            workos_tenant_id=workos_tenant_id,
+        )
+        return auth_response
+
+
+def prepare_auth_session(auth_response: Any) -> tuple[Any, dict[str, Any], dict[str, Any]]:
+    user = getattr(auth_response, "user", None)
+    user_id = getattr(user, "id", "unknown") if user else "unknown"
+    user_data = user.to_dict() if user else {}
+
+    user_data, user_provisioned = provision_user_external_id(user_id, user_data)
+
+    token_claims = decode_access_token_claims(auth_response)
+    workos_tenant_id = _non_empty_str(token_claims.get("workos_tenant_id")) or ""
+    tenant_uuid_missing = not _non_empty_str(token_claims.get("tenant_uuid"))
+
+    if tenant_uuid_missing:
+        provision_organization_external_id(workos_tenant_id)
+
+    if user_provisioned or tenant_uuid_missing:
+        auth_response = refresh_workos_session(auth_response, workos_tenant_id=workos_tenant_id)
+        user = getattr(auth_response, "user", None)
+        if user:
+            user_data = user.to_dict()
+
+    return auth_response, user_data, extract_platform_claims(auth_response)
+
+
+def decode_access_token_claims(auth_response: Any, access_token_str: str | None = None) -> dict[str, Any]:
     access_token = access_token_str or getattr(auth_response, "access_token", None)
     if not access_token:
         return {}
@@ -73,7 +156,7 @@ def extract_platform_claims(
     else:
         user_id = getattr(user, "id", "unknown") if user else "unknown"
 
-    access_token_claims = _decode_access_token_claims(auth_response, access_token_str)
+    access_token_claims = decode_access_token_claims(auth_response, access_token_str)
 
     workos_roles = access_token_claims.get("roles")
     workos_role = access_token_claims.get("role")

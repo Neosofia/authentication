@@ -55,7 +55,7 @@ Key architectural decisions:
 ### Identity & Authentication
 
 - **Delegated identity provider (WorkOS AuthKit)** — passwords, MFA, federation, account lockout, and user lifecycle are owned by a HIPAA-eligible identity platform. We are a relying party, not a credential store. ([ADR-0007](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md))
-- **OAuth 2.0 `state` parameter** — a 32-byte cryptographic random value is bound to a `HttpOnly`/`Secure`/`SameSite=Lax` cookie with a 5-minute TTL and verified at `/callback`. Mismatch aborts the flow, defeating OAuth CSRF and session-fixation attacks ([CWE-352](https://cwe.mitre.org/data/definitions/352.html), [CWE-384](https://cwe.mitre.org/data/definitions/384.html)).
+- **OAuth 2.0 `state` parameter** — a 32-byte cryptographic random value is generated at `/login`, stored in Flask's signed session (along with the PKCE `code_verifier`), and verified at `/callback`. Mismatch aborts the flow, defeating OAuth CSRF and session-fixation attacks ([CWE-352](https://cwe.mitre.org/data/definitions/352.html), [CWE-384](https://cwe.mitre.org/data/definitions/384.html)).
 - **PKCE** ([RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)) — a 128-character code verifier with SHA-256 challenge (`S256`) protects against authorization-code interception.
 - **Role allow-list** — `VALID_ROLES` (required env var) defines accepted WorkOS org membership roles. Unknown roles are rejected fail-closed ([CWE-863](https://cwe.mitre.org/data/definitions/863.html)). The service refuses to start if `VALID_ROLES` is unset or empty.
 
@@ -70,7 +70,7 @@ Key architectural decisions:
 ### Session Management
 
 - **Sealed session cookie (WorkOS SDK)** — AES-256-GCM + HMAC with a 32-character platform-supplied cookie password. Tampering is detected at decryption.
-- **Cookie hardening** — all cookies set with `HttpOnly`, `Secure` (production), `SameSite=Lax`, `path="/"`.
+- **Cookie hardening** — the sealed `wos_session` cookie is set (and cleared on logout) with `HttpOnly`, `Secure`, `SameSite=None`, and `path="/"`. `SameSite=None` is required because the CDP UI and this service run on different origins and the browser sends the cookie on credentialed `POST /api/token` requests via CORS. Set and delete must use identical attributes or browsers retain the cookie. OAuth `state` and PKCE verifier are not separate browser cookies; they live in Flask's signed session.
 - **Stateless architecture** — no server-side session store; aligns with Constitution §VII.
 - **`CSRF_SECRET_KEY` is the trust anchor for both CSRF and OAuth state** — the OAuth `state` parameter and PKCE `code_verifier` are stored in Flask's signed session cookie, which is protected by `CSRF_SECRET_KEY`. Compromising this key defeats both the CSRF check and the OAuth state binding. **Rotate `CSRF_SECRET_KEY` and `WORKOS_COOKIE_PASSWORD` together** on the same cadence (generate independently with `openssl rand -hex 32` / `openssl rand -base64 32`). A rotation requires a brief service restart; all in-flight sessions are invalidated at that point.
 
@@ -93,10 +93,10 @@ Key architectural decisions:
 The CDP UI is a public SPA client and is **not** registered as a platform service.
 
 - **JWT stored in React state (in-memory)** — The platform JWT returned by `POST /api/token` is held in JS memory, not `localStorage` or a cookie. This is the OWASP-preferred storage for SPA access tokens: in-memory state is not persisted to disk, not accessible by other origins, and is destroyed on tab close. ([OWASP Cheat Sheet: Storing tokens](https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html))
-- **Short TTL bounds exposure** — Human JWTs expire in 15 minutes. An XSS that exfiltrates the token has a maximum 15-minute replay window; the sealed `wos_session` credential remains in an `HttpOnly`/`Secure` cookie and is not accessible to JS.
-- **Real credential stays HttpOnly** — The upstream credential (`wos_session`) is sealed with AES-256-GCM and served as `HttpOnly`/`Secure`/`SameSite=Lax`. Even a successful XSS cannot exfiltrate it.
+- **Short TTL bounds exposure** — Human JWTs expire in 15 minutes. An XSS that exfiltrates the token has a maximum 15-minute replay window; the sealed `wos_session` credential remains in an `HttpOnly`/`Secure`/`SameSite=None` cookie and is not accessible to JS.
+- **Real credential stays HttpOnly** — The upstream credential (`wos_session`) is sealed with AES-256-GCM and served as `HttpOnly`/`Secure`/`SameSite=None`. Even a successful XSS cannot exfiltrate it.
 - **CSP `script-src 'self'`** — Talisman enforces this in production, substantially narrowing the XSS surface.
-- **Rec §3.4 evaluated and accepted as-is** — Issuing the JWT into an `HttpOnly` cookie (the "Token Handler" / BFF pattern) was considered. The tradeoffs — CORS complexity, `credentials: 'include'` on every API call, additional cookie scoping requirements — outweigh the marginal gain given the 15-minute TTL and the HttpOnly sealed session already protecting the real credential. Re-evaluate if the JWT TTL is extended beyond 15 minutes or if the SPA is served from a different origin than the API.
+- **Rec §3.4 evaluated and accepted as-is** — Issuing the JWT into an `HttpOnly` cookie (the "Token Handler" / BFF pattern) was considered. The tradeoffs outweigh the marginal gain given the 15-minute TTL and the HttpOnly sealed session already protecting the real credential. The UI and this service are already cross-origin (`FRONTEND_URL`); credentialed CORS to `/api/token` depends on `SameSite=None` on `wos_session`. Re-evaluate the BFF pattern if the JWT TTL is extended beyond 15 minutes.
 
 ### Web-Layer Defenses
 
@@ -129,7 +129,7 @@ All non-public routes either require a Bearer JWT (admin, profile, services) or 
 |---|---|
 | Credential theft of signing key | Private key only in env vars; unprivileged container user |
 | JWT forgery | RS256 + iss + aud + exp validation |
-| Session hijacking | `HttpOnly`, `Secure`, `SameSite=Lax`; AES-256-GCM sealed cookie |
+| Session hijacking | `HttpOnly`, `Secure`, `SameSite=None`; AES-256-GCM sealed cookie |
 | Session fixation / OAuth CSRF | `state` + PKCE |
 | Auth code interception | PKCE (RFC 7636) |
 | Cross-service token replay | Per-service `aud` claim |

@@ -3,7 +3,6 @@ import hashlib
 import json
 import os
 import secrets
-import uuid
 from typing import cast
 
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
@@ -20,6 +19,37 @@ from src.services.identity import sync_identity_data
 from src.services import workos_bridge
 
 bp = Blueprint("auth", __name__)
+
+_WOS_SESSION_COOKIE = {"path": "/", "secure": True, "httponly": True, "samesite": "none"}
+
+
+def _set_wos_session_cookie(response, value: str):
+    response.set_cookie("wos_session", value, **_WOS_SESSION_COOKIE)
+    return response
+
+
+def _clear_wos_session_cookie(response):
+    response.delete_cookie("wos_session", **_WOS_SESSION_COOKIE)
+    return response
+
+
+def _frontend_auth_callback_url() -> str:
+    base = os.getenv("FRONTEND_URL", "/").rstrip("/")
+    if not base:
+        return "/?auth=callback"
+    return f"{base}?auth=callback"
+
+
+def _resolve_workos_session_id(session) -> str | None:
+    auth_response = session.authenticate()
+    if getattr(auth_response, "authenticated", False):
+        return auth_response.session_id
+
+    refresh_response = session.refresh()
+    if getattr(refresh_response, "authenticated", False):
+        return refresh_response.session_id
+
+    return None
 
 
 def _base64url_encode(data: bytes) -> str:
@@ -126,26 +156,7 @@ def callback():
         )
 
         user_id = auth_response.user.id if auth_response.user else "unknown"
-        user_data = auth_response.user.to_dict() if auth_response.user else {}
-
-        # Check for UUIDv7 (Person ID) on WorkOS User, or generate/persist one
-        if "external_id" not in user_data or not user_data.get("external_id"):
-            new_person_id = str(uuid.uuid7())
-            
-            # Persist the newly generated Person ID to WorkOS User
-            try:
-                updated_user = workos_client.user_management.update_user(
-                    id=user_id,
-                    external_id=new_person_id,
-                )
-                user_data = updated_user.to_dict()
-                log_event("person_id_generated", user_id=user_id, person_id=new_person_id)
-            except Exception as e:
-                log_event("person_id_generation_error", error_class=type(e).__name__, user_id=user_id)
-                # Keep going with the old user data so login does not fail entirely
-        # We now rely exclusively on the WorkOS Custom Claims template.
-        # No SDK API calls, no DB lookups, no mapping fallbacks.
-        claims = workos_bridge.extract_platform_claims(auth_response)
+        auth_response, user_data, claims = workos_bridge.prepare_auth_session(auth_response)
         
         # Best effort DB sync for caching profile data
         sync_identity_data(
@@ -167,15 +178,8 @@ def callback():
             cookie_password=cookie_password,
         )
 
-        response = make_response(redirect(os.getenv("FRONTEND_URL", "/")))
-        response.set_cookie(
-            "wos_session",
-            sealed_session,
-            secure=True,
-            httponly=True,
-            samesite="none",
-            path="/",
-        )
+        response = make_response(redirect(_frontend_auth_callback_url()))
+        _set_wos_session_cookie(response, sealed_session)
         # Clean up OAuth state and PKCE cookies after successful exchange
         log_event("authentication_success", user_id=user_id, method="workos")
         return response
@@ -204,27 +208,36 @@ def logout():
     Returns: 302 redirect to / after revoking session and clearing cookie
     Ref: specs/014-authentication-service/spec.md (session revocation)
     """
+    frontend_url = os.getenv("FRONTEND_URL", "/")
+
     try:
         sealed_session = request.cookies.get("wos_session")
         if not sealed_session:
             log_event("logout_failure", reason="No session found")
-            return redirect(os.getenv("FRONTEND_URL", "/"))
+            return _clear_wos_session_cookie(make_response(redirect(frontend_url)))
 
         session = workos_client.user_management.load_sealed_session(
             session_data=sealed_session,
             cookie_password=cookie_password,
         )
-        logout_url = session.get_logout_url()
-        response = make_response(redirect(logout_url))
-        response.delete_cookie("wos_session")
-        log_event("session_revoked", reason="User initiated logout")
-        return response
+        session_id = _resolve_workos_session_id(session)
+
+        if session_id:
+            logout_url = workos_client.user_management.get_logout_url(
+                session_id=session_id,
+                return_to=frontend_url,
+            )
+            response = make_response(redirect(logout_url))
+            log_event("session_revoked", reason="User initiated logout")
+        else:
+            log_event("logout_failure", reason="Could not resolve WorkOS session for logout")
+            response = make_response(redirect(frontend_url))
+
+        return _clear_wos_session_cookie(response)
 
     except Exception as e:
         log_event("logout_failure", error_class=type(e).__name__)
-        response = make_response(redirect(os.getenv("FRONTEND_URL", "/")))
-        response.delete_cookie("wos_session")
-        return response
+        return _clear_wos_session_cookie(make_response(redirect(frontend_url)))
 
 
 @bp.route("/csrf-token")

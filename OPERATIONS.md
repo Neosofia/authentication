@@ -48,10 +48,10 @@ Copy the **environment-level credentials** from **API Keys** on the overview pag
 
 ### JWT Template
 
-The authentication service requires a WorkOS custom claims template that exposes tenant metadata in the session JWT. Configure this in your IdP so the service can map the organization into its expected tenant fields.
+The service reads tenant fields **only** from the WorkOS access-token JWT (custom-claims template). It does not use `org_id`, auth-response `organization_id`, or database lookups as substitutes.
 
-1. Go to **Organizations** and configure your organization settings.
-2. Under **Custom Claims** add the following template:
+1. In the WorkOS Dashboard go to **Authentication → Sessions → Custom claims**.
+2. Add this template:
 
 ```json
 {
@@ -61,7 +61,16 @@ The authentication service requires a WorkOS custom claims template that exposes
 }
 ```
 
-> **Note**: This template is required for the auth service to recognize the tenant. All users must also have an organization membership with a recognized role. Users without an org are rejected at token issuance.
+`workos_tenant_id` is the WorkOS organization id; `tenant_uuid` is the platform tenant UUID (`organization.external_id`). They are not interchangeable.
+
+**OAuth callback** (before sealing the session):
+
+1. **User** — if `user.external_id` is empty, generate UUIDv7 and `update_user` (using the WorkOS `user_id` as the API key).
+2. **Organization** — if the JWT has `workos_tenant_id` but no `tenant_uuid`, `update_organization` to set `external_id` to UUIDv7 (using `workos_tenant_id` as the API key).
+3. **Session refresh** — if either step ran or the JWT still lacks `tenant_uuid`, `authenticate_with_refresh_token` so the access token and `auth_response.user` reflect the new `external_id` values.
+4. **Claims** — read `workos_tenant_id`, `workos_tenant_name`, and `tenant_uuid` from the JWT only (no fallbacks).
+
+All users must have organization membership and a role in `VALID_ROLES`.
 
 ### Session Timeouts
 
@@ -84,10 +93,10 @@ The authentication service requires a WorkOS custom claims template that exposes
 #### Organization
 
 > [!CAUTION]
-> **Do not use the "Default Test Organization" automatically created by WorkOS.** WorkOS prevents API updates to default test organizations, which causes an `AuthorizationError` when this service attempts to generate and save a UUIDv7 `external_id` for the organization during login. You must explicitly create a new organization.
+> **Do not use the "Default Test Organization" automatically created by WorkOS.** WorkOS blocks API updates on that org; login will fail when the callback tries to set `external_id`. Create your own organization instead.
 
 1. Go to **Organizations** → **Create Organization**.
-2. Name it e.g. `Neosofia Test Clinic`.
+2. Name it e.g. `Neosofia Test Clinic` (the callback will set **External ID** on first login if it is empty).
 3. Go to roles and create your application roles (e.g. `admin` and `member`).
 
 #### Test user

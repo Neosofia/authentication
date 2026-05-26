@@ -112,4 +112,4 @@ SCHEMAS_DIR=../schemas uv run pytest tests/integration/test_container.py -v --no
 | Blank page after login | Check browser console; verify `src/templates/index.html` exists |
 | "Error authenticating with code" | Check `WORKOS_API_KEY`, `WORKOS_CLIENT_ID`, and that redirect URI matches WorkOS dashboard; code expires after 10 min |
 | Logout doesn't show WorkOS form on next login | Verify `WORKOS_COOKIE_PASSWORD` is a valid 32-character string |
-| Session cookie missing after login | Check `auth_response.sealed_session` is non-empty; check DevTools → Application → Cookies for `wos_session` |
+| Session cookie missing after login | Check `auth_response.sealed_session` is non-empty; DevTools → Cookies for `wos_session` (`Secure`, `SameSite=None`). UI origin must match `FRONTEND_URL` (CORS + credentialed `/api/token`) |

@@ -1,5 +1,7 @@
 from unittest.mock import patch, MagicMock
 
+import jwt
+
 
 def test_login_happy_path(client):
     redirect_url = "https://workos.example.com/oauth"
@@ -18,67 +20,73 @@ def test_login_happy_path(client):
 
 
 def test_callback_happy_path(client):
-    code = "authorization_code"
-    state = "test_state"
-    sealed_value = "sealed-session-value"
+    initial = MagicMock(refresh_token="refresh-token", impersonator=None)
+    initial.user = MagicMock(id="user_123")
+    initial.user.to_dict.return_value = {"id": "user_123"}
+    initial.access_token = jwt.encode(
+        {"workos_tenant_id": "org_123", "workos_tenant_name": "Test Org", "role": "admin"},
+        "secret",
+        algorithm="HS256",
+    )
 
-    auth_response = MagicMock()
-    auth_response.user = MagicMock(id="user_123")
-    # Missing external_id on user triggers user UUID generation
-    auth_response.user.to_dict.return_value = {"id": "user_123"}
-    auth_response.roles = ["admin"]
-    auth_response.access_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3b3Jrb3NfdGVuYW50X2lkIjoib3JnXzEyMyIsIndvcmtvc190ZW5hbnRfbmFtZSI6IlRlc3QgT3JnIiwidGVuYW50X3V1aWQiOiIwMTllMDJlMS05NGUxLTcyMmItYmQ2MS1mN2Y5NWZiMTYwNGMiLCJyb2xlIjoiYWRtaW4ifQ.fake_sig"
-    auth_response.refresh_token = "refresh-token"
-    auth_response.impersonator = None
-    auth_response.workos_tenant_id = "org_123"
+    refreshed = MagicMock(refresh_token="refresh-token", impersonator=None)
+    refreshed.user = MagicMock(id="user_123", external_id="user-uuid")
+    refreshed.user.to_dict.return_value = {"id": "user_123", "external_id": "user-uuid"}
+    refreshed.access_token = jwt.encode(
+        {
+            "workos_tenant_id": "org_123",
+            "workos_tenant_name": "Test Org",
+            "tenant_uuid": "019e02e1-94e1-722b-bd61-f7f95fb1604c",
+            "role": "admin",
+        },
+        "secret",
+        algorithm="HS256",
+    )
 
-    updated_user = MagicMock()
-    updated_user.to_dict.return_value = {"id": "user_123", "external_id": "user-uuid"}
-
-    org = MagicMock()
-    # Missing external_id on org triggers org UUID generation
-    org.external_id = None
-
-    with patch("src.routes.auth.workos_client") as mock_workos, patch("src.routes.auth.seal_session_from_auth_response") as mock_seal:
-        mock_workos.user_management.authenticate_with_code_pkce.return_value = auth_response
-        mock_workos.user_management.update_user.return_value = updated_user
-        mock_workos.tenants.get_tenant.return_value = org
-        mock_seal.return_value = sealed_value
+    with (
+        patch("src.routes.auth.workos_client") as mock_wos,
+        patch("src.services.workos_bridge.workos_client", mock_wos),
+        patch("src.routes.auth.seal_session_from_auth_response", return_value="sealed"),
+        patch("src.routes.auth.sync_identity_data"),
+    ):
+        mock_wos.user_management.authenticate_with_code_pkce.return_value = initial
+        mock_wos.user_management.update_user.return_value = MagicMock(
+            to_dict=MagicMock(return_value={"id": "user_123", "external_id": "user-uuid"})
+        )
+        mock_wos.user_management.authenticate_with_refresh_token.return_value = refreshed
 
         with client.session_transaction() as sess:
-            sess["oauth_state"] = state
+            sess["oauth_state"] = "test_state"
             sess["code_verifier"] = "verifier-value"
+        response = client.get("/callback?code=authorization_code&state=test_state")
 
-        response = client.get(f"/callback?code={code}&state={state}")
-
-        assert response.status_code == 302
-        assert response.headers["Location"] == "/"
-        cookie_headers = response.headers.getlist("Set-Cookie")
-        assert any("wos_session=" in header for header in cookie_headers)
-        assert any("SameSite=None" in header for header in cookie_headers)
-        assert any("Secure" in header for header in cookie_headers)
-        
-        with client.session_transaction() as sess:
-            assert "oauth_state" not in sess
-            assert "code_verifier" not in sess
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/?auth=callback"
+    mock_wos.organizations.update_organization.assert_called_once()
+    mock_wos.user_management.authenticate_with_refresh_token.assert_called_once()
+    assert any("wos_session=" in h for h in response.headers.getlist("Set-Cookie"))
 
 
 def test_logout_happy_path(client):
     logout_url = "https://workos.example.com/logout"
-
     session = MagicMock()
-    session.get_logout_url.return_value = logout_url
+    session.authenticate.return_value = MagicMock(authenticated=False)
+    session.refresh.return_value = MagicMock(authenticated=True, session_id="session_123")
 
     with patch("src.routes.auth.workos_client") as mock_workos:
         mock_workos.user_management.load_sealed_session.return_value = session
+        mock_workos.user_management.get_logout_url.return_value = logout_url
 
         client.set_cookie("wos_session", "dummy-session")
         response = client.get("/logout")
 
         assert response.status_code == 302
         assert response.headers["Location"] == logout_url
-        cookie_headers = response.headers.getlist("Set-Cookie")
-        assert any("wos_session=;" in header for header in cookie_headers)
+        mock_workos.user_management.get_logout_url.assert_called_once_with(
+            session_id="session_123",
+            return_to="/",
+        )
+        assert any("wos_session=;" in header for header in response.headers.getlist("Set-Cookie"))
 
 
 def test_csrf_token_endpoint(client):

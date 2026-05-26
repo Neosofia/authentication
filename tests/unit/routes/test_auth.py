@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 def test_callback_csrf_state_mismatch_logs_and_redirects(client):
     with patch("src.routes.auth.log_event") as mock_log_event:
@@ -78,6 +78,24 @@ def test_logout_exception(mock_client, mock_log_event, client):
     mock_log_event.assert_called_once_with("logout_failure", error_class="Exception")
     assert response.status_code == 302
     assert response.headers["Location"] == "/"
+
+
+@patch("src.routes.auth.log_event")
+@patch("src.routes.auth.workos_client")
+def test_logout_uses_authenticate_before_refresh(mock_client, mock_log_event, client):
+    session = MagicMock()
+    session.authenticate.return_value = MagicMock(authenticated=True, session_id="session_abc")
+    mock_client.user_management.load_sealed_session.return_value = session
+    mock_client.user_management.get_logout_url.return_value = "https://workos.example.com/logout"
+
+    client.set_cookie("wos_session", "dummy-session")
+    client.get("/logout")
+
+    session.refresh.assert_not_called()
+    mock_client.user_management.get_logout_url.assert_called_once_with(
+        session_id="session_abc",
+        return_to="/",
+    )
     
 @patch("src.routes.auth.log_event")
 @patch("src.routes.auth.load_pem_public_key")
