@@ -168,7 +168,8 @@ def callback():
     except Exception as e:
         # Log only the exception class for safe diagnostics.
         log_exception("callback_error", e, method="workos")
-        response = make_response(redirect(url_for("auth.login")))
+        # Return to the UI — not /login — so a failed callback does not re-enter WorkOS immediately.
+        response = make_response(redirect(settings.frontend_url))
         return response
 
 

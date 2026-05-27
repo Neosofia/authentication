@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import time
 
 import jwt
 import pytest
@@ -9,6 +10,7 @@ from jsonschema import validate
 from jsonschema.validators import _RefResolver
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
+from unittest.mock import MagicMock, patch
 
 # Generate a test RSA keypair
 test_private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -22,13 +24,29 @@ TEST_PUBLIC_KEY_PEM = test_private_key.public_key().public_bytes(
     format=serialization.PublicFormat.SubjectPublicKeyInfo
 ).decode("utf-8")
 
-# RFC 7518 §3.2: HS256 keys should be >= 32 bytes (avoids PyJWT InsecureKeyLengthWarning).
-TEST_HS256_SIGNING_KEY = "test-workos-access-token-signing-key-32b"
-
 
 def encode_test_access_token(claims: dict) -> str:
     """Encode a mock WorkOS access-token JWT for tests."""
-    return jwt.encode(claims, TEST_HS256_SIGNING_KEY, algorithm="HS256")
+    now = int(time.time())
+    payload = {
+        "iss": "https://api.workos.com",
+        "sub": "user_123",
+        "client_id": os.environ["WORKOS_CLIENT_ID"],
+        "iat": now,
+        "exp": now + 3600,
+        **claims,
+    }
+    return jwt.encode(payload, TEST_PRIVATE_KEY_PEM, algorithm="RS256")
+
+
+@pytest.fixture(autouse=True)
+def _mock_workos_access_token_jwks():
+    signing_key = MagicMock()
+    signing_key.key = TEST_PUBLIC_KEY_PEM
+    jwks_client = MagicMock()
+    jwks_client.get_signing_key_from_jwt.return_value = signing_key
+    with patch("src.services.workos_bridge._workos_jwks_client", return_value=jwks_client):
+        yield
 
 
 # Set required environment variables before importing app

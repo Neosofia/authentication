@@ -90,7 +90,7 @@ def test_callback_exception(mock_client, mock_log_exception, client):
     response = client.get("/callback?code=fake_code&state=test_state")
     mock_log_exception.assert_called_once_with("callback_error", ANY, method="workos")
     assert response.status_code == 302
-    assert "/login" in response.headers["Location"]
+    assert response.headers["Location"] == settings.frontend_url
 
 @patch("src.routes.auth.log_event")
 def test_logout_no_session(mock_log_event, client):
