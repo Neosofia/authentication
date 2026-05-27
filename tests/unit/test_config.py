@@ -51,3 +51,16 @@ def test_rejects_same_database_user():
             migration_database_url=url,
             app_database_url=url,
         )
+
+
+def test_empty_env_int_uses_default(monkeypatch):
+    """Railway and similar platforms inject empty strings for unset optional vars."""
+    monkeypatch.setenv("PORT", "")
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "")
+    settings = Settings(
+        **_BASE,
+        migration_database_url=MIGRATION_URL,
+        app_database_url=APP_URL,
+    )
+    assert settings.port == 8014
+    assert settings.trusted_proxy_hops == 1
