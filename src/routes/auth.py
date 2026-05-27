@@ -6,7 +6,7 @@ from flask import Blueprint, jsonify, make_response, redirect, request, url_for,
 from workos.session import seal_session_from_auth_response
 
 from src.config import settings
-from src.bootstrap.extensions import limiter, workos_client
+from src.bootstrap.extensions import limiter, talisman, workos_client
 from src.bootstrap.logging import log_event, log_exception
 from src.services.cookies import clear_wos_session_cookie, set_wos_session_cookie
 from src.services.jwks import pem_to_jwk
@@ -217,6 +217,7 @@ def logout():
 
 
 @bp.route("/.well-known/jwks.json")
+@talisman(force_https=False)
 def jwks():
     """
     Publish RSA public key(s) as JWK Set for JWT validation.

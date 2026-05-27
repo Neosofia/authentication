@@ -1,14 +1,13 @@
 from dotenv import load_dotenv
 from flask import Flask
 from flask_cors import CORS
-from flask_talisman import Talisman
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv()  # no-op in containers where env vars come from the runtime
 
 # Extensions must be imported after load_dotenv so env vars are available.
 from src.config import settings  # noqa: E402
-from src.bootstrap.extensions import limiter  # noqa: E402
+from src.bootstrap.extensions import limiter, talisman  # noqa: E402
 from src.bootstrap.logging import setup_logging  # noqa: E402
 from src.routes import auth, token, profile, health, services  # noqa: E402
 
@@ -52,7 +51,7 @@ def create_app(config: dict | None = None) -> Flask:
             x_host=settings.trusted_proxy_hops,
             x_prefix=settings.trusted_proxy_hops,
         )
-        Talisman(
+        talisman.init_app(
             app,
             force_https=True,
             strict_transport_security=True,

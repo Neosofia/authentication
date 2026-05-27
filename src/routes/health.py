@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
 from sqlalchemy import text
 
+from src.bootstrap.extensions import talisman
 from src.db.engine import SessionLocal
 from src.bootstrap.logging import log_event, log_exception
 
@@ -8,6 +9,7 @@ bp = Blueprint("health", __name__, url_prefix="")
 
 
 @bp.route("/health")
+@talisman(force_https=False)
 def health():
     """
     Liveness and readiness probe for Kubernetes/Docker orchestration.

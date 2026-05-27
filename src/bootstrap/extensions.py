@@ -1,5 +1,6 @@
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_talisman import Talisman
 from workos import WorkOSClient
 
 from src.config import settings
@@ -13,6 +14,8 @@ limiter = Limiter(
     default_limits=[],
     storage_uri=settings.ratelimit_storage_uri,
 )
+
+talisman = Talisman()
 
 workos_client = WorkOSClient(
     api_key=settings.workos_api_key,

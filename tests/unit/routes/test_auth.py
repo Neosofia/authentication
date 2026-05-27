@@ -1,6 +1,38 @@
+import os
 from unittest.mock import ANY, MagicMock, patch
 
+from src.app import create_app
 from src.config import settings
+
+
+def _production_settings():
+    return settings.__class__(
+        env="production",
+        database_url=os.environ["DATABASE_URL"],
+        csrf_secret_key=os.environ["CSRF_SECRET_KEY"],
+        workos_cookie_password=os.environ["WORKOS_COOKIE_PASSWORD"],
+        valid_roles=os.environ["VALID_ROLES"],
+        jwt_private_key_pem=os.environ["JWT_PRIVATE_KEY_PEM"],
+        jwt_public_key_pem=os.environ["JWT_PUBLIC_KEY_PEM"],
+        workos_api_key=os.environ["WORKOS_API_KEY"],
+        workos_client_id=os.environ["WORKOS_CLIENT_ID"],
+        frontend_url="https://example.com",
+    )
+
+
+def test_jwks_allows_plain_http_in_production():
+    """Private-mesh JWKS fetch uses HTTP; must not 302 to HTTPS."""
+    import src.app as app_module
+
+    original = app_module.settings
+    app_module.settings = _production_settings()
+    try:
+        response = create_app().test_client().get("/.well-known/jwks.json")
+        assert response.status_code == 200
+        assert response.headers.get("Location") is None
+        assert "keys" in response.get_json()
+    finally:
+        app_module.settings = original
 
 
 def test_callback_csrf_state_mismatch_logs_and_redirects(client):
