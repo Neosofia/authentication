@@ -25,8 +25,7 @@ coverage.xml
 .env
 .local.env
 .env.*
-!.env.example
-*.env
+!.env*.example
 ops.env
 ops.env.sample
 .dev.env

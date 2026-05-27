@@ -9,7 +9,7 @@ class Base(DeclarativeBase):
     pass
 
 
-engine = create_engine(settings.database_url, echo=False, poolclass=NullPool)
+engine = create_engine(settings.app_database_url, echo=False, poolclass=NullPool)
 
 SessionLocal = sessionmaker(
     bind=engine,

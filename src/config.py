@@ -4,8 +4,24 @@ import logging
 import os
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_database_urls(migration_database_url: str, app_database_url: str) -> None:
+    if not migration_database_url.strip():
+        raise ValueError("MIGRATION_DATABASE_URL must be set")
+    if not app_database_url.strip():
+        raise ValueError("APP_DATABASE_URL must be set")
+
+    migration = make_url(migration_database_url)
+    app = make_url(app_database_url)
+    if migration.username == app.username:
+        raise ValueError(
+            "MIGRATION_DATABASE_URL and APP_DATABASE_URL must use different users; "
+            f"both are {migration.username!r}"
+        )
 
 
 def _load_secrets_manager() -> dict:
@@ -49,7 +65,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str = ""
+    app_database_url: str = ""
+    migration_database_url: str = ""
     jwt_private_key_pem: str = ""
     jwt_public_key_pem: str = ""
     jwt_previous_public_key_pem: str = ""  # set during key rotation overlap window
@@ -86,8 +103,7 @@ class Settings(BaseSettings):
         return f"{base}?auth=callback"
 
     def model_post_init(self, __context: object) -> None:
-        if not self.database_url.strip():
-            raise ValueError("DATABASE_URL must be set")
+        _validate_database_urls(self.migration_database_url, self.app_database_url)
 
         if not self.csrf_secret_key.strip():
             raise ValueError("CSRF_SECRET_KEY must be set")
@@ -156,8 +172,7 @@ def _build_settings() -> Settings:
     if sm_values:
         # Inject fetched values as environment variables so pydantic-settings
         # picks them up at its normal env-var priority level, while still
-        # allowing explicit env vars (e.g. set in docker-compose.cloud.yml)
-        # to override individual keys.
+        # allowing explicit env vars to override individual keys.
         for key, value in sm_values.items():
             os.environ.setdefault(key, str(value))
     return Settings()  # type: ignore[call-arg]

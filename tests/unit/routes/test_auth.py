@@ -8,7 +8,8 @@ from src.config import settings
 def _production_settings():
     return settings.__class__(
         env="production",
-        database_url=os.environ["DATABASE_URL"],
+        app_database_url=os.environ["APP_DATABASE_URL"],
+        migration_database_url=os.environ["MIGRATION_DATABASE_URL"],
         csrf_secret_key=os.environ["CSRF_SECRET_KEY"],
         workos_cookie_password=os.environ["WORKOS_COOKIE_PASSWORD"],
         valid_roles=os.environ["VALID_ROLES"],

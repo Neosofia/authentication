@@ -4,12 +4,8 @@
 #   docker compose -f docker-compose.yml -f docker-compose.cloud.yml up -d
 #
 # What changes vs local-dev:
-#   auth-postgres : bind-mount for backup, password from env_file, no host port exposed
-#   authentication: pre-built GHCR image, port 8000, no source mounts, restart + healthcheck
-#                   points AWS_ENDPOINT_URL at the shared LocalStack CT (CT 190)
-#
-# Note: !reset and !override YAML tags are not supported in Docker Compose v5.
-# Standard merge semantics apply — later file keys win for maps.
+#   auth-postgres : bind-mount for backup, credentials from env file, no host port exposed
+#   authentication: pre-built GHCR image, no source mounts, restart + healthcheck
 #
 # Secrets source: secrets service; checked out to /etc/authentication/env by deploy.sh
 # Data paths:     /var/lib/authentication/postgres (bind-mounted)
@@ -18,29 +14,23 @@ services:
   auth-postgres:
     pull_policy: always
     restart: unless-stopped
-    env_file: /etc/authentication/env      # provides POSTGRES_PASSWORD
-    environment:
-      POSTGRES_DB: auth
-      POSTGRES_USER: auth
-      # POSTGRES_PASSWORD comes from env_file above
-    ports: []                              # not exposed outside the compose network
+    env_file: /etc/authentication/env
+    ports: []
     volumes:
       - /var/lib/authentication/postgres:/var/lib/postgresql
 
   authentication:
-    build: ~                              # suppress local build — use pre-built image
+    build: ~
     image: ghcr.io/neosofia/authentication:latest
     pull_policy: never
     restart: unless-stopped
     depends_on:
       auth-postgres:
         condition: service_healthy
-    env_file: /etc/authentication/env        # all config injected by deploy.sh at deploy time
-    environment:
-      ENV: production
+    env_file: /etc/authentication/env
     ports:
       - "8014:8014"
-    volumes: []                           # image is immutable; no source mounts
+    volumes: []
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import httpx; httpx.get('http://localhost:8014/api/health')\" || exit 1"]
       interval: 30s

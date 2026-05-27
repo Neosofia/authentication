@@ -2,10 +2,10 @@ services:
   auth-postgres:
     image: postgres:18
     container_name: auth-postgres
-    environment:
-      POSTGRES_DB: auth
-      POSTGRES_USER: auth
-      POSTGRES_PASSWORD: dev_only
+    env_file:
+      - .env.postgres.example
+      - path: .env.postgres
+        required: false
     ports:
       - "5014:5432"
     volumes:
@@ -22,10 +22,9 @@ services:
       dockerfile: Dockerfile
     container_name: authentication
     env_file:
+      - .env.compose.example
       - path: .env
         required: false
-    environment:
-      ENV: development  # intentional — enables debug mode and disables Talisman/ProxyFix for local dev
     ports:
       - "8014:8014"
     depends_on:

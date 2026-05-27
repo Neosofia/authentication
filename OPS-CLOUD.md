@@ -18,13 +18,13 @@ Each of dev, staging, and prod needs its own WorkOS environment with its own `WO
 
 ### Step 2 — Generate cryptographic environment variables
 
-Follow [OPERATIONS.md §3](OPERATIONS.md#3-generate-environment-secrets) to run `setup-env.sh` and fill in the WorkOS credentials.
+Follow [OPERATIONS.md §3](OPERATIONS.md#3-generate-environment-secrets) to run `scripts/setup-env.py` and fill in the WorkOS credentials.
 
 > **Warning:** each environment needs its own `.env`. If you already have one from another environment, move it first (e.g. `mv .env .dev.env`) before running the script.
 
 ### Step 3 — Fill in the remaining variables
 
-See [OPERATIONS.md Appendix A](OPERATIONS.md#appendix-a-environment-variable-reference) for the full variable reference. Open `.env` and set the cloud-specific URL variables:
+See [OPERATIONS.md §5](OPERATIONS.md#5-database-roles-and-urls) for the required two-role database URL split, and [Appendix A](OPERATIONS.md#appendix-a-environment-variable-reference) for the full variable reference. Open `.env` and set the cloud-specific URL variables:
 
 ```bash
 $EDITOR .env

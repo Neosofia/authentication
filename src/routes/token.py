@@ -126,7 +126,7 @@ def _handle_session_grant():
 
 def _handle_client_credentials():
     """OAuth2 client_credentials grant for service-to-service tokens."""
-    if not settings.database_url:
+    if not settings.app_database_url:
         return jsonify({"error": "database not configured"}), 503
 
     # Support both application/x-www-form-urlencoded and application/json bodies
