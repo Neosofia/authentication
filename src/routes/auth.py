@@ -45,7 +45,7 @@ def login():
     to prevent session fixation attacks (RFC 6819, RFC 7636).
     
     Returns: 302 redirect to WorkOS authorization endpoint
-    Ref: ADR-0007 (never roll your own authentication), specs/014-authentication-service/spec.md
+    Ref: ADR-0007 (never roll your own authentication), specs/014-authentication-service.md
     """
     redirect_uri = settings.workos_redirect_uri
     
@@ -88,7 +88,7 @@ def callback():
     Handles missing code, OAuth errors, or state mismatch by redirecting to login.
     
     Returns: 302 redirect to / on success, /login on error
-    Ref: specs/014-authentication-service/spec.md (sealed session, token sealing), RFC 6819 §4.4.1.8
+    Ref: specs/014-authentication-service.md (sealed session, token sealing), RFC 6819 §4.4.1.8
     """
     code = request.args.get("code")
     error = request.args.get("error")
@@ -182,7 +182,7 @@ def logout():
     and deletes wos_session cookie. Gracefully handles missing session or errors.
     
     Returns: 302 redirect to / after revoking session and clearing cookie
-    Ref: specs/014-authentication-service/spec.md (session revocation)
+    Ref: specs/014-authentication-service.md (session revocation)
     """
     frontend_url = settings.frontend_url
 

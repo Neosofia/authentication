@@ -34,7 +34,7 @@ def token():
        - Returns: {"access_token": "<jwt>", "token_type": "Bearer", "expires_in": <seconds>}
        - Status: 200 (success), 401 (invalid credentials), 503 (DB/config unavailable)
 
-    Ref: specs/014-authentication-service/spec.md, RFC 6749 (OAuth2)
+    Ref: specs/014-authentication-service.md, RFC 6749 (OAuth2)
     """
     if request.is_json:
         grant_type = (request.get_json(silent=True) or {}).get("grant_type")

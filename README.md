@@ -18,7 +18,7 @@ For security reviewers, on-call engineers, and contributors, [SECURITY.md](SECUR
 
 ### Feature Specification
 
-For product owners, architects, and new contributors, the [feature spec](https://github.com/Neosofia/cdp/blob/main/specs/014-authentication-service/spec.md) describes the goals, scope, and acceptance criteria that drove the design of this service. It is the human-readable record of what was built and why.
+For product owners, architects, and new contributors, the [feature spec](https://github.com/Neosofia/cdp/blob/main/specs/014-authentication-service.md) describes the goals, scope, and acceptance criteria that drove the design of this service. It is the human-readable record of what was built and why.
 
 ### Governance & Architecture Decisions
 
