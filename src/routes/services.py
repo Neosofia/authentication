@@ -11,6 +11,24 @@ from src.services import service_management
 
 bp = Blueprint("services", __name__, url_prefix="/api/services")
 
+_DEFAULT_PAGE_SIZE = 20
+_MAX_PAGE_SIZE = 100
+
+
+def _parse_pagination() -> tuple[int, int] | tuple[None, tuple]:
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+        page_size = min(
+            _MAX_PAGE_SIZE,
+            max(1, int(request.args.get("page_size", _DEFAULT_PAGE_SIZE))),
+        )
+    except (TypeError, ValueError):
+        return None, (
+            jsonify({"error": "invalid pagination", "message": "page and page_size must be integers"}),
+            400,
+        )
+    return (page, page_size), None
+
 
 def require_admin(f):
     @with_authentication(
@@ -48,8 +66,10 @@ def list_services(user_uuid: str):
     List registered platform services with credential metadata.
     Supports pagination and search by name, slug, or base_url.
     """
-    page = max(1, int(request.args.get("page", 1)))
-    page_size = min(100, max(1, int(request.args.get("page_size", 20))))
+    pagination, error = _parse_pagination()
+    if error:
+        return error
+    page, page_size = pagination
     search = (request.args.get("q", "") or "").strip()
 
     try:
@@ -165,8 +185,10 @@ def rotate_service(slug: str, user_uuid: str):
 @require_admin
 def get_service_audits(slug: str, user_uuid: str):
     """Return paginated audit history for a service's credentials."""
-    page = max(1, int(request.args.get("page", 1)))
-    page_size = min(100, max(1, int(request.args.get("page_size", 20))))
+    pagination, error = _parse_pagination()
+    if error:
+        return error
+    page, page_size = pagination
     source = request.args.get("source")
 
     try:

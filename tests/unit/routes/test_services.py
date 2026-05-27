@@ -207,3 +207,29 @@ def test_services_get_audits_invalid_source_returns_400(client, app):
     assert response.status_code == 400
     assert response.json["error"] == "invalid source"
     assert response.json["message"] == "source must be 'service' or 'credential'"
+
+
+def test_services_list_invalid_pagination_returns_400(client, app):
+    token = _get_token(app, ["admin"])
+
+    with patch("src.routes.services.SessionLocal"):
+        response = client.get(
+            "/api/services?page=abc",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 400
+    assert response.json["error"] == "invalid pagination"
+
+
+def test_services_get_audits_invalid_pagination_returns_400(client, app):
+    token = _get_token(app, ["admin"])
+
+    with patch("src.routes.services.SessionLocal"):
+        response = client.get(
+            "/api/services/test-service/audits?source=service&page_size=not-a-number",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 400
+    assert response.json["error"] == "invalid pagination"

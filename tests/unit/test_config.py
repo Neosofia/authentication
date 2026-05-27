@@ -7,7 +7,10 @@ pytestmark = pytest.mark.unit
 _BASE = dict(
     env="test",
     csrf_secret_key="test-csrf",
+    workos_api_key="sk_test_dummy_key",
+    workos_client_id="client_test_dummy_id",
     workos_cookie_password="test-cookie-password-must-be-min-32-chars-long",
+    workos_redirect_uri="http://localhost:8014/callback",
     valid_roles="admin",
     jwt_private_key_pem="DEFAULT_PRIVATE_KEY",
     jwt_public_key_pem="DEFAULT_PUBLIC_KEY",
@@ -74,3 +77,12 @@ def test_normalizes_empty_pgport_in_database_urls():
     )
     assert "@db-host:5432/auth" in settings.migration_database_url
     assert "@db-host:5432/auth" in settings.app_database_url
+
+
+def test_rejects_blank_required_env_var():
+    with pytest.raises(ValueError, match="WORKOS_REDIRECT_URI must be set"):
+        Settings(
+            **{**_BASE, "workos_redirect_uri": ""},
+            migration_database_url=MIGRATION_URL,
+            app_database_url=APP_URL,
+        )

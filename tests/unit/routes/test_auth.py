@@ -17,6 +17,7 @@ def _production_settings():
         jwt_public_key_pem=os.environ["JWT_PUBLIC_KEY_PEM"],
         workos_api_key=os.environ["WORKOS_API_KEY"],
         workos_client_id=os.environ["WORKOS_CLIENT_ID"],
+        workos_redirect_uri="https://auth.example.com/callback",
         frontend_url="https://example.com",
     )
 

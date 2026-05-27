@@ -4,6 +4,7 @@ import logging
 import os
 import re
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -21,11 +22,6 @@ def _normalize_database_url(url: str) -> str:
 
 
 def _validate_database_urls(migration_database_url: str, app_database_url: str) -> None:
-    if not migration_database_url.strip():
-        raise ValueError("MIGRATION_DATABASE_URL must be set")
-    if not app_database_url.strip():
-        raise ValueError("APP_DATABASE_URL must be set")
-
     migration = make_url(_normalize_database_url(migration_database_url))
     app = make_url(_normalize_database_url(app_database_url))
     if migration.username == app.username:
@@ -70,6 +66,20 @@ def _load_secrets_manager() -> dict:
         ) from exc
 
 
+_REQUIRED_FIELDS = (
+    "migration_database_url",
+    "app_database_url",
+    "csrf_secret_key",
+    "workos_api_key",
+    "workos_client_id",
+    "workos_cookie_password",
+    "workos_redirect_uri",
+    "valid_roles",
+    "jwt_private_key_pem",
+    "jwt_public_key_pem",
+)
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -77,15 +87,15 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_database_url: str = ""
-    migration_database_url: str = ""
-    jwt_private_key_pem: str = ""
-    jwt_public_key_pem: str = ""
+    app_database_url: str
+    migration_database_url: str
+    jwt_private_key_pem: str
+    jwt_public_key_pem: str
     jwt_previous_public_key_pem: str = ""  # set during key rotation overlap window
     jwt_claim_namespace: str = "neosofia"
     env: str = "production"
     jwt_web_audience: str | list[str] = "authentication"
-    valid_roles: str  # required; comma-separated WorkOS org membership roles, e.g. "admin,member"
+    valid_roles: str  # comma-separated WorkOS org membership roles, e.g. "admin,member"
     access_token_ttl_secs: int = 900   # 15 minutes
     service_token_ttl_secs: int = 300  # 5 minutes
     port: int = 8014
@@ -96,13 +106,21 @@ class Settings(BaseSettings):
     gunicorn_keepalive: int = 5
     log_level: str = "info"
     frontend_url: str = "http://localhost:5173"
-    csrf_secret_key: str = ""
-    workos_api_key: str = ""
-    workos_client_id: str = ""
-    workos_cookie_password: str = ""
-    workos_redirect_uri: str = "http://localhost:8014/callback"
+    csrf_secret_key: str
+    workos_api_key: str
+    workos_client_id: str
+    workos_cookie_password: str
+    workos_redirect_uri: str
     ratelimit_storage_uri: str = "memory://"
     max_content_length: int = 16_384
+
+    @field_validator(*_REQUIRED_FIELDS, mode="before")
+    @classmethod
+    def _require_non_empty(cls, value: object, info) -> str:
+        env_var = info.field_name.upper()
+        if value is None or not str(value).strip():
+            raise ValueError(f"{env_var} must be set")
+        return str(value).strip()
 
     @property
     def is_non_production(self) -> bool:
@@ -126,18 +144,6 @@ class Settings(BaseSettings):
             _normalize_database_url(self.app_database_url),
         )
         _validate_database_urls(self.migration_database_url, self.app_database_url)
-
-        if not self.csrf_secret_key.strip():
-            raise ValueError("CSRF_SECRET_KEY must be set")
-
-        if not self.workos_cookie_password.strip():
-            raise ValueError("WORKOS_COOKIE_PASSWORD must be set")
-
-        if not self.valid_roles.strip():
-            raise ValueError("VALID_ROLES must be set to a non-empty comma-separated list of accepted WorkOS org roles")
-            
-        if not self.jwt_private_key_pem or not self.jwt_public_key_pem:
-            raise ValueError("JWT_PRIVATE_KEY_PEM and JWT_PUBLIC_KEY_PEM must be set")
 
         if self.env.lower() not in ("development", "test"):
             if not self.frontend_url.strip():
