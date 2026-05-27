@@ -22,7 +22,7 @@ def create_app(config: dict | None = None) -> Flask:
 
     # Configure CORS to explicitly trust the FRONTEND_URL if it is separated.
     # We must allow credentials so sealed session cookies can be sent by the frontend browser.
-    CORS(app, origins=[settings.frontend_url], supports_credentials=True)
+    CORS(app, origins=[settings.frontend_url], supports_credentials=True, max_age=86400)
 
     # Reject request bodies larger than this to prevent body-flood DoS.
     # Bodies here are only form fields / small JSON; JWTs arrive in headers, not bodies.

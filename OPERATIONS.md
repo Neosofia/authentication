@@ -147,6 +147,8 @@ See [Appendix A](#appendix-a-environment-variable-reference) for the full variab
 
 → **[Public cloud platform operations](https://github.com/Neosofia/infrastructure/blob/main/public-cloud/OPERATIONS.md)** — shared JWT, JWKS, CORS, healthcheck, and PaaS networking guidance for authentication and all downstream consumers (capabilities, python-template, etc.).
 
+- **CORS preflight cache:** OPTIONS responses include `Access-Control-Max-Age: 86400` (24 h; Chrome caps at 2 h) so browsers cache cross-origin preflights.
+
 ---
 
 ## Appendix A: Environment Variable Reference
