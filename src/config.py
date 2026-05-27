@@ -20,6 +20,18 @@ def _normalize_database_url(url: str) -> str:
     return _EMPTY_PGPORT_RE.sub(r"\1\2:5432/", stripped, count=1)
 
 
+def _build_database_url(user: str, password: str, host: str, port: str, database: str) -> str:
+    """Build a database URL from components, handling empty Railway reference vars."""
+    if not all([user, password, host, database]):
+        raise ValueError(
+            f"Database URL components incomplete: user={user!r}, password={'***' if password else ''}, "
+            f"host={host!r}, port={port!r}, database={database!r}"
+        )
+    # Default port to 5432 if empty (Railway reference vars sometimes resolve empty)
+    port = port.strip() or "5432"
+    return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{database}"
+
+
 def _validate_database_urls(migration_database_url: str, app_database_url: str) -> None:
     if not migration_database_url.strip():
         raise ValueError("MIGRATION_DATABASE_URL must be set")
@@ -73,12 +85,23 @@ def _load_secrets_manager() -> dict:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
-        env_ignore_empty=True,
+        env_ignore_empty=False,  # Changed: allow empty strings to be processed
         extra="ignore",
     )
 
+    # Database connection components (for building URLs at runtime)
+    pghost: str = ""
+    pgport: str = ""
+    pguser: str = ""
+    pgpassword: str = ""
+    pgdatabase: str = ""
+    app_db_user: str = ""
+    app_db_password: str = ""
+    
+    # Full URLs (can be set directly or built from components)
     app_database_url: str = ""
     migration_database_url: str = ""
+    
     jwt_private_key_pem: str = ""
     jwt_public_key_pem: str = ""
     jwt_previous_public_key_pem: str = ""  # set during key rotation overlap window
@@ -115,6 +138,28 @@ class Settings(BaseSettings):
         return f"{base}?auth=callback"
 
     def model_post_init(self, __context: object) -> None:
+        # Build DATABASE_URLs from components if not already set
+        if not self.migration_database_url.strip() and self.pghost and self.pguser and self.pgpassword and self.pgdatabase:
+            migration_url = _build_database_url(
+                self.pguser,
+                self.pgpassword,
+                self.pghost,
+                self.pgport,
+                self.pgdatabase,
+            )
+            object.__setattr__(self, "migration_database_url", migration_url)
+        
+        if not self.app_database_url.strip() and self.pghost and self.app_db_user and self.app_db_password and self.pgdatabase:
+            app_url = _build_database_url(
+                self.app_db_user,
+                self.app_db_password,
+                self.pghost,
+                self.pgport,
+                self.pgdatabase,
+            )
+            object.__setattr__(self, "app_database_url", app_url)
+        
+        # Normalize URLs
         object.__setattr__(
             self,
             "migration_database_url",
@@ -202,3 +247,4 @@ def _build_settings() -> Settings:
 
 # Module-level singleton — loaded once at import time.
 settings = _build_settings()
+
