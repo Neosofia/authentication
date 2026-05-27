@@ -11,6 +11,7 @@ from src.services import service_management
 
 bp = Blueprint("services", __name__, url_prefix="/api/services")
 
+
 OPERATOR_ROLE = "operator"
 
 
