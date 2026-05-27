@@ -8,7 +8,7 @@ _BASE = dict(
     env="test",
     csrf_secret_key="test-csrf",
     workos_cookie_password="test-cookie-password-must-be-min-32-chars-long",
-    valid_roles="admin",
+    valid_roles="operator",
     jwt_private_key_pem="DEFAULT_PRIVATE_KEY",
     jwt_public_key_pem="DEFAULT_PUBLIC_KEY",
 )

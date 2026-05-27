@@ -21,7 +21,7 @@ def _get_token(app, roles):
 
 
 def test_services_create_conflict_returns_409(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
 
     with patch("src.routes.services.SessionLocal"), \
          patch("src.routes.services.service_management.create_service", side_effect=ConflictError("service name or slug or base_url already exists")):
@@ -36,7 +36,7 @@ def test_services_create_conflict_returns_409(client, app):
 
 
 def test_services_update_conflict_returns_409(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
 
     with patch("src.routes.services.SessionLocal"), \
          patch("src.routes.services.service_management.update_service", side_effect=ConflictError("name, slug, or base_url already in use")):
@@ -51,7 +51,7 @@ def test_services_update_conflict_returns_409(client, app):
 
 
 def test_services_create_missing_fields_returns_400(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
 
     with patch("src.routes.services.SessionLocal"):
         response = client.post(
@@ -65,7 +65,7 @@ def test_services_create_missing_fields_returns_400(client, app):
 
 
 def test_services_update_no_fields_returns_400(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
 
     with patch("src.routes.services.SessionLocal"):
         response = client.put(
@@ -79,7 +79,7 @@ def test_services_update_no_fields_returns_400(client, app):
 
 
 def test_services_create_invalid_json_returns_400(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
 
     with patch("src.routes.services.SessionLocal"):
         response = client.post(
@@ -93,7 +93,7 @@ def test_services_create_invalid_json_returns_400(client, app):
 
 
 def test_services_update_invalid_json_returns_400(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
 
     with patch("src.routes.services.SessionLocal"):
         response = client.put(
@@ -107,11 +107,11 @@ def test_services_update_invalid_json_returns_400(client, app):
 
 
 @patch("authentication_in_the_middle.decorators.pyjwt.decode")
-def test_services_require_admin_without_admin_role_returns_403(mock_decode, client):
+def test_services_require_operator_without_operator_role_returns_403(mock_decode, client):
     mock_decode.return_value = {
         "sub": "019e02e1-94e1-722b-bd61-f7f95fb1602a",
         "aud": settings.jwt_web_audience,
-        "neosofia:roles": ["user"],
+        "neosofia:roles": ["clinician"],
     }
 
     with patch("src.routes.services.SessionLocal"):
@@ -122,14 +122,14 @@ def test_services_require_admin_without_admin_role_returns_403(mock_decode, clie
 
     assert response.status_code == 403
     assert response.json["error"] == "forbidden"
-    assert response.json["message"] == "requires admin role"
+    assert response.json["message"] == "requires operator role"
 
 
 @patch("authentication_in_the_middle.decorators.pyjwt.decode")
-def test_services_require_admin_missing_user_uuid_returns_401(mock_decode, client):
+def test_services_require_operator_missing_user_uuid_returns_401(mock_decode, client):
     mock_decode.return_value = {
         "aud": settings.jwt_web_audience,
-        "neosofia:roles": ["admin"],
+        "neosofia:roles": ["operator"],
     }
 
     with patch("src.routes.services.SessionLocal"):
@@ -144,11 +144,11 @@ def test_services_require_admin_missing_user_uuid_returns_401(mock_decode, clien
 
 
 @patch("authentication_in_the_middle.decorators.pyjwt.decode")
-def test_services_require_admin_invalid_user_uuid_returns_401(mock_decode, client):
+def test_services_require_operator_invalid_user_uuid_returns_401(mock_decode, client):
     mock_decode.return_value = {
         "sub": "not-a-uuid",
         "aud": settings.jwt_web_audience,
-        "neosofia:roles": ["admin"],
+        "neosofia:roles": ["operator"],
     }
 
     with patch("src.routes.services.SessionLocal"):
@@ -163,7 +163,7 @@ def test_services_require_admin_invalid_user_uuid_returns_401(mock_decode, clien
 
 
 def test_services_rotate_credential_not_found_returns_404(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
 
     with patch("src.routes.services.SessionLocal"), \
          patch("src.routes.services.service_management.rotate_service", side_effect=CredentialNotFoundError("service credential not found")):
@@ -177,7 +177,7 @@ def test_services_rotate_credential_not_found_returns_404(client, app):
 
 
 def test_services_get_audits_not_found_returns_404(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
 
     with patch("src.routes.services.SessionLocal"), \
          patch("src.routes.services.service_management.get_service", side_effect=NotFoundError("service not found")):
@@ -191,7 +191,7 @@ def test_services_get_audits_not_found_returns_404(client, app):
 
 
 def test_services_get_audits_invalid_source_returns_400(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
 
     with patch("src.routes.services.SessionLocal"), \
          patch("src.routes.services.service_management.get_service", return_value={

@@ -57,7 +57,8 @@ Key architectural decisions:
 - **Delegated identity provider (WorkOS AuthKit)** — passwords, MFA, federation, account lockout, and user lifecycle are owned by a HIPAA-eligible identity platform. We are a relying party, not a credential store. ([ADR-0007](https://github.com/Neosofia/cdp/blob/main/architecture/structurizr/decisions/0007-never-roll-your-own-authentication.md))
 - **OAuth 2.0 `state` parameter** — a 32-byte cryptographic random value is generated at `/login`, stored in Flask's signed session (along with the PKCE `code_verifier`), and verified at `/callback`. Mismatch aborts the flow, defeating OAuth CSRF and session-fixation attacks ([CWE-352](https://cwe.mitre.org/data/definitions/352.html), [CWE-384](https://cwe.mitre.org/data/definitions/384.html)).
 - **PKCE** ([RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)) — a 128-character code verifier with SHA-256 challenge (`S256`) protects against authorization-code interception.
-- **Role allow-list** — `VALID_ROLES` (required env var) defines accepted WorkOS org membership roles. Unknown roles are rejected fail-closed ([CWE-863](https://cwe.mitre.org/data/definitions/863.html)). The service refuses to start if `VALID_ROLES` is unset or empty.
+- **Role allow-list** — `VALID_ROLES` (required env var) defines accepted top-level WorkOS actor roles. For Neosofia healthcare deployments these are `operator`, `clinician`, and `patient`. Unknown roles are rejected fail-closed ([CWE-863](https://cwe.mitre.org/data/definitions/863.html)). The service refuses to start if `VALID_ROLES` is unset or empty.
+- **Operator-scoped platform administration** — WorkOS roles identify the broad principal class. Global platform administration is represented by the `operator` actor class; finer-grained operator privileges (for example, service credential administration or audit-only access) belong in downstream authorization policy rather than ambiguous IdP roles such as `admin`.
 
 ### Token Issuance & Validation
 
@@ -78,6 +79,7 @@ Key architectural decisions:
 
 - **bcrypt-hashed secrets** — stored at cost factor 12; never reversible. Compromised credentials are revoked by **rotating** the service secret via `POST /api/services/{slug}/rotate` (replaces the bcrypt hash in place; audit history preserved).
 - **Constant-time verification** — a dummy hash is pre-computed at import; unknown `client_id` submissions still run `bcrypt.checkpw` to prevent enumeration via timing side-channel ([CWE-208](https://cwe.mitre.org/data/definitions/208.html)).
+- **Operator-only credential management** — `/api/services/*` is restricted to human JWTs with the `operator` role. `clinician` and `patient` tokens can authenticate to human-facing APIs but cannot manage global service registrations or credentials.
 
 ### Rate Limits
 

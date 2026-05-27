@@ -37,9 +37,8 @@ os.environ["WORKOS_COOKIE_PASSWORD"] = "test-cookie-password-must-be-min-32-char
 os.environ["ENV"] = "test"
 os.environ["JWT_PRIVATE_KEY_PEM"] = base64.b64encode(TEST_PRIVATE_KEY_PEM.encode("utf-8")).decode("utf-8")
 os.environ["JWT_PUBLIC_KEY_PEM"] = base64.b64encode(TEST_PUBLIC_KEY_PEM.encode("utf-8")).decode("utf-8")
-os.environ["VALID_ROLES"] = "admin,user"
-os.environ["APP_DATABASE_URL"] = "postgresql+psycopg://app:dummy@localhost/dummy"
-os.environ["MIGRATION_DATABASE_URL"] = "postgresql+psycopg://auth:dummy@localhost/dummy"
+os.environ["VALID_ROLES"] = "operator,clinician,patient"
+os.environ["DATABASE_URL"] = "postgresql+psycopg://dummy:dummy@localhost/dummy"
 os.environ["WORKOS_API_KEY"] = "sk_test_dummy_key"
 os.environ["WORKOS_CLIENT_ID"] = "client_test_dummy_id"
 

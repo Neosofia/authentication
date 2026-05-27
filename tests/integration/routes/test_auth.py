@@ -25,7 +25,7 @@ def test_callback_happy_path(client):
     initial.user = MagicMock(id="user_123")
     initial.user.to_dict.return_value = {"id": "user_123"}
     initial.access_token = encode_test_access_token(
-        {"workos_tenant_id": "org_123", "workos_tenant_name": "Test Org", "role": "admin"},
+        {"workos_tenant_id": "org_123", "workos_tenant_name": "Test Org", "role": "operator"},
     )
 
     refreshed = MagicMock(refresh_token="refresh-token", impersonator=None)
@@ -36,7 +36,7 @@ def test_callback_happy_path(client):
             "workos_tenant_id": "org_123",
             "workos_tenant_name": "Test Org",
             "tenant_uuid": "019e02e1-94e1-722b-bd61-f7f95fb1604c",
-            "role": "admin",
+            "role": "operator",
         },
     )
 

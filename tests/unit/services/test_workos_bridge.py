@@ -43,7 +43,7 @@ def test_provision_organization_external_id_returns_false_on_error(mock_wos):
 def test_prepare_auth_session_rejects_when_tenant_uuid_stays_missing(mock_wos):
     mock_wos.organizations.update_organization.side_effect = RuntimeError("unavailable")
     auth = _auth(
-        {"workos_tenant_id": _ORG, "role": "admin"},
+        {"workos_tenant_id": _ORG, "role": "operator"},
         refresh=None,
         user_data={"id": "user_123", "external_id": "person-uuid"},
     )

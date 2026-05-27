@@ -29,11 +29,10 @@ def app_container():
     starts even without a real Postgres database attached. This makes the test rock solid.
     """
     container = DockerContainer(IMAGE_TAG)
-    container.with_env("VALID_ROLES", "admin,user")
+    container.with_env("VALID_ROLES", "operator,clinician,patient")
     container.with_env("JWT_PRIVATE_KEY_PEM", "DEFAULT_PRIVATE_KEY")
     container.with_env("JWT_PUBLIC_KEY_PEM", "DEFAULT_PUBLIC_KEY")
-    container.with_env("APP_DATABASE_URL", "postgresql+psycopg://app:dummy@localhost/dummy")
-    container.with_env("MIGRATION_DATABASE_URL", "postgresql+psycopg://auth:dummy@localhost/dummy")
+    container.with_env("DATABASE_URL", "postgresql+psycopg://dummy:dummy@localhost/dummy")
     container.with_env("ENV", "test")
     container.with_env("CSRF_SECRET_KEY", "dummy_csrf_secret")
     container.with_env("WORKOS_API_KEY", "sk_test_dummy_key")
