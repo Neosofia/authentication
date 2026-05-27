@@ -16,6 +16,21 @@ services:
       timeout: 5s
       retries: 5
 
+  authentication-migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: authentication-migrate
+    env_file:
+      - .env.compose.example
+      - path: .env
+        required: false
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+    restart: "no"
+
   authentication:
     build:
       context: .
@@ -30,6 +45,8 @@ services:
     depends_on:
       auth-postgres:
         condition: service_healthy
+      authentication-migrate:
+        condition: service_completed_successfully
     volumes:
       - ./src:/app/src
       - ./alembic.ini:/app/alembic.ini

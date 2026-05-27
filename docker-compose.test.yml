@@ -9,6 +9,9 @@ services:
     ports: []
     volumes: []
 
+  authentication-migrate:
+    env_file: ${TEST_ENV_FILE:-tests/docker-compose.test.env.sample}
+
   authentication:
     env_file: ${TEST_ENV_FILE:-tests/docker-compose.test.env.sample}
     volumes: []

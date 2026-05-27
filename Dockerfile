@@ -72,4 +72,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 USER app
 
 # Run the service
-CMD ["/bin/sh", "-c", "python -m alembic upgrade head && python -m gunicorn -c src/gunicorn.py src.app:app"]
+CMD ["/bin/sh", "-c", "python -m gunicorn -c src/gunicorn.py src.app:app"]

@@ -12,4 +12,9 @@ PGUSER = "${{POSTGRES_USER}}"
 PGPASSWORD = "${{POSTGRES_PASSWORD}}"
 POSTGRES_DB = "auth"
 POSTGRES_USER = "auth"
-POSTGRES_PASSWORD = "${{secret}}"
+POSTGRES_PASSWORD = "${{secret()}}"
+
+# Authentication service (this repo). Migrations run once per deploy via preDeployCommand,
+# not on every container start — see Dockerfile CMD and F12 in audit.md.
+[deploy]
+preDeployCommand = ["python -m alembic upgrade head"]
