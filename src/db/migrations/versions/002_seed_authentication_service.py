@@ -1,8 +1,10 @@
 """002 seed authentication service
 
-Inserts a fixed service and credential for ``authentication`` used for manual local testing.
-The secret is ``secret`` — this is intentionally a well-known dev/test credential,
-not a production secret.
+Registers the authentication platform service and bootstraps its first service
+credential with a randomly generated secret.
+
+The plaintext secret is printed once during this migration. Only the bcrypt hash
+is stored in ``service_credentials`` and cannot be recovered from the database.
 
 Revision ID: 002
 Revises: 001
@@ -12,9 +14,13 @@ from __future__ import annotations
 
 import uuid
 
-import bcrypt
 from alembic import op
 import sqlalchemy as sa
+
+from src.db.migrations.bootstrap_credentials import (
+    announce_service_credential,
+    generate_service_credential,
+)
 
 revision = "002"
 down_revision = "001"
@@ -24,10 +30,6 @@ depends_on = None
 SERVICE_NAME = "Authentication"
 SERVICE_SLUG = "authentication"
 SERVICE_BASE_URL = "http://authentication:8014"
-
-# Well-known dev/test secret — matches the value hard-coded in the test UI.
-_SECRET = "secret"
-_HASHED = bcrypt.hashpw(_SECRET.encode(), bcrypt.gensalt()).decode()
 
 
 def upgrade() -> None:
@@ -56,22 +58,26 @@ def upgrade() -> None:
         )
     ).scalar_one()
 
-    conn.execute(
+    plain_secret, hashed_secret = generate_service_credential()
+    inserted_uuid = conn.execute(
         sa.text(
             """
             INSERT INTO service_credentials (uuid, service_uuid, hashed_secret, changed_by_uuid, changed_by_type)
             VALUES (:uuid, :service_uuid, :hashed_secret, :changed_by_uuid, :changed_by_type)
-            ON CONFLICT (service_uuid) DO UPDATE
-              SET hashed_secret = EXCLUDED.hashed_secret
+            ON CONFLICT (service_uuid) DO NOTHING
+            RETURNING uuid
             """
         ).bindparams(
             uuid=uuid.uuid7(),
             service_uuid=service_uuid,
-            hashed_secret=_HASHED,
+            hashed_secret=hashed_secret,
             changed_by_uuid=sys_uuid,
             changed_by_type=2,
         )
-    )
+    ).scalar_one_or_none()
+
+    if inserted_uuid is not None:
+        announce_service_credential(SERVICE_SLUG, plain_secret)
 
 
 def downgrade() -> None:

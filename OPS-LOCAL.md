@@ -50,19 +50,26 @@ falls back to real environment variables if `.env` is absent).
 
 ## 3. Service Credentials (service-to-service)
 
-The `test-service` credential is seeded automatically by the Alembic migration
-when `SEED_SERVICE_SECRET` is set. Set it in `.env`, then run migrations:
+Migration `002` registers the `authentication` service and creates its first
+credential with a randomly generated secret. The plaintext is printed once when
+the migration runs (container startup logs or `alembic upgrade head` output).
+Only the bcrypt hash is stored in `service_credentials`; the secret cannot be
+read back from the database.
 
-```bash
-# .env must contain: SEED_SERVICE_SECRET=secret
-uv run alembic upgrade head
+Look up the service row to confirm registration:
+
+```sql
+SELECT s.slug, sc.uuid AS credential_uuid, sc.changed_at
+FROM services s
+JOIN service_credentials sc ON sc.service_uuid = s.uuid
+WHERE s.slug = 'authentication';
 ```
 
-Then request a service token:
+Then request a service token using the secret captured from migration output:
 
 ```bash
 curl -X POST http://localhost:8014/api/token \
-  -H "Authorization: Basic $(echo -n 'test-service:secret' | base64)" \
+  -H "Authorization: Basic $(echo -n 'authentication:YOUR_SECRET' | base64)" \
   -d "grant_type=client_credentials"
 ```
 
