@@ -56,7 +56,7 @@ def test_prepare_auth_session_rejects_when_tenant_uuid_stays_missing(mock_wos):
 
 
 def test_decode_access_token_claims_rejects_wrong_client_id():
-    token = encode_test_access_token({"role": "admin"})
+    token = encode_test_access_token({"role": "operator"})
 
     with patch("src.services.workos_bridge.settings.workos_client_id", "other_client"):
         assert decode_access_token_claims(MagicMock(access_token=token)) == {}
@@ -64,8 +64,8 @@ def test_decode_access_token_claims_rejects_wrong_client_id():
 
 def test_decode_access_token_claims_accepts_custom_authkit_issuer():
     token = encode_test_access_token(
-        {"role": "admin", "iss": "https://my-env.authkit.app/"}
+        {"role": "operator", "iss": "https://my-env.authkit.app/"}
     )
 
     claims = decode_access_token_claims(MagicMock(access_token=token))
-    assert claims.get("role") == "admin"
+    assert claims.get("role") == "operator"
