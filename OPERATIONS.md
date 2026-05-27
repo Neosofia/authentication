@@ -145,6 +145,8 @@ See [Appendix A](#appendix-a-environment-variable-reference) for the full variab
 
 → **[OPS-CLOUD.md](OPS-CLOUD.md)** — start here if you need HTTPS, are deploying to a shared environment, or are operating staging/prod.
 
+→ **[Public cloud platform operations](https://github.com/Neosofia/infrastructure/blob/main/public-cloud/OPERATIONS.md)** — shared JWT, JWKS, CORS, healthcheck, and PaaS networking guidance for authentication and all downstream consumers (capabilities, python-template, etc.).
+
 ---
 
 ## Appendix A: Environment Variable Reference
