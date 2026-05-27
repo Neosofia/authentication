@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.services.workos_bridge import (
+    decode_access_token_claims,
     extract_platform_claims,
     prepare_auth_session,
     provision_organization_external_id,
@@ -52,3 +53,19 @@ def test_prepare_auth_session_rejects_when_tenant_uuid_stays_missing(mock_wos):
         prepare_auth_session(auth)
 
     mock_wos.user_management.authenticate_with_refresh_token.assert_not_called()
+
+
+def test_decode_access_token_claims_rejects_wrong_client_id():
+    token = encode_test_access_token({"role": "admin"})
+
+    with patch("src.services.workos_bridge.settings.workos_client_id", "other_client"):
+        assert decode_access_token_claims(MagicMock(access_token=token)) == {}
+
+
+def test_decode_access_token_claims_accepts_custom_authkit_issuer():
+    token = encode_test_access_token(
+        {"role": "admin", "iss": "https://my-env.authkit.app/"}
+    )
+
+    claims = decode_access_token_claims(MagicMock(access_token=token))
+    assert claims.get("role") == "admin"

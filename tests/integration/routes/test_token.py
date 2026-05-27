@@ -5,6 +5,7 @@ import uuid
 from unittest.mock import patch, MagicMock
 from src.config import settings
 from src.models.service_credential import ServiceCredential
+from tests.conftest import encode_test_access_token
 
 
 def test_token_unauthorized(client, api_spec, validate_response):
@@ -110,7 +111,14 @@ def test_token_session_grant_happy_path(client, api_spec, validate_response):
     auth_response.roles = None
     auth_response.workos_tenant_id = "tenant_456"
     auth_response.tenant = MagicMock(external_id="87654321-4321-8765-4321-876543218765")
-    auth_response.access_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3b3Jrb3NfdGVuYW50X2lkIjoiMDE5ZTAyZTEtOTRlMS03MjJiLWJkNjEtZjdmOTVmYjE2MDFmIiwid29ya29zX3RlbmFudF9uYW1lIjoiVGVzdCBPcmciLCJ0ZW5hbnRfdXVpZCI6IjAxOWUwMmUxLTk0ZTEtNzIyYi1iZDYxLWY3Zjk1ZmIxNjAxZiIsInJvbGUiOiJhZG1pbiJ9.fake_sig"
+    auth_response.access_token = encode_test_access_token(
+        {
+            "workos_tenant_id": "019e02e1-94e1-722b-bd61-f7f95fb1601f",
+            "workos_tenant_name": "Test Org",
+            "tenant_uuid": "019e02e1-94e1-722b-bd61-f7f95fb1601f",
+            "role": "admin",
+        }
+    )
     auth_response.refresh_token = "workos-refresh-token"
     auth_response.impersonator = None
     auth_response.sealed_session = "dummy-sealed-session"

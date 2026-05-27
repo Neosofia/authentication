@@ -9,13 +9,23 @@ only from the WorkOS access-token JWT custom-claims template — no fallbacks.
 """
 
 import uuid
+from functools import lru_cache
 from typing import Any
 
 import jwt
+from jwt import PyJWKClient
 
 from src.config import settings
 from src.bootstrap.extensions import workos_client
 from src.bootstrap.logging import log_event, log_exception
+
+WORKOS_TOKEN_ISSUER = "https://api.workos.com"
+
+
+def _is_valid_workos_issuer(issuer: Any) -> bool:
+    if not isinstance(issuer, str) or not issuer.strip():
+        return False
+    return issuer.rstrip("/") == WORKOS_TOKEN_ISSUER
 
 
 def _get_nested_value(source: Any, path: str) -> Any:
@@ -130,13 +140,29 @@ def prepare_auth_session(auth_response: Any) -> tuple[Any, dict[str, Any], dict[
     return auth_response, user_data, extract_platform_claims(auth_response)
 
 
+@lru_cache(maxsize=1)
+def _workos_jwks_client() -> PyJWKClient:
+    return PyJWKClient(workos_client.user_management.get_jwks_url())
+
+
 def decode_access_token_claims(auth_response: Any, access_token_str: str | None = None) -> dict[str, Any]:
     access_token = access_token_str or getattr(auth_response, "access_token", None)
     if not access_token:
         return {}
 
     try:
-        decoded = jwt.decode(access_token, options={"verify_signature": False})
+        signing_key = _workos_jwks_client().get_signing_key_from_jwt(access_token)
+        decoded = jwt.decode(
+            access_token,
+            signing_key.key,
+            algorithms=["RS256"],
+            options={"verify_aud": False, "verify_iss": False},
+        )
+        if not _is_valid_workos_issuer(decoded.get("iss")):
+            # Custom AuthKit domains use a non-default iss; signature was verified via WorkOS JWKS.
+            log_event("workos_access_token_unexpected_issuer", issuer=decoded.get("iss"))
+        if decoded.get("client_id") != settings.workos_client_id:
+            raise jwt.InvalidTokenError("client_id mismatch")
         return decoded if isinstance(decoded, dict) else {}
     except Exception as exc:
         log_exception("workos_access_token_decode_failed", exc)
