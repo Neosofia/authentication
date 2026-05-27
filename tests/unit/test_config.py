@@ -64,3 +64,13 @@ def test_empty_env_int_uses_default(monkeypatch):
     )
     assert settings.port == 8014
     assert settings.trusted_proxy_hops == 1
+
+
+def test_normalizes_empty_pgport_in_database_urls():
+    settings = Settings(
+        **_BASE,
+        migration_database_url="postgresql+psycopg://auth:secret@db-host:/auth",
+        app_database_url="postgresql+psycopg://app:secret@db-host:/auth",
+    )
+    assert "@db-host:5432/auth" in settings.migration_database_url
+    assert "@db-host:5432/auth" in settings.app_database_url

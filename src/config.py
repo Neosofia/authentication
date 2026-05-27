@@ -2,11 +2,22 @@ import base64
 import json
 import logging
 import os
+import re
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
 logger = logging.getLogger(__name__)
+
+# Railway ${{postgres.PGPORT}} often resolves empty, yielding host:/dbname.
+_EMPTY_PGPORT_RE = re.compile(r"^(postgresql(?:\+\w+)?://[^@]+@)([^:/@]+):/")
+
+
+def _normalize_database_url(url: str) -> str:
+    stripped = url.strip()
+    if not stripped:
+        return stripped
+    return _EMPTY_PGPORT_RE.sub(r"\1\2:5432/", stripped, count=1)
 
 
 def _validate_database_urls(migration_database_url: str, app_database_url: str) -> None:
@@ -15,8 +26,8 @@ def _validate_database_urls(migration_database_url: str, app_database_url: str) 
     if not app_database_url.strip():
         raise ValueError("APP_DATABASE_URL must be set")
 
-    migration = make_url(migration_database_url)
-    app = make_url(app_database_url)
+    migration = make_url(_normalize_database_url(migration_database_url))
+    app = make_url(_normalize_database_url(app_database_url))
     if migration.username == app.username:
         raise ValueError(
             "MIGRATION_DATABASE_URL and APP_DATABASE_URL must use different users; "
@@ -104,6 +115,16 @@ class Settings(BaseSettings):
         return f"{base}?auth=callback"
 
     def model_post_init(self, __context: object) -> None:
+        object.__setattr__(
+            self,
+            "migration_database_url",
+            _normalize_database_url(self.migration_database_url),
+        )
+        object.__setattr__(
+            self,
+            "app_database_url",
+            _normalize_database_url(self.app_database_url),
+        )
         _validate_database_urls(self.migration_database_url, self.app_database_url)
 
         if not self.csrf_secret_key.strip():
