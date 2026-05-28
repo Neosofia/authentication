@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "authentication"
-version = "0.28.2"
+version = "0.28.3"
 description = "Neosofia Authentication Service — token issuance and introspection"
 requires-python = ">=3.13"
 authors = [{ name = "Neosofia", email = "platform@neosofia.com" }]
@@ -56,6 +56,7 @@ markers = [
     "unit: pure function tests, zero I/O",
     "integration: Flask test client with mocked external dependencies",
     "contract: API response shape, claim structure, logging schema",
+    "slow: long-running container or end-to-end integration tests",
 ]
 
 [tool.coverage.run]
