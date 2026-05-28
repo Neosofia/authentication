@@ -66,6 +66,9 @@ def _load_secrets_manager() -> dict:
         ) from exc
 
 
+SUPPORTED_IDP_PROVIDERS = frozenset({"workos"})
+
+
 _REQUIRED_FIELDS = (
     "migration_database_url",
     "app_database_url",
@@ -104,10 +107,10 @@ class Settings(BaseSettings):
     log_level: str = "info"
     frontend_url: str = "http://localhost:5173"
     csrf_secret_key: str
-    workos_api_key: str = ""
-    workos_client_id: str = ""
-    workos_cookie_password: str = ""
-    workos_redirect_uri: str = ""
+    workos_api_key: str | None = None
+    workos_client_id: str | None = None
+    workos_cookie_password: str | None = None
+    workos_redirect_uri: str | None = None
     ratelimit_storage_uri: str = "memory://"
     max_content_length: int = 16_384
 
@@ -143,7 +146,7 @@ class Settings(BaseSettings):
         _validate_database_urls(self.migration_database_url, self.app_database_url)
 
         provider = self.idp_provider.strip().lower()
-        if provider != "workos":
+        if provider not in SUPPORTED_IDP_PROVIDERS:
             raise ValueError(f"Unsupported IDP_PROVIDER: {self.idp_provider}")
 
         for field_name in (
@@ -152,7 +155,8 @@ class Settings(BaseSettings):
             "workos_cookie_password",
             "workos_redirect_uri",
         ):
-            if not getattr(self, field_name).strip():
+            value = getattr(self, field_name)
+            if value is None or not str(value).strip():
                 raise ValueError(f"{field_name.upper()} must be set when IDP_PROVIDER=workos")
 
         if self.env.lower() not in ("development", "test"):
