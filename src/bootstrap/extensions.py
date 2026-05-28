@@ -1,7 +1,6 @@
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_talisman import Talisman
-from workos import WorkOSClient
 
 from src.config import settings
 
@@ -16,10 +15,3 @@ limiter = Limiter(
 )
 
 talisman = Talisman()
-
-workos_client = WorkOSClient(
-    api_key=settings.workos_api_key,
-    client_id=settings.workos_client_id,
-    request_timeout=5,   # fail fast if WorkOS is unreachable; callers handle 503
-    max_retries=1,       # one retry for transient network blips; fail fast after that
-)

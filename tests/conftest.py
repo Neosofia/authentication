@@ -45,7 +45,7 @@ def _mock_workos_access_token_jwks():
     signing_key.key = TEST_PUBLIC_KEY_PEM
     jwks_client = MagicMock()
     jwks_client.get_signing_key_from_jwt.return_value = signing_key
-    with patch("src.services.workos_bridge._workos_jwks_client", return_value=jwks_client):
+    with patch("src.services.idp.workos._workos_jwks_client", return_value=jwks_client):
         yield
 
 

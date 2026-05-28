@@ -70,10 +70,6 @@ _REQUIRED_FIELDS = (
     "migration_database_url",
     "app_database_url",
     "csrf_secret_key",
-    "workos_api_key",
-    "workos_client_id",
-    "workos_cookie_password",
-    "workos_redirect_uri",
     "valid_roles",
     "jwt_private_key_pem",
     "jwt_public_key_pem",
@@ -95,7 +91,8 @@ class Settings(BaseSettings):
     jwt_claim_namespace: str = "neosofia"
     env: str = "production"
     jwt_web_audience: str | list[str] = "authentication"
-    valid_roles: str  # comma-separated WorkOS org membership roles, e.g. "admin,member"
+    valid_roles: str  # comma-separated IdP membership roles, e.g. "admin,member"
+    idp_provider: str = "workos"
     access_token_ttl_secs: int = 900   # 15 minutes
     service_token_ttl_secs: int = 300  # 5 minutes
     port: int = 8014
@@ -107,10 +104,10 @@ class Settings(BaseSettings):
     log_level: str = "info"
     frontend_url: str = "http://localhost:5173"
     csrf_secret_key: str
-    workos_api_key: str
-    workos_client_id: str
-    workos_cookie_password: str
-    workos_redirect_uri: str
+    workos_api_key: str = ""
+    workos_client_id: str = ""
+    workos_cookie_password: str = ""
+    workos_redirect_uri: str = ""
     ratelimit_storage_uri: str = "memory://"
     max_content_length: int = 16_384
 
@@ -144,6 +141,19 @@ class Settings(BaseSettings):
             _normalize_database_url(self.app_database_url),
         )
         _validate_database_urls(self.migration_database_url, self.app_database_url)
+
+        provider = self.idp_provider.strip().lower()
+        if provider != "workos":
+            raise ValueError(f"Unsupported IDP_PROVIDER: {self.idp_provider}")
+
+        for field_name in (
+            "workos_api_key",
+            "workos_client_id",
+            "workos_cookie_password",
+            "workos_redirect_uri",
+        ):
+            if not getattr(self, field_name).strip():
+                raise ValueError(f"{field_name.upper()} must be set when IDP_PROVIDER=workos")
 
         if self.env.lower() not in ("development", "test"):
             if not self.frontend_url.strip():

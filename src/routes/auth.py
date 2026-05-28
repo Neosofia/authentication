@@ -3,29 +3,20 @@ import hashlib
 import secrets
 
 from flask import Blueprint, jsonify, make_response, redirect, request, url_for, session
-from workos.session import seal_session_from_auth_response
 
 from src.config import settings
-from src.bootstrap.extensions import limiter, talisman, workos_client
+from src.bootstrap.extensions import limiter, talisman
 from src.bootstrap.logging import log_event, log_exception
-from src.services.cookies import clear_wos_session_cookie, set_wos_session_cookie
+from src.services.cookies import (
+    IDP_SESSION_COOKIE_NAME,
+    clear_idp_session_cookie,
+    set_idp_session_cookie,
+)
+from src.services.idp import get_idp
 from src.services.jwks import pem_to_jwk
 from src.services.identity import sync_identity_data
-from src.services import workos_bridge
 
 bp = Blueprint("auth", __name__)
-
-
-def _resolve_workos_session_id(session) -> str | None:
-    auth_response = session.authenticate()
-    if getattr(auth_response, "authenticated", False):
-        return auth_response.session_id
-
-    refresh_response = session.refresh()
-    if getattr(refresh_response, "authenticated", False):
-        return refresh_response.session_id
-
-    return None
 
 
 def _base64url_encode(data: bytes) -> str:
@@ -37,42 +28,37 @@ def _base64url_encode(data: bytes) -> str:
 @limiter.limit("60 per minute")
 def login():
     """
-    Initiate OAuth authorization flow with WorkOS.
-    
-    Generates authorization URL via WorkOS AuthKit provider and redirects user
-    to login/MFA consent screen. Callback handler will exchange authorization
-    code for tokens and seal session cookie. Includes CSRF-safe state parameter
-    to prevent session fixation attacks (RFC 6819, RFC 7636).
-    
-    Returns: 302 redirect to WorkOS authorization endpoint
+    Initiate OAuth authorization flow with the configured identity provider.
+
+    Generates an authorization URL and redirects the user to the provider login
+    screen. Callback handler will exchange authorization code for a provider
+    session cookie. Includes CSRF-safe state parameter to prevent session
+    fixation attacks (RFC 6819, RFC 7636).
+
+    Returns: 302 redirect to provider authorization endpoint
     Ref: ADR-0007 (never roll your own authentication), specs/014-authentication-service.md
     """
-    redirect_uri = settings.workos_redirect_uri
-    
     # Generate cryptographically random state for CSRF protection (RFC 6819 §4.4.1.8)
     oauth_state = secrets.token_urlsafe(32)
-    
+
     # Generate PKCE code verifier and challenge (RFC 7636) for code interception protection
     # code_verifier: 43-128 character string; use max length for security
     code_verifier = secrets.token_urlsafe(96)[:128]
     # code_challenge: SHA256(verifier) encoded as base64url
     code_challenge = _base64url_encode(hashlib.sha256(code_verifier.encode()).digest())
-    
-    authorization_url = workos_client.user_management.get_authorization_url(
-        provider="authkit",
-        redirect_uri=redirect_uri,
+
+    authorization_url = get_idp().authorization_url(
         state=oauth_state,
         code_challenge=code_challenge,
-        code_challenge_method="S256",
     )
-    
+
     # Store state and PKCE verifier encrypted in Flask's session object
     session["oauth_state"] = oauth_state
     session["code_verifier"] = code_verifier
 
     response = make_response(redirect(authorization_url))
 
-    log_event("login_initiated", redirect_uri=redirect_uri)
+    log_event("login_initiated", provider=get_idp().name)
     return response
 
 
@@ -81,12 +67,12 @@ def login():
 def callback():
     """
     OAuth authorization code exchange and session establishment.
-    
-    Exchanges WorkOS authorization code for access/refresh tokens and user info.
-    Seals tokens and user data into an encrypted HTTP-only cookie for subsequent
-    session validation. Verifies OAuth state parameter to prevent CSRF/session fixation.
-    Handles missing code, OAuth errors, or state mismatch by redirecting to login.
-    
+
+    Exchanges authorization code for provider session data and maps the upstream
+    response to platform identity fields. Verifies OAuth state parameter to
+    prevent CSRF/session fixation. Handles missing code, OAuth errors, or state
+    mismatch by redirecting to login.
+
     Returns: 302 redirect to / on success, /login on error
     Ref: specs/014-authentication-service.md (sealed session, token sealing), RFC 6819 §4.4.1.8
     """
@@ -101,7 +87,7 @@ def callback():
     if not code:
         log_event("oauth_callback_error", reason="No authorization code received")
         return redirect(url_for("auth.login"))
-    
+
     # Verify OAuth state parameter (CSRF protection)
     state_from_cookie = session.pop("oauth_state", None)
     if not state_from_provider or not state_from_cookie or state_from_provider != state_from_cookie:
@@ -113,7 +99,7 @@ def callback():
         )
         response = make_response(redirect(url_for("auth.login")))
         return response
-    
+
     # Retrieve PKCE code verifier from cookie (RFC 7636) for code interception protection
     code_verifier = session.pop("code_verifier", None)
     if not code_verifier:
@@ -124,51 +110,39 @@ def callback():
         response = make_response(redirect(url_for("auth.login")))
         return response
 
+    idp = get_idp()
     try:
-        # Use PKCE-specific method for code exchange with code_verifier
-        auth_response = workos_client.user_management.authenticate_with_code_pkce(
-            code=code,
-            code_verifier=code_verifier,
-        )
+        provider_session = idp.exchange_code(code=code, code_verifier=code_verifier)
+        identity = idp.to_platform_identity(provider_session)
 
-        user_id = auth_response.user.id if auth_response.user else "unknown"
-        auth_response, user_data, claims = workos_bridge.prepare_auth_session(auth_response)
-        
         # Best effort DB sync for caching profile data
         sync_identity_data(
-            user_uuid=claims.get("user_uuid"),
-            tenant_uuid=claims.get("tenant_uuid"),
-            idp_user_id=user_id,
-            first_name=user_data.get("first_name"),
-            last_name=user_data.get("last_name"),
-            email=user_data.get("email"),
-            idp_tenant_id=claims.get("workos_tenant_id"),
-            tenant_name=claims.get("workos_tenant_name"),
-        )
-
-        sealed_session = seal_session_from_auth_response(
-            access_token=auth_response.access_token,
-            refresh_token=auth_response.refresh_token,
-            user=user_data,
-            impersonator=auth_response.impersonator.to_dict() if auth_response.impersonator else None,
-            cookie_password=settings.workos_cookie_password,
+            user_uuid=identity.user_uuid,
+            tenant_uuid=identity.tenant_uuid,
+            idp_user_id=identity.idp_user_id,
+            first_name=identity.profile.get("first_name"),
+            last_name=identity.profile.get("last_name"),
+            email=identity.profile.get("email"),
+            idp_tenant_id=identity.idp_tenant_id,
+            tenant_name=identity.tenant_name,
         )
 
         response = make_response(redirect(settings.frontend_auth_callback_url()))
-        set_wos_session_cookie(response, sealed_session)
+        if provider_session.sealed_session:
+            set_idp_session_cookie(response, provider_session.sealed_session)
         # Clean up OAuth state and PKCE cookies after successful exchange
         log_event(
             "authentication_success",
-            user_id=user_id,
-            user_uuid=claims.get("user_uuid"),
-            method="workos",
+            user_id=identity.idp_user_id,
+            user_uuid=identity.user_uuid,
+            method=idp.name,
         )
         return response
 
     except Exception as e:
         # Log only the exception class for safe diagnostics.
-        log_exception("callback_error", e, method="workos")
-        # Return to the UI — not /login — so a failed callback does not re-enter WorkOS immediately.
+        log_exception("callback_error", e, method=idp.name)
+        # Return to the UI — not /login — so a failed callback does not re-enter IdP immediately.
         response = make_response(redirect(settings.frontend_url))
         return response
 
@@ -178,43 +152,36 @@ def callback():
 def logout():
     """
     Session revocation and cookie cleanup.
-    
-    Loads sealed session, revokes it with WorkOS (invalidating refresh tokens),
-    and deletes wos_session cookie. Gracefully handles missing session or errors.
-    
+
+    Loads the provider session, asks the IdP adapter for a logout URL, and
+    deletes the browser session cookie. Gracefully handles missing session or
+    errors.
+
     Returns: 302 redirect to / after revoking session and clearing cookie
     Ref: specs/014-authentication-service.md (session revocation)
     """
     frontend_url = settings.frontend_url
 
     try:
-        sealed_session = request.cookies.get("wos_session")
+        sealed_session = request.cookies.get(IDP_SESSION_COOKIE_NAME)
         if not sealed_session:
             log_event("logout_failure", reason="No session found")
-            return clear_wos_session_cookie(make_response(redirect(frontend_url)))
+            return clear_idp_session_cookie(make_response(redirect(frontend_url)))
 
-        session = workos_client.user_management.load_sealed_session(
-            session_data=sealed_session,
-            cookie_password=settings.workos_cookie_password,
-        )
-        session_id = _resolve_workos_session_id(session)
+        logout_url = get_idp().revoke_session(sealed_session, return_to=frontend_url)
 
-        if session_id:
-            logout_url = workos_client.user_management.get_logout_url(
-                session_id=session_id,
-                return_to=frontend_url,
-            )
+        if logout_url:
             response = make_response(redirect(logout_url))
             log_event("session_revoked", reason="User initiated logout")
         else:
-            log_event("logout_failure", reason="Could not resolve WorkOS session for logout")
+            log_event("logout_failure", reason="Could not resolve IdP session for logout")
             response = make_response(redirect(frontend_url))
 
-        return clear_wos_session_cookie(response)
+        return clear_idp_session_cookie(response)
 
     except Exception as e:
         log_exception("logout_failure", e)
-        return clear_wos_session_cookie(make_response(redirect(frontend_url)))
+        return clear_idp_session_cookie(make_response(redirect(frontend_url)))
 
 
 @bp.route("/.well-known/jwks.json")

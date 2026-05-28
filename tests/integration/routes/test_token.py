@@ -5,7 +5,7 @@ import uuid
 from unittest.mock import patch, MagicMock
 from src.config import settings
 from src.models.service_credential import ServiceCredential
-from tests.conftest import encode_test_access_token
+from src.services.idp import AuthenticatedSession, PlatformIdentity
 
 
 def test_token_unauthorized(client, api_spec, validate_response):
@@ -104,30 +104,26 @@ def test_token_client_credentials_rejects_invalid_secret(client, api_spec, valid
 
 
 def test_token_session_grant_happy_path(client, api_spec, validate_response):
-    auth_response = MagicMock()
-    auth_response.authenticated = True
-    auth_response.user = {"id": "user_123", "external_id": "12345678-1234-5678-1234-567812345678"}
-    auth_response.role = "admin"
-    auth_response.roles = None
-    auth_response.workos_tenant_id = "tenant_456"
-    auth_response.tenant = MagicMock(external_id="87654321-4321-8765-4321-876543218765")
-    auth_response.access_token = encode_test_access_token(
-        {
-            "workos_tenant_id": "019e02e1-94e1-722b-bd61-f7f95fb1601f",
-            "workos_tenant_name": "Test Org",
-            "tenant_uuid": "019e02e1-94e1-722b-bd61-f7f95fb1601f",
-            "role": "admin",
-        }
+    provider_session = AuthenticatedSession(
+        idp_user_id="user_123",
+        provider_response=MagicMock(),
+        sealed_session="dummy-sealed-session",
     )
-    auth_response.refresh_token = "workos-refresh-token"
-    auth_response.impersonator = None
-    auth_response.sealed_session = "dummy-sealed-session"
+    identity = PlatformIdentity(
+        user_uuid="12345678-1234-5678-1234-567812345678",
+        tenant_uuid="019e02e1-94e1-722b-bd61-f7f95fb1601f",
+        idp_user_id="user_123",
+        idp_tenant_id="org_123",
+        tenant_name="Test Org",
+        roles=["admin"],
+        profile={},
+    )
 
-    session = MagicMock()
-    session.authenticate.return_value = auth_response
-
-    with patch("src.services.workos_bridge.settings.valid_roles", "admin,user"), patch("src.routes.token.workos_client") as mock_workos:
-        mock_workos.user_management.load_sealed_session.return_value = session
+    with patch("src.routes.token.get_idp") as mock_get_idp:
+        fake_idp = mock_get_idp.return_value
+        fake_idp.name = "fake"
+        fake_idp.authenticate_session.return_value = provider_session
+        fake_idp.to_platform_identity.return_value = identity
 
         client.set_cookie("wos_session", "dummy-session")
         response = client.post("/api/token", data={})

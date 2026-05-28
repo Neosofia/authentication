@@ -2,14 +2,14 @@ import base64
 
 import jwt as pyjwt
 from flask import Blueprint, jsonify, make_response, request
-from workos.session import unseal_data
 
 from src.config import settings
 from src.db.engine import SessionLocal
-from src.bootstrap.extensions import limiter, workos_client
+from src.bootstrap.extensions import limiter
 from src.bootstrap.logging import exc_type_name, log_event, log_exception
-from src.services.cookies import set_wos_session_cookie
-from src.services import tokens, workos_bridge
+from src.services.cookies import IDP_SESSION_COOKIE_NAME, set_idp_session_cookie
+from src.services.idp import get_idp
+from src.services import tokens
 from src.services.service_tokens import InvalidClientError, issue_service_token
 
 bp = Blueprint("token", __name__, url_prefix="/api")
@@ -23,10 +23,10 @@ def token():
 
     Supports two authorization methods:
 
-    1. **Session Grant (implicit)**: Issues human JWT from sealed WorkOS session cookie.
-       - No body required, token from wos_session cookie
+    1. **Session Grant (implicit)**: Issues human JWT from IdP session cookie.
+       - No body required, token from session cookie
        - Returns: {"access_token": "<jwt>", "token_type": "Bearer", "expires_in": <seconds>}
-       - Status: 200 (success), 401 (no session), 503 (WorkOS unavailable)
+       - Status: 200 (success), 401 (no session), 503 (provider unavailable)
 
     2. **Client Credentials**: Issues service JWT for service-to-service auth.
        - Requires: grant_type=client_credentials, Basic auth with client_id:client_secret
@@ -51,61 +51,38 @@ def token():
 
 
 def _handle_session_grant():
-    sealed = request.cookies.get("wos_session")
+    sealed = request.cookies.get(IDP_SESSION_COOKIE_NAME)
     if not sealed:
         return jsonify({"error": "unauthenticated"}), 401
 
+    idp = get_idp()
     try:
-        session = workos_client.user_management.load_sealed_session(
-            session_data=sealed,
-            cookie_password=settings.workos_cookie_password,
-        )
-        auth_response = session.authenticate()
-
-        # If the WorkOS short-lived access token is expired, attempt to refresh it
-        if not auth_response.authenticated:
-            auth_response = session.refresh()
-
-        if not auth_response.authenticated:
+        provider_session = idp.authenticate_session(sealed)
+        if provider_session is None:
             return jsonify({"error": "session invalid or expired"}), 401
     except Exception as e:
         exc_name = exc_type_name(e)
         if any(w in exc_name.lower() + type(e).__module__.lower() + str(e).lower() for w in ("timeout", "connect", "network", "unreachable", "connection")):
-            log_event("workos_unavailable", error_class=exc_name)
+            log_event("idp_unavailable", provider=idp.name, error_class=exc_name)
             return jsonify({"error": "authentication provider unavailable"}), 503
         raise
 
     try:
-        user = getattr(auth_response, "user", None)
-        sub = (user.get("id") if isinstance(user, dict) else getattr(user, "id", None)) or "unknown"
-
-        # The session cookie response doesn't expose custom JWT claims (workos_tenant_id,
-        # workos_tenant_name, tenant_uuid). Unseal the appropriate session to get the raw
-        # access_token JWT so extract_platform_claims can decode all claims from it.
-        # After refresh, the new sealed session is on auth_response.sealed_session.
-        session_to_unseal = getattr(auth_response, "sealed_session", None) or sealed
-        try:
-            raw_session = unseal_data(session_to_unseal, settings.workos_cookie_password)
-            raw_access_token = raw_session.get("access_token")
-        except Exception:
-            raw_access_token = None
-
-        claims = workos_bridge.extract_platform_claims(auth_response, access_token_str=raw_access_token)
-        user_uuid = claims.get("user_uuid")
-        tenant_uuid = claims.get("tenant_uuid")
+        identity = idp.to_platform_identity(provider_session)
+        sub = identity.user_uuid or identity.idp_user_id
 
         platform_token = tokens.issue_token(
-            sub=user_uuid or sub,
+            sub=sub,
             token_type="human",
-            roles=claims["roles"],
-            tenant_uuid=tenant_uuid,
+            roles=identity.roles,
+            tenant_uuid=identity.tenant_uuid,
             ttl_secs=settings.access_token_ttl_secs,
             private_key_pem=settings.jwt_private_key_pem,
             audience=settings.jwt_web_audience,
             claim_namespace=settings.jwt_claim_namespace,
             public_key_pem=settings.jwt_public_key_pem,
         )
-        log_event("platform_token_issued", user_id=sub)
+        log_event("platform_token_issued", user_id=identity.idp_user_id)
 
         response = make_response(jsonify({
             "access_token": platform_token,
@@ -114,9 +91,8 @@ def _handle_session_grant():
         }))
 
         # If the session was refreshed, persist the newly sealed session back to the client
-        sealed_session = getattr(auth_response, "sealed_session", None)
-        if sealed_session:
-            set_wos_session_cookie(response, sealed_session)
+        if provider_session.sealed_session:
+            set_idp_session_cookie(response, provider_session.sealed_session)
 
         return response
     except Exception as e:
@@ -181,11 +157,11 @@ def token_inspect():
     The returned payload is a debug dump. Downstream services must still validate
     tokens in production.
 
-    Request: Authorization: Bearer <platform-jwt>
+    Request: Authorization: Bearer token
     Response: decoded JWT claims
     Status: 200 (valid), 400 (invalid token)
 
-    Ref: RFC 7519 (JWT Claims), RFC 7523 (Bearer token)
+    Ref: RFC 7519 (JWT Claims), RFC 7523
     """
     if not settings.is_non_production:
         return jsonify({"error": "not_found"}), 404
