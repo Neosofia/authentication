@@ -45,7 +45,7 @@ def test_provision_organization_external_id_returns_false_on_error(mock_wos):
 def test_prepare_auth_session_rejects_when_tenant_uuid_stays_missing(mock_wos):
     mock_wos.organizations.update_organization.side_effect = RuntimeError("unavailable")
     auth = _auth(
-        {"workos_tenant_id": _ORG, "role": "admin"},
+        {"workos_tenant_id": _ORG, "role": "operator"},
         refresh=None,
         user_data={"id": "user_123", "external_id": "person-uuid"},
     )
@@ -57,7 +57,7 @@ def test_prepare_auth_session_rejects_when_tenant_uuid_stays_missing(mock_wos):
 
 
 def test_decode_access_token_claims_rejects_wrong_client_id():
-    token = encode_test_access_token({"role": "admin"})
+    token = encode_test_access_token({"role": "operator"})
 
     with patch("src.services.idp.workos.settings.workos_client_id", "other_client"):
         assert decode_access_token_claims(MagicMock(access_token=token)) == {}
@@ -65,11 +65,11 @@ def test_decode_access_token_claims_rejects_wrong_client_id():
 
 def test_decode_access_token_claims_accepts_custom_authkit_issuer():
     token = encode_test_access_token(
-        {"role": "admin", "iss": "https://my-env.authkit.app/"}
+        {"role": "operator", "iss": "https://my-env.authkit.app/"}
     )
 
     claims = decode_access_token_claims(MagicMock(access_token=token))
-    assert claims.get("role") == "admin"
+    assert claims.get("role") == "operator"
 
 
 def test_decode_access_token_claims_without_access_token():
@@ -83,13 +83,13 @@ def test_extract_platform_claims_accepts_single_role_claim():
                 "workos_tenant_id": _ORG,
                 "workos_tenant_name": "Acme Corp",
                 "tenant_uuid": "019e02e1-94e1-722b-bd61-f7f95fb1604c",
-                "role": "admin",
+                "role": "operator",
             },
             user_data={"id": "user_123", "external_id": "person-uuid"},
         )
     )
 
-    assert claims["roles"] == ["admin"]
+    assert claims["roles"] == ["operator"]
 
 
 @patch("src.services.idp.workos.unseal_data", return_value={"access_token": "raw-token"})

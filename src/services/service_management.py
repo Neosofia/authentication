@@ -81,18 +81,18 @@ def create_service(db, user_uuid: str, name: str, slug: str, base_url: str) -> d
         changed_by_uuid=changed_by_uuid,
         changed_by_type=1,
     )
-    db.add(new_service)
-    db.flush()
-
-    new_credential = ServiceCredential(
-        service_uuid=new_service.uuid,
-        hashed_secret=hashed_secret,
-        changed_by_uuid=changed_by_uuid,
-        changed_by_type=1,
-    )
-    db.add(new_credential)
 
     try:
+        db.add(new_service)
+        db.flush()
+
+        new_credential = ServiceCredential(
+            service_uuid=new_service.uuid,
+            hashed_secret=hashed_secret,
+            changed_by_uuid=changed_by_uuid,
+            changed_by_type=1,
+        )
+        db.add(new_credential)
         db.commit()
     except IntegrityError:
         db.rollback()

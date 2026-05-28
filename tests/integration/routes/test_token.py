@@ -27,7 +27,7 @@ def _workos_auth_response():
             "workos_tenant_id": "org_123",
             "workos_tenant_name": "Test Org",
             "tenant_uuid": "019e02e1-94e1-722b-bd61-f7f95fb1601f",
-            "roles": ["admin"],
+            "roles": ["operator"],
         }
     )
     response.sealed_session = "dummy-sealed-session"

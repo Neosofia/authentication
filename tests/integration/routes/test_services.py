@@ -34,8 +34,8 @@ def test_services_forbidden(client, app):
     assert response.status_code == 403
 
 
-def test_services_list_success(client, app):
-    token = _get_token(app, ["admin"])
+def test_services_list_success_with_operator_role(client, app):
+    token = _get_token(app, ["operator"])
     service = Service(
         uuid=uuid.uuid7(),
         name="Test Service",
@@ -62,14 +62,21 @@ def test_services_list_success(client, app):
     assert response.json["total"] == 1
 
 
+def test_services_legacy_admin_role_returns_403(client, app):
+    token = _get_token(app, ["admin"])
+    response = client.get("/api/services", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 403
+    assert response.json["message"] == "requires operator role"
+
+
 def test_services_create_missing_fields(client, app):
-    token = _get_token(app, ["platform-admin"])
+    token = _get_token(app, ["operator"])
     response = client.post("/api/services", json={"name": "test"}, headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 400
 
 
 def test_services_create_success(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
     mock_db = MagicMock()
     mock_db.__enter__.return_value = mock_db
     mock_db.add = MagicMock()
@@ -89,7 +96,7 @@ def test_services_create_success(client, app):
 
 
 def test_services_create_conflict(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
     mock_db = MagicMock()
     mock_db.__enter__.return_value = mock_db
     mock_db.add = MagicMock()
@@ -109,7 +116,7 @@ def test_services_create_conflict(client, app):
 
 
 def test_services_get_not_found(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
     mock_db = MagicMock()
     mock_db.__enter__.return_value = mock_db
     mock_db.scalar.return_value = None
@@ -121,7 +128,7 @@ def test_services_get_not_found(client, app):
 
 
 def test_services_update_no_fields(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
     response = client.put(
         "/api/services/existing-service",
         json={"not_a_field": "value"},
@@ -132,7 +139,7 @@ def test_services_update_no_fields(client, app):
 
 
 def test_services_update_conflict(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
     service = Service(
         uuid=uuid.uuid7(),
         name="Existing Service",
@@ -158,7 +165,7 @@ def test_services_update_conflict(client, app):
 
 
 def test_services_rotate_success(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
     service = Service(
         uuid=uuid.uuid7(),
         name="Test Service",
@@ -187,7 +194,7 @@ def test_services_rotate_success(client, app):
 
 
 def test_services_get_audits_invalid_source(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
     service = Service(
         name="Test Service",
         slug="test-service",
@@ -214,7 +221,7 @@ def test_services_get_audits_invalid_source(client, app):
 
 
 def test_services_get_success(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
     service = Service(
         uuid=uuid.uuid7(),
         name="Test Service",
@@ -241,7 +248,7 @@ def test_services_get_success(client, app):
 
 
 def test_services_update_success(client, app):
-    token = _get_token(app, ["admin"])
+    token = _get_token(app, ["operator"])
     service = Service(
         name="Existing Service",
         slug="existing-service",

@@ -14,7 +14,6 @@ bp = Blueprint("services", __name__, url_prefix="/api/services")
 _DEFAULT_PAGE_SIZE = 20
 _MAX_PAGE_SIZE = 100
 
-
 def _parse_pagination() -> tuple[int, int] | tuple[None, tuple]:
     try:
         page = max(1, int(request.args.get("page", 1)))
@@ -30,7 +29,7 @@ def _parse_pagination() -> tuple[int, int] | tuple[None, tuple]:
     return (page, page_size), None
 
 
-def require_admin(f):
+def require_operator(f):
     @with_authentication(
         public_key=settings.jwt_public_key_pem,
         audience=settings.jwt_web_audience,
@@ -41,8 +40,8 @@ def require_admin(f):
         claims = getattr(g, "jwt_claims", {})
 
         roles = claims.get(f"{settings.jwt_claim_namespace}:roles", [])
-        if "admin" not in roles and "platform-admin" not in roles:
-            return jsonify({"error": "forbidden", "message": "requires admin role"}), 403
+        if "operator" not in roles:
+            return jsonify({"error": "forbidden", "message": "requires operator role"}), 403
 
         user_uuid = claims.get("sub")
         if not user_uuid:
@@ -60,7 +59,7 @@ def require_admin(f):
 
 @bp.route("", methods=["GET"])
 @limiter.limit("60 per minute")
-@require_admin
+@require_operator
 def list_services(user_uuid: str):
     """
     List registered platform services with credential metadata.
@@ -88,7 +87,7 @@ def list_services(user_uuid: str):
 
 @bp.route("", methods=["POST"])
 @limiter.limit("60 per minute")
-@require_admin
+@require_operator
 def create_service(user_uuid: str):
     """
     Register a new platform service and generate its service credentials exactly once.
@@ -104,7 +103,7 @@ def create_service(user_uuid: str):
     try:
         with SessionLocal() as db:
             result = service_management.create_service(db, user_uuid, name, slug, base_url)
-            log_event("service_created", service_slug=slug, admin=user_uuid)
+            log_event("service_created", service_slug=slug, operator=user_uuid)
             return jsonify(result), 201
     except service_management.ConflictError:
         return jsonify({"error": "service name or slug or base_url already exists"}), 409
@@ -115,7 +114,7 @@ def create_service(user_uuid: str):
 
 @bp.route("/<slug>", methods=["GET"])
 @limiter.limit("60 per minute")
-@require_admin
+@require_operator
 def get_service(slug: str, user_uuid: str):
     """Return details for a single service including its latest credential metadata."""
     try:
@@ -131,7 +130,7 @@ def get_service(slug: str, user_uuid: str):
 
 @bp.route("/<slug>", methods=["PUT"])
 @limiter.limit("60 per minute")
-@require_admin
+@require_operator
 def update_service(slug: str, user_uuid: str):
     """Update name, slug, or base_url for a service."""
     data = request.get_json()
@@ -146,7 +145,7 @@ def update_service(slug: str, user_uuid: str):
     try:
         with SessionLocal() as db:
             result = service_management.update_service(db, slug, user_uuid, updates)
-            log_event("service_updated", service_slug=result["slug"], admin=user_uuid)
+            log_event("service_updated", service_slug=result["slug"], operator=user_uuid)
             return jsonify(result), 200
     except service_management.NotFoundError:
         return jsonify({"error": "not found"}), 404
@@ -159,7 +158,7 @@ def update_service(slug: str, user_uuid: str):
 
 @bp.route("/<slug>/rotate", methods=["POST"])
 @limiter.limit("60 per minute")
-@require_admin
+@require_operator
 def rotate_service(slug: str, user_uuid: str):
     """
     Rotate the active service credential in-place. The audit trigger captures
@@ -169,7 +168,7 @@ def rotate_service(slug: str, user_uuid: str):
     try:
         with SessionLocal() as db:
             result = service_management.rotate_service(db, slug, user_uuid)
-            log_event("service_credential_rotated", service_slug=slug, admin=user_uuid)
+            log_event("service_credential_rotated", service_slug=slug, operator=user_uuid)
             return jsonify(result), 200
     except service_management.CredentialNotFoundError:
         return jsonify({"error": "no credential"}), 404
@@ -182,7 +181,7 @@ def rotate_service(slug: str, user_uuid: str):
 
 @bp.route("/<slug>/audits", methods=["GET"])
 @limiter.limit("60 per minute")
-@require_admin
+@require_operator
 def get_service_audits(slug: str, user_uuid: str):
     """Return paginated audit history for a service's credentials."""
     pagination, error = _parse_pagination()
