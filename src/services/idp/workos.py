@@ -279,7 +279,7 @@ def prepare_auth_session(
     if tenant_uuid_missing and idp_tenant_id:
         provision_organization_external_id(idp_tenant_id, client=client)
 
-    if user_provisioned or (tenant_uuid_missing and idp_tenant_id):
+    if idp_tenant_id and (user_provisioned or tenant_uuid_missing):
         auth_response = refresh_workos_session(
             auth_response,
             idp_tenant_id=idp_tenant_id,
