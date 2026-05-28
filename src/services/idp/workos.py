@@ -261,13 +261,13 @@ def prepare_auth_session(
     user_data, user_provisioned = provision_user_external_id(user_id, user_data, client=client)
 
     token_claims = decode_access_token_claims(auth_response)
-    idp_tenant_id = _non_empty_str(token_claims.get("workos_tenant_id")) or ""
+    idp_tenant_id = _non_empty_str(token_claims.get("workos_tenant_id"))
     tenant_uuid_missing = not _non_empty_str(token_claims.get("tenant_uuid"))
 
-    if tenant_uuid_missing:
+    if tenant_uuid_missing and idp_tenant_id:
         provision_organization_external_id(idp_tenant_id, client=client)
 
-    if user_provisioned or tenant_uuid_missing:
+    if user_provisioned or (tenant_uuid_missing and idp_tenant_id):
         auth_response = refresh_workos_session(
             auth_response,
             idp_tenant_id=idp_tenant_id,
@@ -361,8 +361,8 @@ def extract_platform_identity(
             user_id=user_id,
             idp_tenant_id=idp_tenant_id,
             valid_roles=list(valid_roles),
-            provider_roles=workos_roles,
-            provider_role=workos_role,
+            workos_roles=workos_roles,
+            workos_role=workos_role,
         )
         raise ValueError(
             "User has no valid roles; token issuance denied. "

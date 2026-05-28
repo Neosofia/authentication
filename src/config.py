@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     jwt_claim_namespace: str = "neosofia"
     env: str = "production"
     jwt_web_audience: str | list[str] = "authentication"
-    valid_roles: str  # comma-separated IdP membership roles, e.g. "admin,member"
+    valid_roles: str  # comma-separated IDP membership roles, e.g. "admin,member"
     idp_provider: str = "workos"
     access_token_ttl_secs: int = 900   # 15 minutes
     service_token_ttl_secs: int = 300  # 5 minutes
