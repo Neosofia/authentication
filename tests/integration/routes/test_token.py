@@ -13,7 +13,7 @@ def _clear_idp_cache():
     get_idp.cache_clear()
 
 
-def _workos_auth_response(*, refreshed_session=None):
+def _workos_auth_response():
     user = MagicMock(id="user_123", external_id="12345678-1234-5678-1234-567812345678")
     user.to_dict.return_value = {
         "id": "user_123",
@@ -30,7 +30,7 @@ def _workos_auth_response(*, refreshed_session=None):
             "roles": ["admin"],
         }
     )
-    response.sealed_session = refreshed_session
+    response.sealed_session = "dummy-sealed-session"
     return response
 
 
@@ -135,7 +135,7 @@ def test_token_session_grant_happy_path(client, api_spec, validate_response):
         patch("src.services.idp.workos.WorkOSClient") as mock_workos_client,
         patch("src.services.idp.workos.unseal_data") as mock_unseal_data,
     ):
-        auth_response = _workos_auth_response(refreshed_session="dummy-sealed-session")
+        auth_response = _workos_auth_response()
         sealed_session = mock_workos_client.return_value.user_management.load_sealed_session.return_value
         sealed_session.authenticate.return_value = auth_response
         mock_unseal_data.return_value = {"access_token": auth_response.access_token}

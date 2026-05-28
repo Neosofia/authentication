@@ -93,7 +93,7 @@ def test_extract_platform_claims_accepts_single_role_claim():
 
 
 @patch("src.services.idp.workos.unseal_data", return_value={"access_token": "raw-token"})
-def test_workos_provider_authenticate_session_refreshes_session(mock_unseal):
+def test_workos_provider_authenticate_session_attempts_refresh_when_auth_fails(mock_unseal):
     provider = WorkOSIdentityProvider.__new__(WorkOSIdentityProvider)
     provider.client = MagicMock()
     sealed_session = provider.client.user_management.load_sealed_session.return_value

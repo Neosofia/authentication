@@ -57,7 +57,7 @@ def test_login_happy_path_uses_configured_provider(client):
 
 
 
-def test_callback_happy_path_with_workos_adapter(client):
+def test_callback_happy_path_workos_integration(client):
     _clear_idp_cache()
     with (
         patch("src.services.idp.workos.WorkOSClient") as mock_workos_client,
