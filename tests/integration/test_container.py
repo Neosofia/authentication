@@ -90,30 +90,14 @@ def app_container():
                 "base_url": base_url,
                 "migration_url": migration_url_host,
                 "app_url": app_url_host,
+                "container_id": c.get_wrapped_container().id,
             }
 
 
 def test_container_builds_and_runs(app_container):
     """Run migrations post-start, then assert health is fully ready."""
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-    env = {
-        **os.environ,
-        "VALID_ROLES": "admin,user",
-        "JWT_PRIVATE_KEY_PEM": "DEFAULT_PRIVATE_KEY",
-        "JWT_PUBLIC_KEY_PEM": "DEFAULT_PUBLIC_KEY",
-        "APP_DATABASE_URL": app_container["app_url"],
-        "MIGRATION_DATABASE_URL": app_container["migration_url"],
-        "ENV": "test",
-        "CSRF_SECRET_KEY": "dummy_csrf_secret",
-        "WORKOS_API_KEY": "sk_test_dummy_key",
-        "WORKOS_CLIENT_ID": "client_test_dummy_id",
-        "WORKOS_COOKIE_PASSWORD": "dummy_cookie_password_32_chars_long_xxxxxx",
-        "WORKOS_REDIRECT_URI": "http://localhost:8014/callback",
-    }
     subprocess.run(
-        ["uv", "run", "alembic", "upgrade", "head"],
-        cwd=repo_root,
-        env=env,
+        ["docker", "exec", app_container["container_id"], "python", "-m", "alembic", "upgrade", "head"],
         check=True,
         stdout=subprocess.DEVNULL,
     )
