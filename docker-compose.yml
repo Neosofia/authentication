@@ -22,7 +22,6 @@ services:
       dockerfile: Dockerfile
     container_name: authentication-migrate
     env_file:
-      - .env.compose.example
       - path: .env
         required: false
     command: ["python", "-m", "alembic", "upgrade", "head"]
@@ -37,7 +36,6 @@ services:
       dockerfile: Dockerfile
     container_name: authentication
     env_file:
-      - .env.compose.example
       - path: .env
         required: false
     ports:

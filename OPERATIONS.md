@@ -177,6 +177,8 @@ uv run alembic upgrade head
 uv run python -m gunicorn -c src/gunicorn.py src.app:app
 ```
 
+To run auth inside Docker Compose instead, use `uv run python scripts/setup-env.py --for-compose` (rewrites DB hosts to `auth-postgres:5432`), then `docker compose up -d auth-postgres authentication`. See [OPS-LOCAL.md](OPS-LOCAL.md) Option B.
+
 ### Railway (and similar PaaS)
 
 Railway's Postgres plugin creates one superuser (`auth`) with a platform-generated password. Wire it to migrations only:

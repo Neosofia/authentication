@@ -3,7 +3,8 @@
 
 Usage:
     cd authentication
-    uv run python scripts/setup-env.py
+    uv run python scripts/setup-env.py              # host dev (localhost:5014)
+    uv run python scripts/setup-env.py --for-compose  # full stack in Docker
 
 Copies .env.example → .env (unless .env exists and --force is not set), then generates:
   CSRF_SECRET_KEY, WORKOS_COOKIE_PASSWORD, JWT keypair, POSTGRES_PASSWORD,
@@ -32,6 +33,8 @@ SERVICE_DIR = Path(__file__).resolve().parent.parent
 ENV_EXAMPLE = SERVICE_DIR / ".env.example"
 POSTGRES_EXAMPLE = SERVICE_DIR / ".env.postgres.example"
 POSTGRES_FILE = SERVICE_DIR / ".env.postgres"
+COMPOSE_DB_HOST = "auth-postgres"
+COMPOSE_DB_PORT = 5432
 
 
 def _parse_args() -> argparse.Namespace:
@@ -51,6 +54,11 @@ def _parse_args() -> argparse.Namespace:
         "--stdout",
         action="store_true",
         help="Print the env file to stdout after writing (for docker compose run redirects)",
+    )
+    parser.add_argument(
+        "--for-compose",
+        action="store_true",
+        help="Point database URLs at auth-postgres:5432 for docker compose up",
     )
     return parser.parse_args()
 
@@ -134,6 +142,20 @@ def _maybe_generate_postgres_password(force: bool, *, stdout_mode: bool) -> str 
     return password
 
 
+def _rewrite_database_urls_for_compose(content: str) -> str:
+    for key in ("MIGRATION_DATABASE_URL", "APP_DATABASE_URL"):
+        raw_url = _read_database_url(content, key)
+        if raw_url is None:
+            continue
+        url = make_url(raw_url)
+        content = _set_env_line(
+            content,
+            key,
+            str(url.set(host=COMPOSE_DB_HOST, port=COMPOSE_DB_PORT)),
+        )
+    return content
+
+
 def _maybe_set_database_url_password(
     content: str,
     key: str,
@@ -169,6 +191,12 @@ def main() -> int:
 
     _copy_example(env_file, ENV_EXAMPLE, args.force, stdout_mode=args.stdout)
     content = env_file.read_text()
+    if args.for_compose:
+        content = _rewrite_database_urls_for_compose(content)
+        _log(
+            f"Database URLs use {COMPOSE_DB_HOST}:{COMPOSE_DB_PORT} (--for-compose)",
+            stdout_mode=args.stdout,
+        )
     content = _generate_secrets(content, stdout_mode=args.stdout)
 
     postgres_password = _maybe_generate_postgres_password(args.force, stdout_mode=args.stdout)
@@ -205,7 +233,12 @@ def main() -> int:
     print("  WORKOS_API_KEY    — WorkOS Dashboard → API Keys")
     print()
     print("Then start the service:")
-    print("  docker compose up -d auth-postgres authentication")
+    if args.for_compose:
+        print("  docker compose up -d auth-postgres authentication")
+    else:
+        print("  docker compose up -d auth-postgres")
+        print("  uv run alembic upgrade head")
+        print("  uv run python -m gunicorn -c src/gunicorn.py src.app:app")
     return 0
 
 
