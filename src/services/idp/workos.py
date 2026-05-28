@@ -25,12 +25,7 @@ class WorkOSIdentityProvider:
     name = "workos"
 
     def __init__(self) -> None:
-        self.client = WorkOSClient(
-            api_key=settings.workos_api_key,
-            client_id=settings.workos_client_id,
-            request_timeout=5,
-            max_retries=1,
-        )
+        self.client = _new_workos_client()
 
     def authorization_url(self, *, state: str, code_challenge: str) -> str:
         return self.client.user_management.get_authorization_url(
@@ -114,8 +109,24 @@ class WorkOSIdentityProvider:
         )
 
 
-# Backwards-compatible singleton for existing adapter-level tests/helpers.
-workos_client = WorkOSIdentityProvider().client
+# Lazily initialized compatibility client for adapter-level helpers and tests.
+workos_client: WorkOSClient | None = None
+
+
+def _new_workos_client() -> WorkOSClient:
+    return WorkOSClient(
+        api_key=settings.workos_api_key,
+        client_id=settings.workos_client_id,
+        request_timeout=5,
+        max_retries=1,
+    )
+
+
+def _default_workos_client() -> WorkOSClient:
+    global workos_client
+    if workos_client is None:
+        workos_client = _new_workos_client()
+    return workos_client
 
 
 def _resolve_workos_session_id(session: Any) -> str | None:
@@ -183,7 +194,7 @@ def provision_user_external_id(
     if _non_empty_str(user_data.get("external_id")):
         return user_data, False
 
-    client = client or workos_client
+    client = client or _default_workos_client()
     new_person_id = str(uuid.uuid7())
     try:
         updated_user = client.user_management.update_user(
@@ -202,7 +213,7 @@ def provision_organization_external_id(
     *,
     client: WorkOSClient | None = None,
 ) -> bool:
-    client = client or workos_client
+    client = client or _default_workos_client()
     try:
         client.organizations.update_organization(
             id=idp_tenant_id,
@@ -234,7 +245,7 @@ def refresh_workos_session(
         )
         return auth_response
 
-    client = client or workos_client
+    client = client or _default_workos_client()
     try:
         return client.user_management.authenticate_with_refresh_token(
             refresh_token=refresh_token,
@@ -261,6 +272,7 @@ def prepare_auth_session(
     user_data, user_provisioned = provision_user_external_id(user_id, user_data, client=client)
 
     token_claims = decode_access_token_claims(auth_response)
+    # Map the WorkOS custom-claims template field into the provider-neutral tenant ID.
     idp_tenant_id = _non_empty_str(token_claims.get("workos_tenant_id"))
     tenant_uuid_missing = not _non_empty_str(token_claims.get("tenant_uuid"))
 
@@ -282,7 +294,7 @@ def prepare_auth_session(
 
 @lru_cache(maxsize=1)
 def _workos_jwks_client() -> PyJWKClient:
-    return PyJWKClient(workos_client.user_management.get_jwks_url())
+    return PyJWKClient(_default_workos_client().user_management.get_jwks_url())
 
 
 def decode_access_token_claims(

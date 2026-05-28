@@ -1,16 +1,19 @@
 from functools import lru_cache
 
-from src.config import SUPPORTED_IDP_PROVIDERS, settings
+from src.config import settings
 from src.services.idp.base import AuthenticatedSession, IdentityProvider, PlatformIdentity
 from src.services.idp.workos import WorkOSIdentityProvider
+
+_IDP_FACTORIES = {"workos": WorkOSIdentityProvider}
 
 
 @lru_cache(maxsize=1)
 def get_idp() -> IdentityProvider:
     provider = settings.idp_provider.strip().lower()
-    if provider not in SUPPORTED_IDP_PROVIDERS:
-        raise ValueError(f"Unsupported IDP_PROVIDER: {settings.idp_provider}")
-    return WorkOSIdentityProvider()
+    try:
+        return _IDP_FACTORIES[provider]()
+    except KeyError as exc:
+        raise ValueError(f"Unsupported IDP_PROVIDER: {settings.idp_provider}") from exc
 
 
 __all__ = ["AuthenticatedSession", "IdentityProvider", "PlatformIdentity", "get_idp"]
