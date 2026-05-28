@@ -24,12 +24,17 @@ class AuthenticatedSession:
 class IdentityProvider(Protocol):
     name: str
 
-    def authorization_url(self, *, state: str, code_challenge: str) -> str: ...
+    def authorization_url(self, *, state: str, code_challenge: str) -> str:
+        raise NotImplementedError
 
-    def exchange_code(self, *, code: str, code_verifier: str) -> AuthenticatedSession: ...
+    def exchange_code(self, *, code: str, code_verifier: str) -> AuthenticatedSession:
+        raise NotImplementedError
 
-    def authenticate_session(self, sealed: str) -> AuthenticatedSession | None: ...
+    def authenticate_session(self, sealed: str) -> AuthenticatedSession | None:
+        raise NotImplementedError
 
-    def revoke_session(self, sealed: str, *, return_to: str) -> str | None: ...
+    def revoke_session(self, sealed: str, *, return_to: str) -> str | None:
+        raise NotImplementedError
 
-    def to_platform_identity(self, session: AuthenticatedSession) -> PlatformIdentity: ...
+    def to_platform_identity(self, session: AuthenticatedSession) -> PlatformIdentity:
+        raise NotImplementedError
