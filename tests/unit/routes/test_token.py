@@ -38,6 +38,12 @@ def test_unsupported_grant_type(mock_log, client):
     assert response.json == {"error": "unsupported_grant_type"}
 
 
+def test_unsupported_json_grant_type(client):
+    response = client.post("/api/token", json={"grant_type": "password"})
+    assert response.status_code == 400
+    assert response.json == {"error": "unsupported_grant_type"}
+
+
 # When attempting a session grant (the default), if there is no wos_session
 # cookie present, the endpoint should return a 401 Unauthenticated.
 @patch("src.routes.token.log_event")
