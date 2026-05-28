@@ -47,7 +47,8 @@ def login():
     # code_challenge: SHA256(verifier) encoded as base64url
     code_challenge = _base64url_encode(hashlib.sha256(code_verifier.encode()).digest())
 
-    authorization_url = get_idp().authorization_url(
+    idp = get_idp()
+    authorization_url = idp.authorization_url(
         state=oauth_state,
         code_challenge=code_challenge,
     )
@@ -58,7 +59,7 @@ def login():
 
     response = make_response(redirect(authorization_url))
 
-    log_event("login_initiated", provider=get_idp().name)
+    log_event("login_initiated", provider=idp.name)
     return response
 
 
