@@ -62,7 +62,9 @@ def _handle_session_grant():
             return jsonify({"error": "session invalid or expired"}), 401
     except Exception as e:
         exc_name = exc_type_name(e)
-        if any(w in exc_name.lower() + type(e).__module__.lower() + str(e).lower() for w in ("timeout", "connect", "network", "unreachable", "connection")):
+        error_text = exc_name.lower() + type(e).__module__.lower() + str(e).lower()
+        network_markers = ("timeout", "connect", "network", "unreachable", "connection")
+        if any(marker in error_text for marker in network_markers):
             log_event("idp_unavailable", provider=idp.name, error_class=exc_name)
             return jsonify({"error": "authentication provider unavailable"}), 503
         raise

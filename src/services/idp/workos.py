@@ -46,12 +46,17 @@ class WorkOSIdentityProvider:
             code=code,
             code_verifier=code_verifier,
         )
-        auth_response, user_data, _identity = prepare_auth_session(auth_response, client=self.client)
+        auth_response, user_data, _identity = prepare_auth_session(
+            auth_response,
+            client=self.client,
+        )
         sealed_session = seal_session_from_auth_response(
             access_token=auth_response.access_token,
             refresh_token=auth_response.refresh_token,
             user=user_data,
-            impersonator=auth_response.impersonator.to_dict() if auth_response.impersonator else None,
+            impersonator=(
+                auth_response.impersonator.to_dict() if auth_response.impersonator else None
+            ),
             cookie_password=settings.workos_cookie_password,
         )
         return AuthenticatedSession(
@@ -280,7 +285,10 @@ def _workos_jwks_client() -> PyJWKClient:
     return PyJWKClient(workos_client.user_management.get_jwks_url())
 
 
-def decode_access_token_claims(auth_response: Any, access_token_str: str | None = None) -> dict[str, Any]:
+def decode_access_token_claims(
+    auth_response: Any,
+    access_token_str: str | None = None,
+) -> dict[str, Any]:
     access_token = access_token_str or getattr(auth_response, "access_token", None)
     if not access_token:
         return {}
