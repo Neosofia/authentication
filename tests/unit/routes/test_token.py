@@ -1,11 +1,32 @@
 from unittest.mock import patch, MagicMock
 import jwt
 
+from src.services.idp import AuthenticatedSession, PlatformIdentity
 from src.services.service_tokens import InvalidClientError
 
 class MockConnectionError(Exception):
     """Simulates a network timeout class."""
     pass
+
+
+def _identity():
+    return PlatformIdentity(
+        user_uuid="user-uuid",
+        tenant_uuid="tenant-uuid",
+        idp_user_id="user_123",
+        idp_tenant_id="org_123",
+        tenant_name="Test Org",
+        roles=["admin"],
+        profile={},
+    )
+
+
+def _session(sealed_session=None):
+    return AuthenticatedSession(
+        idp_user_id="user_123",
+        provider_response=MagicMock(),
+        sealed_session=sealed_session,
+    )
 
 
 # If the grant type is not "session" or "client_credentials",
@@ -15,6 +36,15 @@ def test_unsupported_grant_type(mock_log, client):
     response = client.post("/api/token", data={"grant_type": "password"})
     assert response.status_code == 400
     assert response.json == {"error": "unsupported_grant_type"}
+    mock_log.assert_not_called()
+
+
+@patch("src.routes.token.log_event")
+def test_unsupported_json_grant_type(mock_log, client):
+    response = client.post("/api/token", json={"grant_type": "password"})
+    assert response.status_code == 400
+    assert response.json == {"error": "unsupported_grant_type"}
+    mock_log.assert_not_called()
 
 
 # When attempting a session grant (the default), if there is no wos_session
@@ -29,15 +59,11 @@ def test_session_grant_no_cookie(mock_log, client):
 # When a valid looking wos_session cookie is sent, but the session is
 # expired or invalid upstream on WorkOS, a 401 should be returned.
 @patch("src.routes.token.log_event")
-@patch("src.routes.token.workos_client")
-def test_session_grant_invalid_session(mock_workos, mock_log, client):
+@patch("src.routes.token.get_idp")
+def test_session_grant_invalid_session(mock_get_idp, mock_log, client):
     client.set_cookie("wos_session", "dummy")
-    mock_session = MagicMock()
-    mock_auth_response = MagicMock(authenticated=False)
-    mock_session.authenticate.return_value = mock_auth_response
-    mock_session.refresh.return_value = mock_auth_response
-    mock_workos.user_management.load_sealed_session.return_value = mock_session
-    
+    mock_get_idp.return_value.authenticate_session.return_value = None
+
     response = client.post("/api/token")
     assert response.status_code == 401
     assert response.json == {"error": "session invalid or expired"}
@@ -46,33 +72,30 @@ def test_session_grant_invalid_session(mock_workos, mock_log, client):
 # If WorkOS cannot be reached due to a network or connection timeout,
 # the service should translate the exception into a 503 Provider Unavailable.
 @patch("src.routes.token.log_event")
-@patch("src.routes.token.workos_client")
-def test_session_grant_workos_timeout(mock_workos, mock_log, client):
+@patch("src.routes.token.get_idp")
+def test_session_grant_idp_timeout(mock_get_idp, mock_log, client):
     client.set_cookie("wos_session", "dummy")
-    mock_workos.user_management.load_sealed_session.side_effect = MockConnectionError("Connection timed out")
-    
+    mock_get_idp.return_value.name = "fake"
+    mock_get_idp.return_value.authenticate_session.side_effect = MockConnectionError("Connection timed out")
+
     response = client.post("/api/token")
     assert response.status_code == 503
-    mock_log.assert_called_once_with("workos_unavailable", error_class="MockConnectionError")
+    mock_log.assert_called_once_with("idp_unavailable", provider="fake", error_class="MockConnectionError")
     assert response.json == {"error": "authentication provider unavailable"}
 
 
 # If token construction fails internally (e.g. an unexpected runtime exception),
 # a 500 error should be triggered alongside a telemetry log for platform_token_error.
 @patch("src.routes.token.log_exception")
-@patch("src.routes.token.workos_client")
+@patch("src.routes.token.get_idp")
 @patch("src.routes.token.tokens")
-@patch("src.routes.token.workos_bridge")
-def test_session_grant_internal_error(mock_bridge, mock_issuer, mock_workos, mock_log, client):
+def test_session_grant_internal_error(mock_issuer, mock_get_idp, mock_log, client):
     client.set_cookie("wos_session", "dummy")
-    mock_session = MagicMock()
-    mock_auth_response = MagicMock(authenticated=True)
-    mock_session.authenticate.return_value = mock_auth_response
-    mock_workos.user_management.load_sealed_session.return_value = mock_session
-    mock_bridge.extract_platform_claims.return_value = {"roles": [], "workos_tenant_id": None}
-    
+    fake_idp = mock_get_idp.return_value
+    fake_idp.authenticate_session.return_value = _session()
+    fake_idp.to_platform_identity.return_value = _identity()
     mock_issuer.issue_token.side_effect = Exception("Signing error")
-    
+
     response = client.post("/api/token")
     assert response.status_code == 500
     mock_log.assert_called_once()

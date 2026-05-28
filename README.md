@@ -28,6 +28,11 @@ For architects and senior engineers, the [project constitution](https://github.c
 
 For developers integrating with or extending WorkOS AuthKit, the [WorkOS AuthKit documentation](https://workos.com/docs/authkit/vanilla/python) covers the Python SDK and configuration options used by this service.
 
+
+## Identity Provider Adapter Boundary
+
+HTTP routes and token issuance use the provider-neutral `IdentityProvider` interface in `src/services/idp/base.py`. The configured adapter is selected with `IDP_PROVIDER` (default: `workos`) via `src/services/idp.get_idp()`. WorkOS-specific SDK calls, sealed-session handling, refresh/logout mechanics, JWKS lookup, external-id provisioning, and custom-claim mapping live in `src/services/idp/workos.py`; generic code consumes `PlatformIdentity` fields such as `idp_user_id` and `idp_tenant_id`.
+
 ## Identity Naming Glossary
 
 To trace the concept of "user ID" from the external provider all the way through the database, API layer, and SDK into Cedar evaluation, we maintain strict lexical boundaries:

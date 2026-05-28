@@ -13,8 +13,8 @@ Single-box setup for developers and testers. HTTP only — no HTTPS, no cloud in
 Flask reloads on code changes. Best for active development.
 
 ```bash
-# From the repo root:
-docker compose -f docker-compose.dev.yml up -d auth-postgres
+# From the repo root (after scripts/setup-env.py):
+docker compose up -d auth-postgres
 uv run alembic upgrade head
 uv run python -m gunicorn -c src/gunicorn.py src.app:app
 ```
@@ -27,12 +27,13 @@ Runs the production container image locally. Best for testing the built image.
 
 ```bash
 # From the repo root:
-docker compose -f docker-compose.dev.yml up -d authentication
-docker compose -f docker-compose.dev.yml ps
+uv run python scripts/setup-env.py --for-compose
+docker compose up -d authentication
+docker compose ps
 ```
 
-This compose loads `.env` from the service directory (optional — the container
-falls back to real environment variables if `.env` is absent).
+`--for-compose` points database URLs at `auth-postgres:5432`. Fill in WorkOS
+credentials in `.env` before testing login flows.
 
 
 ---

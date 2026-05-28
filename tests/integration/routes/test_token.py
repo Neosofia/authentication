@@ -5,7 +5,33 @@ import uuid
 from unittest.mock import patch, MagicMock
 from src.config import settings
 from src.models.service_credential import ServiceCredential
+from src.services.idp import get_idp
 from tests.conftest import encode_test_access_token
+
+
+def _clear_idp_cache():
+    get_idp.cache_clear()
+
+
+def _workos_auth_response():
+    user = MagicMock(id="user_123", external_id="12345678-1234-5678-1234-567812345678")
+    user.to_dict.return_value = {
+        "id": "user_123",
+        "external_id": "12345678-1234-5678-1234-567812345678",
+    }
+
+    response = MagicMock(authenticated=True, session_id="session_123")
+    response.user = user
+    response.access_token = encode_test_access_token(
+        {
+            "workos_tenant_id": "org_123",
+            "workos_tenant_name": "Test Org",
+            "tenant_uuid": "019e02e1-94e1-722b-bd61-f7f95fb1601f",
+            "roles": ["admin"],
+        }
+    )
+    response.sealed_session = "dummy-sealed-session"
+    return response
 
 
 def test_token_unauthorized(client, api_spec, validate_response):
@@ -104,40 +130,25 @@ def test_token_client_credentials_rejects_invalid_secret(client, api_spec, valid
 
 
 def test_token_session_grant_happy_path(client, api_spec, validate_response):
-    auth_response = MagicMock()
-    auth_response.authenticated = True
-    auth_response.user = {"id": "user_123", "external_id": "12345678-1234-5678-1234-567812345678"}
-    auth_response.role = "admin"
-    auth_response.roles = None
-    auth_response.workos_tenant_id = "tenant_456"
-    auth_response.tenant = MagicMock(external_id="87654321-4321-8765-4321-876543218765")
-    auth_response.access_token = encode_test_access_token(
-        {
-            "workos_tenant_id": "019e02e1-94e1-722b-bd61-f7f95fb1601f",
-            "workos_tenant_name": "Test Org",
-            "tenant_uuid": "019e02e1-94e1-722b-bd61-f7f95fb1601f",
-            "role": "admin",
-        }
-    )
-    auth_response.refresh_token = "workos-refresh-token"
-    auth_response.impersonator = None
-    auth_response.sealed_session = "dummy-sealed-session"
-
-    session = MagicMock()
-    session.authenticate.return_value = auth_response
-
-    with patch("src.services.workos_bridge.settings.valid_roles", "admin,user"), patch("src.routes.token.workos_client") as mock_workos:
-        mock_workos.user_management.load_sealed_session.return_value = session
-
+    _clear_idp_cache()
+    with (
+        patch("src.services.idp.workos.WorkOSClient") as mock_workos_client,
+        patch("src.services.idp.workos.unseal_data") as mock_unseal_data,
+    ):
+        auth_response = _workos_auth_response()
+        sealed_session = mock_workos_client.return_value.user_management.load_sealed_session.return_value
+        sealed_session.authenticate.return_value = auth_response
+        mock_unseal_data.return_value = {"access_token": auth_response.access_token}
         client.set_cookie("wos_session", "dummy-session")
         response = client.post("/api/token", data={})
+    _clear_idp_cache()
 
-        assert response.status_code == 200
-        cookie_headers = response.headers.getlist("Set-Cookie")
-        assert any("wos_session=" in header for header in cookie_headers)
-        assert any("SameSite=None" in header for header in cookie_headers)
-        assert any("Secure" in header for header in cookie_headers)
-        validate_response(api_spec, "/api/token", "post", 200, response.json)
+    assert response.status_code == 200
+    cookie_headers = response.headers.getlist("Set-Cookie")
+    assert any("wos_session=dummy-sealed-session" in header for header in cookie_headers)
+    assert any("SameSite=None" in header for header in cookie_headers)
+    assert any("Secure" in header for header in cookie_headers)
+    validate_response(api_spec, "/api/token", "post", 200, response.json)
 
 
 def test_token_inspect_happy_path(client, api_spec, validate_response, app):

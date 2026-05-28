@@ -3,6 +3,27 @@ from unittest.mock import ANY, MagicMock, patch
 
 from src.app import create_app
 from src.config import settings
+from src.services.idp import AuthenticatedSession, PlatformIdentity
+
+
+def _identity():
+    return PlatformIdentity(
+        user_uuid="user-uuid",
+        tenant_uuid="tenant-uuid",
+        idp_user_id="user_123",
+        idp_tenant_id="org_123",
+        tenant_name="Test Org",
+        roles=["admin"],
+        profile={"email": "test@example.com"},
+    )
+
+
+def _provider_session(sealed_session="sealed"):
+    return AuthenticatedSession(
+        idp_user_id="user_123",
+        provider_response=MagicMock(),
+        sealed_session=sealed_session,
+    )
 
 
 def _production_settings():
@@ -81,15 +102,16 @@ def test_callback_pkce_missing(mock_log_event, client):
     assert "/login" in response.headers["Location"]
 
 @patch("src.routes.auth.log_exception")
-@patch("src.routes.auth.workos_client")
-def test_callback_exception(mock_client, mock_log_exception, client):
+@patch("src.routes.auth.get_idp")
+def test_callback_exception(mock_get_idp, mock_log_exception, client):
     with client.session_transaction() as sess:
         sess["oauth_state"] = "test_state"
         sess["code_verifier"] = "test_verifier"
-    mock_client.user_management.authenticate_with_code_pkce.side_effect = Exception("Auth failed")
+    mock_get_idp.return_value.name = "fake"
+    mock_get_idp.return_value.exchange_code.side_effect = Exception("Auth failed")
     
     response = client.get("/callback?code=fake_code&state=test_state")
-    mock_log_exception.assert_called_once_with("callback_error", ANY, method="workos")
+    mock_log_exception.assert_called_once_with("callback_error", ANY, method="fake")
     assert response.status_code == 302
     assert response.headers["Location"] == settings.frontend_url
 
@@ -101,10 +123,10 @@ def test_logout_no_session(mock_log_event, client):
     assert response.headers["Location"] == settings.frontend_url
 
 @patch("src.routes.auth.log_exception")
-@patch("src.routes.auth.workos_client")
-def test_logout_exception(mock_client, mock_log_exception, client):
+@patch("src.routes.auth.get_idp")
+def test_logout_exception(mock_get_idp, mock_log_exception, client):
     client.set_cookie("wos_session", "dummy-session")
-    mock_client.user_management.load_sealed_session.side_effect = Exception("Logout failed")
+    mock_get_idp.return_value.revoke_session.side_effect = Exception("Logout failed")
 
     response = client.get("/logout")
     mock_log_exception.assert_called_once_with("logout_failure", ANY)
@@ -113,19 +135,15 @@ def test_logout_exception(mock_client, mock_log_exception, client):
 
 
 @patch("src.routes.auth.log_event")
-@patch("src.routes.auth.workos_client")
-def test_logout_uses_authenticate_before_refresh(mock_client, mock_log_event, client):
-    session = MagicMock()
-    session.authenticate.return_value = MagicMock(authenticated=True, session_id="session_abc")
-    mock_client.user_management.load_sealed_session.return_value = session
-    mock_client.user_management.get_logout_url.return_value = "https://workos.example.com/logout"
+@patch("src.routes.auth.get_idp")
+def test_logout_uses_provider_revoke(mock_get_idp, mock_log_event, client):
+    mock_get_idp.return_value.revoke_session.return_value = "https://idp.example.com/logout"
 
     client.set_cookie("wos_session", "dummy-session")
     client.get("/logout")
 
-    session.refresh.assert_not_called()
-    mock_client.user_management.get_logout_url.assert_called_once_with(
-        session_id="session_abc",
+    mock_get_idp.return_value.revoke_session.assert_called_once_with(
+        "dummy-session",
         return_to=settings.frontend_url,
     )
     
