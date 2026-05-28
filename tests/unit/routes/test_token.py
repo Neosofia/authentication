@@ -36,12 +36,15 @@ def test_unsupported_grant_type(mock_log, client):
     response = client.post("/api/token", data={"grant_type": "password"})
     assert response.status_code == 400
     assert response.json == {"error": "unsupported_grant_type"}
+    mock_log.assert_not_called()
 
 
-def test_unsupported_json_grant_type(client):
+@patch("src.routes.token.log_event")
+def test_unsupported_json_grant_type(mock_log, client):
     response = client.post("/api/token", json={"grant_type": "password"})
     assert response.status_code == 400
     assert response.json == {"error": "unsupported_grant_type"}
+    mock_log.assert_not_called()
 
 
 # When attempting a session grant (the default), if there is no wos_session
