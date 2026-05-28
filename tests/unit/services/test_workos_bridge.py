@@ -25,7 +25,7 @@ def _auth(claims, *, user_data=None, refresh="refresh-token"):
 @pytest.mark.parametrize(
     "claims,missing_field",
     [
-        ({"workos_tenant_name": "Acme Corp", "tenant_uuid": "019e02e1-94e1-722b-bd61-f7f95fb1604c"}, "idp_tenant_id"),
+        ({"workos_tenant_name": "Acme Corp", "tenant_uuid": "019e02e1-94e1-722b-bd61-f7f95fb1604c"}, "workos_tenant_id"),
         ({"workos_tenant_id": _ORG, "workos_tenant_name": "Acme Corp"}, "tenant_uuid"),
     ],
 )

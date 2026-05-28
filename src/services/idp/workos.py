@@ -329,11 +329,11 @@ def extract_platform_identity(
 
     if not idp_tenant_id:
         log_event(
-            "token_rejected_no_idp_tenant_id",
+            "token_rejected_no_workos_tenant_id",
             user_id=user_id,
-            reason="missing provider tenant id in template",
+            reason="missing workos_tenant_id in template",
         )
-        raise ValueError("User has no idp_tenant_id in token; token issuance denied")
+        raise ValueError("User has no workos_tenant_id in token; token issuance denied")
 
     if not tenant_uuid:
         log_event(

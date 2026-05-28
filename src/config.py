@@ -149,15 +149,16 @@ class Settings(BaseSettings):
         if provider not in SUPPORTED_IDP_PROVIDERS:
             raise ValueError(f"Unsupported IDP_PROVIDER: {self.idp_provider}")
 
-        for field_name in (
-            "workos_api_key",
-            "workos_client_id",
-            "workos_cookie_password",
-            "workos_redirect_uri",
-        ):
-            value = getattr(self, field_name)
-            if value is None or not str(value).strip():
-                raise ValueError(f"{field_name.upper()} must be set when IDP_PROVIDER=workos")
+        if provider == "workos":
+            for field_name in (
+                "workos_api_key",
+                "workos_client_id",
+                "workos_cookie_password",
+                "workos_redirect_uri",
+            ):
+                value = getattr(self, field_name)
+                if value is None or not str(value).strip():
+                    raise ValueError(f"{field_name.upper()} must be set when IDP_PROVIDER=workos")
 
         if self.env.lower() not in ("development", "test"):
             if not self.frontend_url.strip():

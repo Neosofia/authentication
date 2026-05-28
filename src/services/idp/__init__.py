@@ -10,9 +10,7 @@ def get_idp() -> IdentityProvider:
     provider = settings.idp_provider.strip().lower()
     if provider not in SUPPORTED_IDP_PROVIDERS:
         raise ValueError(f"Unsupported IDP_PROVIDER: {settings.idp_provider}")
-    if provider == "workos":
-        return WorkOSIdentityProvider()
-    raise ValueError(f"Unsupported IDP_PROVIDER: {settings.idp_provider}")
+    return WorkOSIdentityProvider()
 
 
 __all__ = ["AuthenticatedSession", "IdentityProvider", "PlatformIdentity", "get_idp"]
