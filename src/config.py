@@ -3,8 +3,9 @@ import json
 import logging
 import os
 import re
+from pathlib import Path
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -113,6 +114,8 @@ class Settings(BaseSettings):
     workos_redirect_uri: str | None = None
     ratelimit_storage_uri: str = "memory://"
     max_content_length: int = 16_384
+    authorization_policies_dir: Path = Field(default=Path("policies"))
+    authorization_policy_cache_ttl: int = Field(default=60, ge=0)
 
     @field_validator(*_REQUIRED_FIELDS, mode="before")
     @classmethod

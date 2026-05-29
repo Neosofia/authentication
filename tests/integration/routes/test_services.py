@@ -66,7 +66,7 @@ def test_services_legacy_admin_role_returns_403(client, app):
     token = _get_token(app, ["admin"])
     response = client.get("/api/services", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 403
-    assert response.json["message"] == "requires operator role"
+    assert response.json["error"] == "forbidden"
 
 
 def test_services_create_missing_fields(client, app):

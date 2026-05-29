@@ -37,6 +37,10 @@
     {
       "name": "Services",
       "description": "Platform service registration and credential lifecycle management (operator only)"
+    },
+    {
+      "name": "Tenants",
+      "description": "Platform tenant metadata (authentication identity store)"
     }
   ],
   "paths": {
@@ -173,16 +177,28 @@
         }
       }
     },
-    "/api/profile": {
+    "/api/v1/profiles/{profile_id}": {
       "get": {
         "tags": [
           "Session"
         ],
         "summary": "Get user profile",
-        "description": "Returns user identity and tenant details by verifying the platform JWT (Bearer token). Uses `sub` and `neosofia:tenant_uuid` claims to call WorkOS directly \u2014 no session cookie unseal required.",
+        "description": "Returns user identity and tenant details for the given profile id (platform user UUID). Requires a valid platform JWT; Cedar permits access only when the profile id matches the token `sub`.",
         "security": [
           {
             "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Platform user UUID (JWT `sub`)"
           }
         ],
         "responses": {
@@ -200,6 +216,12 @@
                     "roles"
                   ],
                   "properties": {
+                    "tenant_uuid": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true,
+                      "description": "Platform tenant UUID from the JWT"
+                    },
                     "first_name": {
                       "type": "string",
                       "description": "User's first name"
@@ -230,6 +252,91 @@
           },
           "401": {
             "description": "Unauthenticated or session invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_uuid}": {
+      "get": {
+        "tags": [
+          "Tenants"
+        ],
+        "summary": "Get tenant",
+        "description": "Returns tenant metadata from the authentication identity store. Operators may read any tenant; other principals may only read their session tenant (`neosofia:tenant_uuid`).",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "uuid",
+                    "name",
+                    "idp_id"
+                  ],
+                  "properties": {
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "idp_id": {
+                      "type": "string",
+                      "description": "WorkOS organization id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tenant not found",
             "content": {
               "application/json": {
                 "schema": {

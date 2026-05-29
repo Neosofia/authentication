@@ -1,18 +1,17 @@
-import uuid as _uuid
-from functools import wraps
-from flask import Blueprint, jsonify, request, g
-from authentication_in_the_middle.decorators import with_authentication
+from authorization_in_the_middle.security import with_security
+from flask import Blueprint, jsonify, request
 
-from src.config import settings
-from src.db.engine import SessionLocal
-from src.bootstrap.extensions import limiter
+from src.authorization import entities as auth_entities
+from src.bootstrap.capabilities import Capabilities
 from src.bootstrap.logging import log_event, log_exception
+from src.db.engine import SessionLocal
 from src.services import service_management
 
 bp = Blueprint("services", __name__, url_prefix="/api/services")
 
 _DEFAULT_PAGE_SIZE = 20
 _MAX_PAGE_SIZE = 100
+
 
 def _parse_pagination() -> tuple[int, int] | tuple[None, tuple]:
     try:
@@ -29,38 +28,13 @@ def _parse_pagination() -> tuple[int, int] | tuple[None, tuple]:
     return (page, page_size), None
 
 
-def require_operator(f):
-    @with_authentication(
-        public_key=settings.jwt_public_key_pem,
-        audience=settings.jwt_web_audience,
-        enforce_active_role=False
-    )
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        claims = getattr(g, "jwt_claims", {})
-
-        roles = claims.get(f"{settings.jwt_claim_namespace}:roles", [])
-        if "operator" not in roles:
-            return jsonify({"error": "forbidden", "message": "requires operator role"}), 403
-
-        user_uuid = claims.get("sub")
-        if not user_uuid:
-            return jsonify({"error": "unauthenticated", "message": "re-authenticate to obtain a platform identity"}), 401
-        try:
-            _uuid.UUID(str(user_uuid))
-        except ValueError:
-            return jsonify({"error": "unauthenticated", "message": "re-authenticate to obtain a platform identity"}), 401
-        kwargs["user_uuid"] = user_uuid
-        return f(*args, **kwargs)
-    return decorated
-
-
-
-
 @bp.route("", methods=["GET"])
-@limiter.limit("60 per minute")
-@require_operator
-def list_services(user_uuid: str):
+@with_security(
+    action=Capabilities.SERVICE_LIST,
+    rate_limit="60 per minute",
+    entities_fn=auth_entities.service_catalog_entities,
+)
+def list_services():
     """
     List registered platform services with credential metadata.
     Supports pagination and search by name, slug, or base_url.
@@ -86,9 +60,12 @@ def list_services(user_uuid: str):
 
 
 @bp.route("", methods=["POST"])
-@limiter.limit("60 per minute")
-@require_operator
-def create_service(user_uuid: str):
+@with_security(
+    action=Capabilities.SERVICE_CREATE,
+    rate_limit="60 per minute",
+    entities_fn=auth_entities.service_catalog_entities,
+)
+def create_service():
     """
     Register a new platform service and generate its service credentials exactly once.
     """
@@ -99,11 +76,12 @@ def create_service(user_uuid: str):
     name = data["name"].strip()
     slug = data["slug"].strip()
     base_url = data["base_url"].strip()
+    operator_uuid = auth_entities.principal_sub()
 
     try:
         with SessionLocal() as db:
-            result = service_management.create_service(db, user_uuid, name, slug, base_url)
-            log_event("service_created", service_slug=slug, operator=user_uuid)
+            result = service_management.create_service(db, operator_uuid, name, slug, base_url)
+            log_event("service_created", service_slug=slug, operator=operator_uuid)
             return jsonify(result), 201
     except service_management.ConflictError:
         return jsonify({"error": "service name or slug or base_url already exists"}), 409
@@ -113,9 +91,13 @@ def create_service(user_uuid: str):
 
 
 @bp.route("/<slug>", methods=["GET"])
-@limiter.limit("60 per minute")
-@require_operator
-def get_service(slug: str, user_uuid: str):
+@with_security(
+    action=Capabilities.SERVICE_READ,
+    rate_limit="60 per minute",
+    id_arg="slug",
+    entities_fn=auth_entities.service_entities,
+)
+def get_service(slug: str):
     """Return details for a single service including its latest credential metadata."""
     try:
         with SessionLocal() as db:
@@ -129,9 +111,13 @@ def get_service(slug: str, user_uuid: str):
 
 
 @bp.route("/<slug>", methods=["PUT"])
-@limiter.limit("60 per minute")
-@require_operator
-def update_service(slug: str, user_uuid: str):
+@with_security(
+    action=Capabilities.SERVICE_UPDATE,
+    rate_limit="60 per minute",
+    id_arg="slug",
+    entities_fn=auth_entities.service_entities,
+)
+def update_service(slug: str):
     """Update name, slug, or base_url for a service."""
     data = request.get_json()
     if not data:
@@ -142,10 +128,11 @@ def update_service(slug: str, user_uuid: str):
     if not updates:
         return jsonify({"error": "no updatable fields provided"}), 400
 
+    operator_uuid = auth_entities.principal_sub()
     try:
         with SessionLocal() as db:
-            result = service_management.update_service(db, slug, user_uuid, updates)
-            log_event("service_updated", service_slug=result["slug"], operator=user_uuid)
+            result = service_management.update_service(db, slug, operator_uuid, updates)
+            log_event("service_updated", service_slug=result["slug"], operator=operator_uuid)
             return jsonify(result), 200
     except service_management.NotFoundError:
         return jsonify({"error": "not found"}), 404
@@ -157,18 +144,23 @@ def update_service(slug: str, user_uuid: str):
 
 
 @bp.route("/<slug>/rotate", methods=["POST"])
-@limiter.limit("60 per minute")
-@require_operator
-def rotate_service(slug: str, user_uuid: str):
+@with_security(
+    action=Capabilities.SERVICE_ROTATE,
+    rate_limit="60 per minute",
+    id_arg="slug",
+    entities_fn=auth_entities.service_entities,
+)
+def rotate_service(slug: str):
     """
     Rotate the active service credential in-place. The audit trigger captures
     the before-image automatically so history is preserved without extra rows.
     Returns the new plaintext secret exactly once.
     """
+    operator_uuid = auth_entities.principal_sub()
     try:
         with SessionLocal() as db:
-            result = service_management.rotate_service(db, slug, user_uuid)
-            log_event("service_credential_rotated", service_slug=slug, operator=user_uuid)
+            result = service_management.rotate_service(db, slug, operator_uuid)
+            log_event("service_credential_rotated", service_slug=slug, operator=operator_uuid)
             return jsonify(result), 200
     except service_management.CredentialNotFoundError:
         return jsonify({"error": "no credential"}), 404
@@ -180,9 +172,13 @@ def rotate_service(slug: str, user_uuid: str):
 
 
 @bp.route("/<slug>/audits", methods=["GET"])
-@limiter.limit("60 per minute")
-@require_operator
-def get_service_audits(slug: str, user_uuid: str):
+@with_security(
+    action=Capabilities.SERVICE_AUDIT_READ,
+    rate_limit="60 per minute",
+    id_arg="slug",
+    entities_fn=auth_entities.service_entities,
+)
+def get_service_audits(slug: str):
     """Return paginated audit history for a service's credentials."""
     pagination, error = _parse_pagination()
     if error:
@@ -216,4 +212,3 @@ def get_service_audits(slug: str, user_uuid: str):
     except Exception as exc:
         log_exception("get_service_audits_failed", exc)
         return jsonify({"error": "database error"}), 500
-

@@ -122,44 +122,6 @@ def test_services_require_operator_without_operator_role_returns_403(mock_decode
 
     assert response.status_code == 403
     assert response.json["error"] == "forbidden"
-    assert response.json["message"] == "requires operator role"
-
-
-@patch("authentication_in_the_middle.decorators.pyjwt.decode")
-def test_services_require_operator_missing_user_uuid_returns_401(mock_decode, client):
-    mock_decode.return_value = {
-        "aud": settings.jwt_web_audience,
-        "neosofia:roles": ["operator"],
-    }
-
-    with patch("src.routes.services.SessionLocal"):
-        response = client.get(
-            "/api/services",
-            headers={"Authorization": "Bearer 123"},
-        )
-
-    assert response.status_code == 401
-    assert response.json["error"] == "unauthenticated"
-    assert response.json["message"] == "re-authenticate to obtain a platform identity"
-
-
-@patch("authentication_in_the_middle.decorators.pyjwt.decode")
-def test_services_require_operator_invalid_user_uuid_returns_401(mock_decode, client):
-    mock_decode.return_value = {
-        "sub": "not-a-uuid",
-        "aud": settings.jwt_web_audience,
-        "neosofia:roles": ["operator"],
-    }
-
-    with patch("src.routes.services.SessionLocal"):
-        response = client.get(
-            "/api/services",
-            headers={"Authorization": "Bearer 123"},
-        )
-
-    assert response.status_code == 401
-    assert response.json["error"] == "unauthenticated"
-    assert response.json["message"] == "re-authenticate to obtain a platform identity"
 
 
 def test_services_rotate_credential_not_found_returns_404(client, app):
@@ -245,7 +207,7 @@ def test_services_legacy_admin_role_returns_403(client, app):
         )
 
     assert response.status_code == 403
-    assert response.json["message"] == "requires operator role"
+    assert response.json["error"] == "forbidden"
 
 
 def test_services_operator_role_allowed(client, app):

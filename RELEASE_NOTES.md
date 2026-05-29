@@ -1,5 +1,26 @@
 # Release notes
 
+## authentication v0.30.0
+
+Requires **user v0.2.0** and CDP UI **v0.2.0** for Admin → Users.
+
+### Update
+
+- `JWT_WEB_AUDIENCE` — add `user` (e.g. `authentication,capabilities,python-template,user`).
+- Redeploy authentication **v0.30.0**.
+
+### Test
+
+1. Log in as **`operator`**.
+2. Token `aud` includes **`user`** (re-login after env change).
+3. CDP **Admin → Users** — not **401**.
+
+### Tag
+
+`authentication/v0.30.0`
+
+---
+
 ## authentication v0.29.0 — Tier-1 `operator` actor
 
 **Issue:** [authentication#11](https://github.com/Neosofia/authentication/issues/11)
