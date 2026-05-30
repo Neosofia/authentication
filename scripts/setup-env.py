@@ -123,6 +123,13 @@ def _generate_secrets(content: str, *, stdout_mode: bool) -> str:
         base64.b64encode(public_pem.encode()).decode(),
     )
     _log("Generated JWT_PRIVATE_KEY_PEM / JWT_PUBLIC_KEY_PEM as Base64 strings", stdout_mode=stdout_mode)
+
+    auth_client_secret = _read_env_value(content, "AUTHENTICATION_CLIENT_SECRET")
+    if auth_client_secret:
+        _log("AUTHENTICATION_CLIENT_SECRET already configured — preserving existing value", stdout_mode=stdout_mode)
+    else:
+        content = _set_env_line(content, "AUTHENTICATION_CLIENT_SECRET", secrets.token_urlsafe(32))
+        _log("Generated AUTHENTICATION_CLIENT_SECRET", stdout_mode=stdout_mode)
     return content
 
 

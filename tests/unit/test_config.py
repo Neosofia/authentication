@@ -7,6 +7,7 @@ pytestmark = pytest.mark.unit
 _BASE = dict(
     env="test",
     csrf_secret_key="test-csrf",
+    authentication_client_secret="test-authentication-client-secret",
     workos_api_key="sk_test_dummy_key",
     workos_client_id="client_test_dummy_id",
     workos_cookie_password="test-cookie-password-must-be-min-32-chars-long",
@@ -86,3 +87,22 @@ def test_rejects_blank_required_env_var():
             migration_database_url=MIGRATION_URL,
             app_database_url=APP_URL,
         )
+
+
+def test_rejects_missing_authentication_client_secret_when_provisioning_enabled():
+    with pytest.raises(ValueError, match="AUTHENTICATION_CLIENT_SECRET must be set"):
+        Settings(
+            **{**_BASE, "authentication_client_secret": "   "},
+            migration_database_url=MIGRATION_URL,
+            app_database_url=APP_URL,
+        )
+
+
+def test_allows_missing_authentication_client_secret_when_provisioning_disabled():
+    settings = Settings(
+        **{**_BASE, "authentication_client_secret": "   ", "user_provisioning_enabled": False},
+        migration_database_url=MIGRATION_URL,
+        app_database_url=APP_URL,
+    )
+
+    assert settings.authentication_client_secret is None

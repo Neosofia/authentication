@@ -15,6 +15,7 @@ from src.services.cookies import (
 from src.services.idp import get_idp
 from src.services.jwks import pem_to_jwk
 from src.services.identity import sync_identity_data
+from src.services.user_provisioning import provision_user_registry
 
 bp = Blueprint("auth", __name__)
 
@@ -127,6 +128,7 @@ def callback():
             idp_tenant_id=identity.idp_tenant_id,
             tenant_name=identity.tenant_name,
         )
+        provision_user_registry(identity)
 
         response = make_response(redirect(settings.frontend_auth_callback_url()))
         if provider_session.sealed_session:

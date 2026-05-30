@@ -36,6 +36,7 @@ def _production_settings():
         valid_roles=os.environ["VALID_ROLES"],
         jwt_private_key_pem=os.environ["JWT_PRIVATE_KEY_PEM"],
         jwt_public_key_pem=os.environ["JWT_PUBLIC_KEY_PEM"],
+        authentication_client_secret=os.environ["AUTHENTICATION_CLIENT_SECRET"],
         workos_api_key=os.environ["WORKOS_API_KEY"],
         workos_client_id=os.environ["WORKOS_CLIENT_ID"],
         workos_redirect_uri="https://auth.example.com/callback",

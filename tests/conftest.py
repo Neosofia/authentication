@@ -61,6 +61,7 @@ os.environ["MIGRATION_DATABASE_URL"] = "postgresql+psycopg://auth:dummy@localhos
 os.environ["WORKOS_API_KEY"] = "sk_test_dummy_key"
 os.environ["WORKOS_CLIENT_ID"] = "client_test_dummy_id"
 os.environ["WORKOS_REDIRECT_URI"] = "http://localhost:8014/callback"
+os.environ["AUTHENTICATION_CLIENT_SECRET"] = "test-authentication-client-secret"
 
 from src.app import create_app
 

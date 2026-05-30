@@ -1,19 +1,25 @@
-# Release notes
+# Upgrade notes
+
+## Unreleased -- authentication v0.31.0
+
+- Added migration `004` to register the `user` service in the service registry for `audience=user` client-credentials tokens.
+- OAuth callback now best-effort provisions User registry rows after identity sync using the registered User service `base_url` and an `aud=user` Authentication service token.
+- New rollout controls: `USER_PROVISIONING_ENABLED`, `USER_PROVISIONING_HTTP_TIMEOUT_SECS`, and `AUTHENTICATION_CLIENT_SECRET`.
 
 ## authentication v0.30.0
 
-Requires **user v0.2.0** and CDP UI **v0.2.0** for Admin → Users.
+Requires **user v0.2.0** and CDP UI **v0.2.0** for Admin -> Users.
 
 ### Update
 
-- `JWT_WEB_AUDIENCE` — add `user` (e.g. `authentication,capabilities,python-template,user`).
+- `JWT_WEB_AUDIENCE` -- add `user` (for example `authentication,capabilities,python-template,user`).
 - Redeploy authentication **v0.30.0**.
 
 ### Test
 
 1. Log in as **`operator`**.
 2. Token `aud` includes **`user`** (re-login after env change).
-3. CDP **Admin → Users** — not **401**.
+3. CDP **Admin -> Users** is not **401**.
 
 ### Tag
 
@@ -21,7 +27,7 @@ Requires **user v0.2.0** and CDP UI **v0.2.0** for Admin → Users.
 
 ---
 
-## authentication v0.29.0 — Tier-1 `operator` actor
+## authentication v0.29.0 -- Tier-1 `operator` actor
 
 **Issue:** [authentication#11](https://github.com/Neosofia/authentication/issues/11)
 
@@ -37,12 +43,12 @@ The canonical Tier-1 IdP actor class for platform administration is **`operator`
 
 Create the **`operator`** role at the **environment (instance) level**, not per organization:
 
-1. WorkOS Dashboard → **Authorization** (environment/instance roles).
+1. WorkOS Dashboard -> **Authorization** (environment/instance roles).
 2. Add role slug **`operator`** (plus **`clinician`** and **`patient`** if not already present).
 3. Under each **organization**, assign **`operator`** to users who manage the service registry (replace `admin` assignments when ready).
 4. You may delete or leave unused **`admin`** org-role definitions in WorkOS; they have no effect on the platform once removed from `VALID_ROLES`.
 
-Org-level role configuration for memberships remains under **Organizations → [org] → Members**.
+Org-level role configuration for memberships remains under **Organizations -> [org] -> Members**.
 
 ### Environment variables
 
@@ -62,8 +68,8 @@ No other env vars change for this release.
 1. Deploy authentication **v0.29.0**.
 2. Confirm `GET /health` succeeds.
 3. Log in as a user with WorkOS role **`operator`**.
-4. `POST /api/token` → JWT `neosofia:roles` includes `operator`.
-5. `GET /api/services` with that JWT → **200** (not 403).
+4. `POST /api/token` -> JWT `neosofia:roles` includes `operator`.
+5. `GET /api/services` with that JWT -> **200** (not 403).
 
 ### Public cloud checklist
 

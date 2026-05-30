@@ -69,6 +69,7 @@ def app_container():
         container.with_env("WORKOS_CLIENT_ID", "client_test_dummy_id")
         container.with_env("WORKOS_COOKIE_PASSWORD", "dummy_cookie_password_32_chars_long_xxxxxx")
         container.with_env("WORKOS_REDIRECT_URI", "http://localhost:8014/callback")
+        container.with_env("AUTHENTICATION_CLIENT_SECRET", "dummy_authentication_client_secret_xxxxxx")
         container.with_env("PORT", "7014")
         container.with_command("/bin/sh -c 'python -m gunicorn -c src/gunicorn.py src.app:app'")
         container.with_exposed_ports(7014)

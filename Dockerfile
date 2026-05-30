@@ -1,14 +1,24 @@
+# syntax=docker/dockerfile:1.7
+
 # Multi-stage build for Authentication Service
+# cedarpy 4.8.1 builds much faster against the glibc manylinux wheel than on Alpine.
+ARG PYTHON_IMAGE=python:3.14-slim@sha256:c845af9399020c7e562969a13689e929074a10fd057acd1b1fad06a2fb068e97
+
 # Stage 0: SQL audit templates
 FROM ghcr.io/neosofia/sql-template:v0.5.0 AS templates
 
 # Stage 1: Build environment
-FROM python:3.14-alpine@sha256:dd4d2bd5b53d9b25a51da13addf2be586beebd5387e289e798e4083d94ca837a AS builder
+FROM ${PYTHON_IMAGE} AS build-base
 
-# Build tools needed for C-extension packages (asyncpg, cryptography, bcrypt, cffi)
-RUN apk add --no-cache gcc musl-dev libffi-dev postgresql-dev
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /repo
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PYTHONUNBUFFERED=1
 
 # Install uv
 RUN pip install --no-cache-dir uv
@@ -17,21 +27,21 @@ RUN pip install --no-cache-dir uv
 COPY pyproject.toml ./
 COPY uv.lock ./
 
-# Install dependencies with uv from the repo root
-WORKDIR /repo
-RUN uv sync --no-dev --no-editable
+# Install production dependencies without installing the local project.
+FROM build-base AS prod-deps
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-editable --no-install-project
 
-# Copy source code last (code changes don't invalidate dependency layer)
-COPY src ./src
-COPY alembic.ini ./
-
-# Stage 2: CI — extends builder with dev deps and tests; not used in production
+# Stage 2: CI — extends build-base with dev deps and tests; not used in production
 # Build with: docker build --target ci -t authentication-ci .
-FROM builder AS ci
+FROM build-base AS ci
 
-WORKDIR /repo
-RUN uv sync --all-groups --no-editable
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --all-groups --no-editable --no-install-project
+COPY alembic.ini ./
+COPY src ./src
 COPY tests ./tests
+COPY policies ./policies
 COPY openapi.json ./
 RUN mkdir /reports
 
@@ -40,15 +50,20 @@ ENV PATH="/repo/.venv/bin:$PATH" \
     PYTHONPATH="/repo"
 
 # Stage 3: Runtime environment
-FROM python:3.14-alpine@sha256:dd4d2bd5b53d9b25a51da13addf2be586beebd5387e289e798e4083d94ca837a
+FROM ${PYTHON_IMAGE} AS runtime
 
-# Runtime shared libraries needed by C extensions and local env setup
-RUN apk update && apk upgrade && apk add --no-cache bash openssl libffi libpq libgcc && addgroup -S app && adduser -S -G app app
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends bash openssl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --system app \
+    && useradd --system --gid app --create-home --home-dir /home/app app
 
 WORKDIR /app
 
-# Copy virtual environment from builder
-COPY --from=builder /repo/.venv /app/.venv
+# Copy virtual environment from dependency stage
+COPY --from=prod-deps /repo/.venv /app/.venv
 
 # Set environment variables
 ENV PATH="/app/.venv/bin:$PATH" \

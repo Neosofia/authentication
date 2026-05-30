@@ -1,10 +1,11 @@
 """002 seed authentication service
 
 Registers the authentication platform service and bootstraps its first service
-credential with a randomly generated secret.
+credential from ``AUTHENTICATION_CLIENT_SECRET``.
 
-The plaintext secret is printed once during this migration. Only the bcrypt hash
-is stored in ``service_credentials`` and cannot be recovered from the database.
+The plaintext secret must be provided via environment before the migration runs.
+Only the bcrypt hash is stored in ``service_credentials`` and cannot be recovered
+from the database.
 
 Revision ID: 002
 Revises: 001
@@ -18,8 +19,7 @@ from alembic import op
 import sqlalchemy as sa
 
 from src.db.migrations.bootstrap_credentials import (
-    announce_service_credential,
-    generate_service_credential,
+    required_service_credential_from_env,
 )
 
 revision = "002"
@@ -30,9 +30,12 @@ depends_on = None
 SERVICE_NAME = "Authentication"
 SERVICE_SLUG = "authentication"
 SERVICE_BASE_URL = "http://authentication:8014"
+CLIENT_SECRET_ENV_VAR = "AUTHENTICATION_CLIENT_SECRET"
 
 
 def upgrade() -> None:
+    plain_secret, hashed_secret = required_service_credential_from_env(CLIENT_SECRET_ENV_VAR)
+
     # Use a well-known Nil-Epoch v7 UUID to represent the "System Migration Actor".
     # This provides auditors a deterministic story for how these rows were created.
     sys_uuid = uuid.UUID("00000000-0000-7000-8000-000000000000")
@@ -58,7 +61,6 @@ def upgrade() -> None:
         )
     ).scalar_one()
 
-    plain_secret, hashed_secret = generate_service_credential()
     inserted_uuid = conn.execute(
         sa.text(
             """
@@ -77,7 +79,11 @@ def upgrade() -> None:
     ).scalar_one_or_none()
 
     if inserted_uuid is not None:
-        announce_service_credential(SERVICE_SLUG, plain_secret)
+        print(
+            f"[authentication bootstrap] service slug={SERVICE_SLUG!r} "
+            f"client_id={SERVICE_SLUG!r} credential_source={CLIENT_SECRET_ENV_VAR!r} "
+            "(plaintext not logged; env-supplied secret was hashed into service_credentials)"
+        )
 
 
 def downgrade() -> None:

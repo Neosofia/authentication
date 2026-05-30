@@ -99,6 +99,9 @@ class Settings(BaseSettings):
     idp_provider: str = "workos"
     access_token_ttl_secs: int = 900   # 15 minutes
     service_token_ttl_secs: int = 300  # 5 minutes
+    user_provisioning_enabled: bool = True
+    user_provisioning_http_timeout_secs: float = Field(default=2.0, gt=0)
+    authentication_client_secret: str | None = None
     port: int = 8014
     trusted_proxy_hops: int = 1  # set to 0 in tests; increase for CDN + load balancer topologies
     web_concurrency: int = 2
@@ -180,6 +183,19 @@ class Settings(BaseSettings):
                 self,
                 "jwt_web_audience",
                 [a.strip() for a in self.jwt_web_audience if isinstance(a, str) and a.strip()],
+            )
+
+        if self.authentication_client_secret is not None:
+            object.__setattr__(
+                self,
+                "authentication_client_secret",
+                self.authentication_client_secret.strip() or None,
+            )
+
+        if self.user_provisioning_enabled and not self.authentication_client_secret:
+            raise ValueError(
+                "AUTHENTICATION_CLIENT_SECRET must be set when USER_PROVISIONING_ENABLED=true; "
+                "fix the environment before starting Authentication"
             )
 
         # Decode base64 PEM keys injected via environment variables
