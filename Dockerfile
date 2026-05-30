@@ -29,14 +29,14 @@ COPY uv.lock ./
 
 # Install production dependencies without installing the local project.
 FROM build-base AS prod-deps
-RUN --mount=type=cache,target=/root/.cache/uv \
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable --no-install-project
 
 # Stage 2: CI — extends build-base with dev deps and tests; not used in production
 # Build with: docker build --target ci -t authentication-ci .
 FROM build-base AS ci
 
-RUN --mount=type=cache,target=/root/.cache/uv \
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
     uv sync --frozen --all-groups --no-editable --no-install-project
 COPY alembic.ini ./
 COPY src ./src
