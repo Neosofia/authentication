@@ -29,15 +29,13 @@ COPY uv.lock ./
 
 # Install production dependencies without installing the local project.
 FROM build-base AS prod-deps
-RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable --no-install-project
+RUN uv sync --frozen --no-dev --no-editable --no-install-project
 
 # Stage 2: CI — extends build-base with dev deps and tests; not used in production
 # Build with: docker build --target ci -t authentication-ci .
 FROM build-base AS ci
 
-RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-    uv sync --frozen --all-groups --no-editable --no-install-project
+RUN uv sync --frozen --all-groups --no-editable --no-install-project
 COPY alembic.ini ./
 COPY src ./src
 COPY tests ./tests
@@ -83,7 +81,7 @@ COPY --from=templates /sql/audit /app/audit-templates
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8014/health')" || exit 1
+    CMD python -c "import os, httpx; port = os.environ.get('PORT', '8014'); httpx.get(f'http://localhost:{port}/health', timeout=3).raise_for_status()" || exit 1
 
 USER app
 
