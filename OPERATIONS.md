@@ -158,7 +158,7 @@ Authentication always uses **two** PostgreSQL roles:
 | Role | Env var | Used by | Permissions |
 |------|---------|---------|-------------|
 | Superuser (e.g. `auth`) | `MIGRATION_DATABASE_URL` | Alembic on container start / deploy | DDL, audit schema, `CREATE ROLE app` |
-| Restricted `app` | `APP_DATABASE_URL` | Running web service | `SELECT`, `INSERT`, `UPDATE` only; subject to RLS |
+| Restricted `app` | `APP_DATABASE_URL` | Running web service | `SELECT`, `INSERT`, `UPDATE` on main tables; `SELECT` on `_audit` and `_history` views. Soft-delete via `UPDATE` with `change_type = 3` (trigger archives to `_audit` and removes the live row). |
 
 Migration `000` reads the `app` role password from `APP_DATABASE_URL` and creates that role. The password is never hardcoded in production — it must come from your secret store.
 

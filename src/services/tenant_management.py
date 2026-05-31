@@ -14,12 +14,7 @@ def get_tenant_or_404(db, tenant_id: str) -> dict:
     except ValueError as exc:
         raise NotFound() from exc
 
-    tenant = db.scalar(
-        select(Tenant).where(
-            Tenant.uuid == tenant_uuid,
-            Tenant.change_type != 3,
-        )
-    )
+    tenant = db.scalar(select(Tenant).where(Tenant.uuid == tenant_uuid))
     if tenant is None:
         raise NotFound()
 

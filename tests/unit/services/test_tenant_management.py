@@ -30,6 +30,16 @@ def test_get_tenant_or_404_missing():
         tenant_management.get_tenant_or_404(mock_db, str(TENANT_ID))
 
 
+def test_get_tenant_or_404_uses_uuid_only_filter():
+    """Audit v2: no change_type filter; archived rows are absent from main."""
+    mock_db = MagicMock()
+    mock_db.scalar.return_value = None
+    with pytest.raises(NotFound):
+        tenant_management.get_tenant_or_404(mock_db, str(TENANT_ID))
+    where_clause = str(mock_db.scalar.call_args.args[0].whereclause)
+    assert "change_type" not in where_clause
+
+
 def test_get_tenant_or_404_returns_dict():
     mock_db = MagicMock()
     mock_db.scalar.return_value = _tenant_row()

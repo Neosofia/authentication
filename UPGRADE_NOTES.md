@@ -1,6 +1,19 @@
 # Upgrade notes
 
-## Unreleased -- authentication v0.31.0
+## authentication v0.31.2
+
+### Manual actions
+
+- Deploy with **sql-template v0.6.0** (audit v2: archive-on-delete, no RLS, `_history` views wired in `setup_tracking`) and **user v0.4.0**.
+- Greenfield only (no production clones yet): nuke the auth Postgres volume and re-run `python -m alembic upgrade head` or the migrate container so migration `000` applies audit v2 SQL. Application code already reads live rows from main tables and audit timelines from `*_history` views.
+- Migration `005` sets the User service registry `base_url` to `USER_SERVICE_BASE_URL` when set, otherwise `http://user.railway.internal:8080` (Railway private mesh). Override in Railway auth service variables if your User service listens on a different port.
+- `AUTHENTICATION_CLIENT_SECRET` must already be set in Railway before migrate runs (migration `002` hashes it; plaintext is never logged). After a volume nuke, the same env value re-seeds credentials — no need to rotate unless you intentionally change the secret.
+
+## authentication v0.31.1
+
+- Login provisioning now sends `tier1_roles` to the User service so the first Tier-1 `operator` receives `operator.platform-admin` automatically. Deploy alongside **user v0.4.0** (requires audit v2 from **sql-template v0.6.0**).
+
+## authentication v0.31.0
 
 - Added migration `004` to register the `user` service in the service registry for `audience=user` client-credentials tokens.
 - OAuth callback now best-effort provisions User registry rows after identity sync using the registered User service `base_url` and an `aud=user` Authentication service token.
