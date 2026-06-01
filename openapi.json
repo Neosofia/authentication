@@ -710,16 +710,27 @@
             "minimum": 1,
             "description": "Claim schema version; consumers must reject tokens whose version they do not support"
           },
+          "neosofia:actors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tier-1 actor classes (operator, clinician, patient)"
+          },
           "neosofia:roles": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Array of role strings (e.g., ['care_team', 'supervisor'])"
+            "description": "Tier-2 role short names within neosofia:tenant_type (e.g. admin, audit); human tokens only"
+          },
+          "neosofia:tenant_type": {
+            "type": "string",
+            "description": "Organisation kind (platform, cro, sponsor, site, smo, patient); omitted when unset on tenant row"
           },
           "neosofia:tenant_uuid": {
             "type": "string",
-            "description": "Optional: tenant/tenant ID (absent for service tokens)"
+            "description": "Platform tenant UUID (absent for service tokens)"
           }
         }
       },

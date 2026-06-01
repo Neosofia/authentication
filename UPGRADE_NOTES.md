@@ -11,7 +11,7 @@
 
 ## authentication v0.31.1
 
-- Login provisioning sends `tier1_roles` to the User service (best-effort, off critical path); the first Tier-1 `operator` receives **`platform.admin`**. Human tokens include **`neosofia:tenant_type`** only when **`tenants.type`** is set explicitly (no default), and **`neosofia:org_roles`** from the local `users.org_roles` mirror. **Token mint never calls the User service.** Deploy alongside **user v0.5.0**. Run Alembic through **007** (`tenants.type` nullable + `users.org_roles` cache).
+- Login provisioning sends **`actors`** to the User service (best-effort, off critical path); the first Tier-1 `operator` receives **`platform.admin`**. Human tokens include **`neosofia:actors`**, **`neosofia:tenant_type`** only when **`tenants.type`** is set explicitly (no default), and **`neosofia:roles`** (short Tier-2 names) from the local **`users.roles`** mirror. **Token mint never calls the User service.** Deploy alongside **user v0.4.0**.
 
 ## authentication v0.31.0
 
