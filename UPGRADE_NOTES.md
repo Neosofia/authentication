@@ -6,12 +6,12 @@
 
 - Deploy with **sql-template v0.6.0** (audit v2: archive-on-delete, no RLS, `_history` views wired in `setup_tracking`) and **user v0.4.0**.
 - Greenfield only (no production clones yet): nuke the auth Postgres volume and re-run `python -m alembic upgrade head` or the migrate container so migration `000` applies audit v2 SQL. Application code already reads live rows from main tables and audit timelines from `*_history` views.
-- Migration `005` sets the User service registry `base_url` to `USER_SERVICE_BASE_URL` when set, otherwise `http://user.railway.internal:8080` (Railway private mesh). Override in Railway auth service variables if your User service listens on a different port.
+- Migration `005` sets the User service registry `base_url` to `USER_SERVICE_BASE_URL` when set, otherwise `http://user:8018` (Docker Compose service name). On Railway, set `USER_SERVICE_BASE_URL` to the private mesh URL (for example `http://user.railway.internal:8080`) in the migrate job env.
 - `AUTHENTICATION_CLIENT_SECRET` must already be set in Railway before migrate runs (migration `002` hashes it; plaintext is never logged). After a volume nuke, the same env value re-seeds credentials — no need to rotate unless you intentionally change the secret.
 
 ## authentication v0.31.1
 
-- Login provisioning now sends `tier1_roles` to the User service so the first Tier-1 `operator` receives `operator.platform-admin` automatically. Deploy alongside **user v0.4.0** (requires audit v2 from **sql-template v0.6.0**).
+- Login provisioning sends `tier1_roles` to the User service (best-effort, off critical path); the first Tier-1 `operator` receives **`platform.admin`**. Human tokens include **`neosofia:tenant_type`** only when **`tenants.type`** is set explicitly (no default), and **`neosofia:org_roles`** from the local `users.org_roles` mirror. **Token mint never calls the User service.** Deploy alongside **user v0.5.0**. Run Alembic through **007** (`tenants.type` nullable + `users.org_roles` cache).
 
 ## authentication v0.31.0
 
