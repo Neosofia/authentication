@@ -9,7 +9,7 @@ from src.services.jwks import compute_kid
 def issue_token(
     sub: str,
     token_type: str,
-    roles: list[str] | None,
+    actors: list[str] | None,
     tenant_uuid: str | None,
     ttl_secs: int,
     private_key_pem: str,
@@ -17,6 +17,8 @@ def issue_token(
     claim_namespace: str = "neosofia",
     azp: str | None = None,
     public_key_pem: str | None = None,
+    tenant_type: str | None = None,
+    roles: list[str] | None = None,
 ) -> str:
     """
     Sign and return a compact RS256 platform JWT.
@@ -29,8 +31,10 @@ def issue_token(
       azp              — authorized party / client_id (service tokens, RFC 7519)
       {ns}:token_type  — "human" | "service"
       {ns}:token_version — integer schema version (increment on breaking changes)
-      {ns}:roles       — list of roles (absent for service tokens by default)
+      {ns}:actors      — Tier-1 actor classes (operator, clinician, patient)
+      {ns}:roles       — Tier-2 role short names within tenant_type (e.g. admin, audit)
       {ns}:tenant_uuid — platform UUID for the org (present for all human tokens)
+      {ns}:tenant_type — org kind (platform, cro, sponsor, site, smo, patient)
 
     The claim namespace prefix (default "neosofia") is set via the
     JWT_CLAIM_NAMESPACE env var, allowing forks to use their own namespace
@@ -49,12 +53,16 @@ def issue_token(
         f"{ns}:token_type": token_type,
         f"{ns}:token_version": 1,
     }
-    if roles is not None:
-        claims[f"{ns}:roles"] = roles
+    if actors is not None:
+        claims[f"{ns}:actors"] = actors
     if azp:
         claims["azp"] = azp
     if tenant_uuid:
         claims[f"{ns}:tenant_uuid"] = tenant_uuid
+    if tenant_type:
+        claims[f"{ns}:tenant_type"] = tenant_type
+    if roles is not None:
+        claims[f"{ns}:roles"] = roles
 
     headers = {}
     if public_key_pem:

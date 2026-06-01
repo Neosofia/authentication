@@ -8,7 +8,6 @@ from sqlalchemy.exc import IntegrityError
 
 from src.models.service import Service, ServiceHistory
 from src.models.service_credential import ServiceCredential, ServiceCredentialHistory
-from src.models.user import User
 
 
 class NotFoundError(Exception):
@@ -188,21 +187,8 @@ def get_service_audits(
     else:
         raise InvalidAuditSourceError("source must be 'service' or 'credential'")
 
-    users_table = User.__table__
-    # Left outer join to users — only matches human actors (changed_by_type == 1).
-    # Non-human actors (services, bootstrap) have no users row and return NULL names.
-    from_clause = history_table.outerjoin(
-        users_table,
-        (users_table.c.uuid == history_table.c.changed_by_uuid)
-        & (history_table.c.changed_by_type == 1),
-    )
     query = (
-        select(
-            history_table,
-            users_table.c.first_name,
-            users_table.c.last_name,
-        )
-        .select_from(from_clause)
+        select(history_table)
         .where(where_clause)
         .order_by(ordering)
     )
@@ -214,9 +200,6 @@ def get_service_audits(
 
     items = []
     for row in rows:
-        first = row.get("first_name") or ""
-        last = row.get("last_name") or ""
-        full_name = f"{first} {last}".strip() or None
         items.append({
             "history_uuid": str(row["history_uuid"]) if row["history_uuid"] else None,
             "source": source,
@@ -227,7 +210,7 @@ def get_service_audits(
             "changed_at": row["changed_at"].isoformat() if row["changed_at"] else None,
             "changed_by_uuid": str(row["changed_by_uuid"]),
             "changed_by_type": row["changed_by_type"],
-            "changed_by_name": full_name,
+            "changed_by_name": None,
             "change_type": row["change_type"],
         })
 

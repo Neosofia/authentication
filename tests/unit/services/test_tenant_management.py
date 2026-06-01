@@ -13,7 +13,13 @@ TENANT_ID = uuid.UUID("019e02e1-94e1-722b-bd61-f7f95fb1601f")
 
 
 def _tenant_row() -> Tenant:
-    row = Tenant(uuid=TENANT_ID, name="Acme Corp", idp_id="org_123", change_type=1)
+    row = Tenant(
+        uuid=TENANT_ID,
+        name="Acme Corp",
+        display_code="1034",
+        idp_id="org_123",
+        type="platform",
+    )
     return row
 
 
@@ -44,4 +50,10 @@ def test_get_tenant_or_404_returns_dict():
     mock_db = MagicMock()
     mock_db.scalar.return_value = _tenant_row()
     result = tenant_management.get_tenant_or_404(mock_db, str(TENANT_ID))
-    assert result == {"uuid": str(TENANT_ID), "name": "Acme Corp", "idp_id": "org_123"}
+    assert result == {
+        "uuid": str(TENANT_ID),
+        "name": "Acme Corp",
+        "display_code": "1034",
+        "idp_id": "org_123",
+        "type": "platform",
+    }

@@ -1,6 +1,5 @@
 class Capabilities:
     TENANT_READ = 'Action::"tenant:read"'
-    PROFILE_READ = 'Action::"profile:read"'
     SERVICE_LIST = 'Action::"service:list"'
     SERVICE_CREATE = 'Action::"service:create"'
     SERVICE_READ = 'Action::"service:read"'

@@ -11,6 +11,7 @@ from src.services.cookies import IDP_SESSION_COOKIE_NAME, set_idp_session_cookie
 from src.services.idp import get_idp
 from src.services import tokens
 from src.services.service_tokens import InvalidClientError, issue_service_token
+from src.services.token_claims import human_token_claims
 
 bp = Blueprint("token", __name__, url_prefix="/api")
 
@@ -73,11 +74,20 @@ def _handle_session_grant():
         identity = idp.to_platform_identity(provider_session)
         sub = identity.user_uuid or identity.idp_user_id
 
+        with SessionLocal() as db:
+            tenant_type, registry_roles = human_token_claims(
+                db,
+                user_uuid=identity.user_uuid,
+                tenant_uuid=identity.tenant_uuid,
+            )
+
         platform_token = tokens.issue_token(
             sub=sub,
             token_type="human",
-            roles=identity.roles,
+            actors=identity.actors,
             tenant_uuid=identity.tenant_uuid,
+            tenant_type=tenant_type,
+            roles=registry_roles,
             ttl_secs=settings.access_token_ttl_secs,
             private_key_pem=settings.jwt_private_key_pem,
             audience=settings.jwt_web_audience,
@@ -92,7 +102,6 @@ def _handle_session_grant():
             "expires_in": settings.access_token_ttl_secs,
         }))
 
-        # If the session was refreshed, persist the newly sealed session back to the client
         if provider_session.sealed_session:
             set_idp_session_cookie(response, provider_session.sealed_session)
 
@@ -107,10 +116,8 @@ def _handle_client_credentials():
     if not settings.app_database_url:
         return jsonify({"error": "database not configured"}), 503
 
-    # Support both application/x-www-form-urlencoded and application/json bodies
     body: dict = request.get_json(silent=True) or {}
 
-    # Extract client_id / client_secret from Authorization: Basic or request body
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Basic "):
         try:
@@ -130,10 +137,10 @@ def _handle_client_credentials():
     try:
         with SessionLocal() as db:
             service_token = issue_service_token(
-                client_id, 
-                client_secret, 
-                db, 
-                audience=requested_audience
+                client_id,
+                client_secret,
+                db,
+                audience=requested_audience,
             )
 
         return jsonify({
@@ -174,7 +181,6 @@ def token_inspect():
 
     raw_token = auth_header[7:]
     try:
-        # Decode the JWT payload for debugging only; do not validate audience or issuer.
         decoded = pyjwt.decode(
             raw_token,
             options={

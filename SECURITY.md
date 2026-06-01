@@ -87,7 +87,6 @@ Key architectural decisions:
 | `GET /callback` | 60 / minute |
 | `POST /api/token` | 20 / minute |
 | `GET /api/token-inspect` | 10 / minute (development only) |
-| `GET /api/v1/profiles/{profile_id}` | 60 / minute |
 | `GET/POST /api/services/*` | 60 / minute |
 | `GET/POST /logout` | 60 / minute |
 
@@ -103,7 +102,7 @@ The CDP UI is a public SPA client and is **not** registered as a platform servic
 
 ### Web-Layer Defenses
 
-- **Bearer JWT for privileged API routes** — `/api/v1/profiles/*` and `/api/services/*` require `Authorization: Bearer`. Cross-origin sites cannot inject the in-memory platform JWT, so classic CSRF does not apply to those mutations.
+- **Bearer JWT for privileged API routes** — `/api/v1/tenants/*` and `/api/services/*` require `Authorization: Bearer`. Cross-origin sites cannot inject the in-memory platform JWT, so classic CSRF does not apply to those mutations.
 - **`POST /api/token`** — bound by HTTP Basic auth (`client_credentials`) or the sealed `wos_session` cookie; attackers cannot read token responses cross-origin.
 - **Request body size cap** — `MAX_CONTENT_LENGTH = 16 KiB` rejects body-flood DoS before the body parser runs.
 - **Debug mode off** — gated on `ENV=development`; eliminates the Werkzeug debugger RCE surface in production ([CWE-489](https://cwe.mitre.org/data/definitions/489.html)).

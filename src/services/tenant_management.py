@@ -21,5 +21,7 @@ def get_tenant_or_404(db, tenant_id: str) -> dict:
     return {
         "uuid": str(tenant.uuid),
         "name": tenant.name,
+        "display_code": tenant.display_code,
         "idp_id": tenant.idp_id,
+        "type": tenant.type,
     }

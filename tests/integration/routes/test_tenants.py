@@ -10,7 +10,7 @@ def _get_token(app, *, roles: list[str], tenant_uuid: str):
         return issue_token(
             sub="019e02e1-94e1-722b-bd61-f7f95fb1602a",
             token_type="human",
-            roles=roles,
+            actors=roles,
             tenant_uuid=tenant_uuid,
             ttl_secs=3600,
             private_key_pem=settings.jwt_private_key_pem,
@@ -52,7 +52,9 @@ def test_get_tenant_self_allowed(client, app, api_spec, validate_response):
             return_value={
                 "uuid": TENANT_UUID,
                 "name": "Acme Corp",
+                "display_code": "1034",
                 "idp_id": "org_123",
+                "type": "platform",
             },
         ):
             response = client.get(
@@ -75,7 +77,9 @@ def test_get_tenant_operator_can_read_any(client, app):
             return_value={
                 "uuid": OTHER_TENANT,
                 "name": "Other Org",
+                "display_code": None,
                 "idp_id": "org_456",
+                "type": "cro",
             },
         ):
             response = client.get(

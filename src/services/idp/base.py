@@ -9,8 +9,9 @@ class PlatformIdentity:
     idp_user_id: str
     idp_tenant_id: str
     tenant_name: str | None
-    roles: list[str]
+    actors: list[str]
     profile: dict[str, str] = field(default_factory=dict)
+    tenant_type: str | None = None
 
 
 @dataclass(frozen=True)

@@ -11,6 +11,7 @@ from src.db.engine import SessionLocal
 from src.services.idp import PlatformIdentity
 from src.services.service_management import get_service
 from src.services.service_tokens import issue_service_token
+from src.services.token_claims import cache_roles_mirror
 
 AUTHENTICATION_SERVICE_SLUG = "authentication"
 USER_SERVICE_SLUG = "user"
@@ -27,8 +28,12 @@ def _identity_payload(identity: PlatformIdentity) -> dict[str, Any]:
         "first_name": identity.profile.get("first_name"),
         "last_name": identity.profile.get("last_name"),
         "email": identity.profile.get("email"),
-        "tier1_roles": list(identity.roles or []),
+        "actors": list(identity.actors or []),
     }
+
+
+def provision_user_registry_sync(identity: PlatformIdentity) -> bool:
+    return _provision_user_registry_sync(identity)
 
 
 def _provision_user_registry_sync(identity: PlatformIdentity) -> bool:
@@ -64,6 +69,22 @@ def _provision_user_registry_sync(identity: PlatformIdentity) -> bool:
                 user_uuid=identity.user_uuid,
                 status_code=response.status_code,
             )
+            try:
+                body = response.json()
+                if isinstance(body, dict):
+                    with SessionLocal() as db:
+                        cache_roles_mirror(
+                            db,
+                            user_uuid=str(identity.user_uuid),
+                            tenant_uuid=str(identity.tenant_uuid),
+                            registry_payload=body,
+                        )
+            except Exception as exc:
+                log_exception(
+                    "user_roles_cache_error",
+                    exc,
+                    user_uuid=identity.user_uuid,
+                )
             return True
         log_event(
             "user_provisioning_failed",

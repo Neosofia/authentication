@@ -13,7 +13,7 @@ def _identity():
         idp_user_id="user_123",
         idp_tenant_id="org_123",
         tenant_name="Test Org",
-        roles=["operator"],
+        actors=["operator"],
         profile={"email": "test@example.com"},
     )
 

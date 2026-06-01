@@ -15,7 +15,7 @@ from src.services.cookies import (
 from src.services.idp import get_idp
 from src.services.jwks import pem_to_jwk
 from src.services.identity import sync_identity_data
-from src.services.user_provisioning import provision_user_registry
+from src.services.user_provisioning import provision_user_registry_sync
 
 bp = Blueprint("auth", __name__)
 
@@ -117,18 +117,16 @@ def callback():
         provider_session = idp.exchange_code(code=code, code_verifier=code_verifier)
         identity = idp.to_platform_identity(provider_session)
 
-        # Best effort DB sync for caching profile data
+        # Best-effort IdP → local uuid/idp_id mapping and tenant cache (profile lives in User service).
         sync_identity_data(
             user_uuid=identity.user_uuid,
             tenant_uuid=identity.tenant_uuid,
             idp_user_id=identity.idp_user_id,
-            first_name=identity.profile.get("first_name"),
-            last_name=identity.profile.get("last_name"),
-            email=identity.profile.get("email"),
             idp_tenant_id=identity.idp_tenant_id,
             tenant_name=identity.tenant_name,
+            tenant_type=identity.tenant_type,
         )
-        provision_user_registry(identity)
+        provision_user_registry_sync(identity)
 
         response = make_response(redirect(settings.frontend_auth_callback_url()))
         if provider_session.sealed_session:

@@ -89,7 +89,7 @@ def test_extract_platform_claims_accepts_single_role_claim():
         )
     )
 
-    assert claims["roles"] == ["operator"]
+    assert claims["actors"] == ["operator"]
 
 
 @patch("src.services.idp.workos.unseal_data", return_value={"access_token": "raw-token"})

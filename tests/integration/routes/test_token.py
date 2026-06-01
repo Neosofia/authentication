@@ -131,10 +131,14 @@ def test_token_client_credentials_rejects_invalid_secret(client, api_spec, valid
 
 def test_token_session_grant_happy_path(client, api_spec, validate_response):
     _clear_idp_cache()
+    mock_db = MagicMock()
+    mock_db.get.return_value = None
     with (
         patch("src.services.idp.workos.WorkOSClient") as mock_workos_client,
         patch("src.services.idp.workos.unseal_data") as mock_unseal_data,
+        patch("src.routes.token.SessionLocal") as mock_session_local,
     ):
+        mock_session_local.return_value.__enter__.return_value = mock_db
         auth_response = _workos_auth_response()
         sealed_session = mock_workos_client.return_value.user_management.load_sealed_session.return_value
         sealed_session.authenticate.return_value = auth_response
@@ -158,7 +162,7 @@ def test_token_inspect_happy_path(client, api_spec, validate_response, app):
         service_token = issue_token(
             sub="test_service",
             token_type="service",
-            roles=None,
+            actors=None,
             tenant_uuid=None,
             ttl_secs=3600,
             private_key_pem=settings.jwt_private_key_pem,

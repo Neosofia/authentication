@@ -21,7 +21,8 @@ def _user_service_base_url() -> str:
     explicit = os.environ.get("USER_SERVICE_BASE_URL", "").strip()
     if explicit:
         return explicit.rstrip("/")
-    return "http://user.railway.internal:8080"
+    # Docker Compose service name; set USER_SERVICE_BASE_URL in cloud migrate jobs.
+    return "http://user:8018"
 
 
 def upgrade() -> None:

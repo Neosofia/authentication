@@ -57,9 +57,12 @@ The service reads tenant fields **only** from the WorkOS access-token JWT (custo
 {
   "workos_tenant_name": "{{ organization.name }}",
   "workos_tenant_id": "{{ organization.id }}",
-  "tenant_uuid": "{{ organization.external_id }}"
+  "tenant_uuid": "{{ organization.external_id }}",
+  "tenant_type": "platform"
 }
 ```
+
+Set `tenant_type` to the org kind for that organization (`platform`, `cro`, `sponsor`, `site`, `smo`, or `patient`). For a single local test org, `platform` is typical. If omitted from the template, the service infers `tenants.type` from the first provisioned registry role slug (e.g. `platform.admin` → `platform`).
 
 `workos_tenant_id` is the WorkOS organization id; `tenant_uuid` is the platform tenant UUID (`organization.external_id`). They are not interchangeable.
 

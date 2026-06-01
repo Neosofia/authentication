@@ -63,7 +63,7 @@ def test_callback_happy_path_with_workos_provider(client):
         patch("src.services.idp.workos.WorkOSClient") as mock_workos_client,
         patch("src.services.idp.workos.seal_session_from_auth_response", return_value="sealed"),
         patch("src.services.identity.SessionLocal") as mock_db,
-        patch("src.routes.auth.provision_user_registry") as mock_provision,
+        patch("src.routes.auth.provision_user_registry_sync") as mock_provision,
     ):
         workos_client = mock_workos_client.return_value
         workos_client.user_management.authenticate_with_code_pkce.return_value = _auth_response()

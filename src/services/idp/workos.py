@@ -17,6 +17,7 @@ from workos.session import seal_session_from_auth_response, unseal_data
 from src.bootstrap.logging import log_event, log_exception
 from src.config import settings
 from src.services.idp.base import AuthenticatedSession, PlatformIdentity
+from src.services.token_claims import resolve_tenant_type
 
 WORKOS_TOKEN_ISSUER = "https://api.workos.com"
 
@@ -356,18 +357,18 @@ def extract_platform_identity(
         )
         raise ValueError("User has no tenant_uuid in token; token issuance denied")
 
-    roles: list[str] = []
+    actors: list[str] = []
     if workos_roles is not None:
         if isinstance(workos_roles, str):
             workos_roles = [workos_roles]
         for role in workos_roles:
-            if role in valid_roles and role not in roles:
-                roles.append(role)
+            if role in valid_roles and role not in actors:
+                actors.append(role)
     elif workos_role is not None:
         if workos_role in valid_roles:
-            roles.append(workos_role)
+            actors.append(workos_role)
 
-    if not roles:
+    if not actors:
         log_event(
             "token_rejected_no_valid_roles",
             user_id=user_id,
@@ -380,6 +381,8 @@ def extract_platform_identity(
             "User has no valid roles; token issuance denied. "
             "Verify that IdP roles match VALID_ROLES."
         )
+
+    tenant_type = resolve_tenant_type(access_token_claims.get("tenant_type"))
 
     user_uuid = _non_empty_str(_resolve_workos_value(auth_response, "user.external_id"))
     user = getattr(auth_response, "user", None)
@@ -396,7 +399,8 @@ def extract_platform_identity(
         idp_user_id=user_id,
         idp_tenant_id=idp_tenant_id,
         tenant_name=tenant_name,
-        roles=roles,
+        tenant_type=tenant_type,
+        actors=actors,
         profile=profile,
     )
 
@@ -412,5 +416,5 @@ def extract_platform_claims(
         "tenant_name": identity.tenant_name,
         "tenant_uuid": identity.tenant_uuid,
         "user_uuid": identity.user_uuid,
-        "roles": identity.roles,
+        "actors": identity.actors,
     }

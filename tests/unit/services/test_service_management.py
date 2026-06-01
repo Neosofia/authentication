@@ -26,8 +26,6 @@ def test_get_service_audits_handles_current_service_row_with_null_history_uuid()
         "changed_by_uuid": uuid.uuid7(),
         "changed_by_type": 1,
         "change_type": 1,
-        "first_name": "Alice",
-        "last_name": "Smith",
     }
     audit_row = {
         "history_uuid": uuid.uuid7(),
@@ -39,8 +37,6 @@ def test_get_service_audits_handles_current_service_row_with_null_history_uuid()
         "changed_by_uuid": uuid.uuid7(),
         "changed_by_type": 1,
         "change_type": 2,
-        "first_name": None,
-        "last_name": None,
     }
     mock_db = _make_mock_db([live_row, audit_row])
 
@@ -50,7 +46,7 @@ def test_get_service_audits_handles_current_service_row_with_null_history_uuid()
     assert items[0]["history_uuid"] is None
     assert items[1]["history_uuid"] == str(audit_row["history_uuid"])
     assert items[0]["name"] == "Test Service"
-    assert items[0]["changed_by_name"] == "Alice Smith"
+    assert items[0]["changed_by_name"] is None
     assert items[1]["changed_by_name"] is None
 
 
@@ -67,8 +63,6 @@ def test_get_service_audits_handles_current_credential_row_with_null_history_uui
         "changed_by_uuid": uuid.uuid7(),
         "changed_by_type": 1,
         "change_type": 1,
-        "first_name": "Bob",
-        "last_name": "Jones",
     }
     audit_row = {
         "history_uuid": uuid.uuid7(),
@@ -81,8 +75,6 @@ def test_get_service_audits_handles_current_credential_row_with_null_history_uui
         "changed_by_uuid": uuid.uuid7(),
         "changed_by_type": 2,
         "change_type": 2,
-        "first_name": None,
-        "last_name": None,
     }
     mock_db = _make_mock_db([live_row, audit_row])
 
@@ -92,5 +84,5 @@ def test_get_service_audits_handles_current_credential_row_with_null_history_uui
     assert items[0]["history_uuid"] is None
     assert items[1]["history_uuid"] == str(audit_row["history_uuid"])
     assert items[0]["credential_uuid"] == str(live_row["uuid"])
-    assert items[0]["changed_by_name"] == "Bob Jones"
+    assert items[0]["changed_by_name"] is None
     assert items[1]["changed_by_name"] is None

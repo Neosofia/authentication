@@ -11,7 +11,7 @@ from src.config import settings  # noqa: E402
 from src.bootstrap.extensions import limiter, talisman  # noqa: E402
 from src.bootstrap.logging import setup_logging  # noqa: E402
 from src.authorization.entities import NAMESPACE  # noqa: E402
-from src.routes import auth, token, profile, health, services, tenants  # noqa: E402
+from src.routes import auth, token, health, services, tenants  # noqa: E402
 
 
 def create_app(config: dict | None = None) -> Flask:
@@ -45,10 +45,9 @@ def create_app(config: dict | None = None) -> Flask:
     app.extensions["cedar_evaluator"] = CedarEvaluator(policy_source=policy_source)
 
     # Public routes (no Cedar): health, OIDC login/callback/logout, JWKS, token issuance.
-    # Protected routes use @with_security + policies/policy.cedar: profile, tenants, services.
+    # Protected routes use @with_security + policies/policy.cedar: tenants, services.
     app.register_blueprint(auth.bp)
     app.register_blueprint(token.bp)
-    app.register_blueprint(profile.bp)
     app.register_blueprint(health.bp)
     app.register_blueprint(services.bp)
     app.register_blueprint(tenants.bp)

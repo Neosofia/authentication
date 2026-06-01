@@ -6,7 +6,6 @@ Route → action → resource:
 | Route | Action | Resource |
 |-------|--------|----------|
 | GET /api/v1/tenants/{tenant_uuid} | tenant:read | authentication::Tenant |
-| GET /api/v1/profiles/{profile_id} | profile:read | authentication::Profile |
 | GET/POST /api/services | service:list, service:create | authentication::ServiceCatalog |
 | GET/PUT/POST … /api/services/{slug} | service:read, update, rotate, audit:read | authentication::Service |
 """
@@ -40,15 +39,15 @@ def resolve_principal() -> dict[str, Any]:
 
 def _principal_attrs(claims: dict[str, Any]) -> dict[str, Any]:
     ns = settings.jwt_claim_namespace
-    roles = claims.get(f"{ns}:roles", [])
-    if not isinstance(roles, list):
-        roles = []
+    actors = claims.get(f"{ns}:actors", [])
+    if not isinstance(actors, list):
+        actors = []
     tenant_uuid = claims.get(f"{ns}:tenant_uuid")
     sub = str(claims["sub"])
     return {
         "uuid": sub,
         "tenantId": str(tenant_uuid) if tenant_uuid else "",
-        "isOperator": "operator" in roles,
+        "isOperator": "operator" in actors,
     }
 
 
@@ -66,15 +65,6 @@ def build_tenant_entity(tenant_uuid: str) -> dict[str, Any]:
         f"{NAMESPACE}::Tenant",
         tenant_id,
         {"tenantId": tenant_id},
-    )
-
-
-def build_profile_resource_entity(profile_id: str, _row: dict[str, Any]) -> dict[str, Any]:
-    owner = str(profile_id)
-    return build_entity_payload(
-        f"{NAMESPACE}::Profile",
-        owner,
-        {"ownerUuid": owner},
     )
 
 
