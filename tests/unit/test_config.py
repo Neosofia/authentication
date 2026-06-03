@@ -12,7 +12,7 @@ _BASE = dict(
     workos_client_id="client_test_dummy_id",
     workos_cookie_password="test-cookie-password-must-be-min-32-chars-long",
     workos_redirect_uri="http://localhost:8014/callback",
-    valid_roles="operator",
+    valid_actors="operator",
     jwt_private_key_pem="DEFAULT_PRIVATE_KEY",
     jwt_public_key_pem="DEFAULT_PUBLIC_KEY",
 )

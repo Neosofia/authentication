@@ -18,7 +18,7 @@ def _production_settings():
         migration_database_url=os.environ["MIGRATION_DATABASE_URL"],
         csrf_secret_key=os.environ["CSRF_SECRET_KEY"],
         workos_cookie_password=os.environ["WORKOS_COOKIE_PASSWORD"],
-        valid_roles=os.environ["VALID_ROLES"],
+        valid_actors=os.environ["VALID_ACTORS"],
         jwt_private_key_pem=os.environ["JWT_PRIVATE_KEY_PEM"],
         jwt_public_key_pem=os.environ["JWT_PUBLIC_KEY_PEM"],
         authentication_client_secret=os.environ["AUTHENTICATION_CLIENT_SECRET"],

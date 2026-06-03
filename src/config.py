@@ -74,7 +74,7 @@ _REQUIRED_FIELDS = (
     "migration_database_url",
     "app_database_url",
     "csrf_secret_key",
-    "valid_roles",
+    "valid_actors",
     "jwt_private_key_pem",
     "jwt_public_key_pem",
 )
@@ -95,7 +95,7 @@ class Settings(BaseSettings):
     jwt_claim_namespace: str = "neosofia"
     env: str = "production"
     jwt_web_audience: str | list[str] = "authentication"
-    valid_roles: str  # comma-separated Tier-1 IdP actor classes, e.g. "operator,clinician,patient"
+    valid_actors: str  # comma-separated Tier-1 IdP actor classes, e.g. "operator,study,clinician,patient"
     idp_provider: str = "workos"
     access_token_ttl_secs: int = 900   # 15 minutes
     service_token_ttl_secs: int = 300  # 5 minutes

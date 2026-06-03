@@ -33,7 +33,7 @@ def _production_settings():
         migration_database_url=os.environ["MIGRATION_DATABASE_URL"],
         csrf_secret_key=os.environ["CSRF_SECRET_KEY"],
         workos_cookie_password=os.environ["WORKOS_COOKIE_PASSWORD"],
-        valid_roles=os.environ["VALID_ROLES"],
+        valid_actors=os.environ["VALID_ACTORS"],
         jwt_private_key_pem=os.environ["JWT_PRIVATE_KEY_PEM"],
         jwt_public_key_pem=os.environ["JWT_PUBLIC_KEY_PEM"],
         authentication_client_secret=os.environ["AUTHENTICATION_CLIENT_SECRET"],
@@ -174,6 +174,18 @@ def test_jwks_single_key(client):
     assert keys[0]["kty"] == "RSA"
     assert keys[0]["alg"] == "RS256"
     assert "kid" in keys[0]
+
+
+def test_platform_actors_well_known(client):
+    import os
+
+    response = client.get("/.well-known/platform-actors.json")
+    assert response.status_code == 200
+    assert response.json["tier1_actors"] == [
+        part.strip() for part in os.environ["VALID_ACTORS"].split(",") if part.strip()
+    ]
+    assert response.headers.get("Cache-Control") == "public, max-age=3600"
+
 
 def test_jwks_dual_key_during_rotation(client):
     from cryptography.hazmat.primitives.asymmetric import rsa

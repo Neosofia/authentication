@@ -329,7 +329,7 @@ def extract_platform_identity(
     *,
     access_token_str: str | None = None,
 ) -> PlatformIdentity:
-    valid_roles = frozenset(r.strip() for r in settings.valid_roles.split(",") if r.strip())
+    valid_actors = frozenset(r.strip() for r in settings.valid_actors.split(",") if r.strip())
     user_id = _idp_user_id(auth_response)
     access_token_claims = decode_access_token_claims(auth_response, access_token_str)
 
@@ -362,24 +362,24 @@ def extract_platform_identity(
         if isinstance(workos_roles, str):
             workos_roles = [workos_roles]
         for role in workos_roles:
-            if role in valid_roles and role not in actors:
+            if role in valid_actors and role not in actors:
                 actors.append(role)
     elif workos_role is not None:
-        if workos_role in valid_roles:
+        if workos_role in valid_actors:
             actors.append(workos_role)
 
     if not actors:
         log_event(
-            "token_rejected_no_valid_roles",
+            "token_rejected_no_valid_actors",
             user_id=user_id,
             idp_tenant_id=idp_tenant_id,
-            valid_roles=list(valid_roles),
+            valid_actors=list(valid_actors),
             workos_roles=workos_roles,
             workos_role=workos_role,
         )
         raise ValueError(
-            "User has no valid roles; token issuance denied. "
-            "Verify that IdP roles match VALID_ROLES."
+            "User has no valid Tier-1 actors; token issuance denied. "
+            "Verify that IdP roles match VALID_ACTORS."
         )
 
     tenant_type = resolve_tenant_type(access_token_claims.get("tenant_type"))

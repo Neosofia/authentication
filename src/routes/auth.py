@@ -185,6 +185,24 @@ def logout():
         return clear_idp_session_cookie(make_response(redirect(frontend_url)))
 
 
+@bp.route("/.well-known/platform-actors.json")
+@talisman(force_https=False)
+def platform_actors():
+    """
+    Publish the Tier-1 actor allow-list used at token issuance and by JWT consumers.
+
+    Downstream services derive this URL from ``JWT_JWKS_URI`` (same path base as JWKS).
+    Response: {"tier1_actors": ["operator", ...]}
+    Cache-Control: max-age=3600 (1 hour)
+    """
+    actors = [part.strip() for part in settings.valid_actors.split(",") if part.strip()]
+    if not actors:
+        return jsonify({"error": "valid_actors not configured"}), 500
+    response = jsonify({"tier1_actors": actors})
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return response
+
+
 @bp.route("/.well-known/jwks.json")
 @talisman(force_https=False)
 def jwks():

@@ -1,5 +1,55 @@
 # Upgrade notes
 
+## authentication (next) -- `VALID_ACTORS` rename and `study` actor
+
+### Breaking env rename
+
+The Tier-1 IdP allow-list env var is now **`VALID_ACTORS`** (was **`VALID_ROLES`**). The name reflects what the value is: comma-separated **Tier-1 actor classes** minted into JWT `neosofia:actors`, not WorkOS org role slugs.
+
+| Old | New |
+|-----|-----|
+| `VALID_ROLES` | `VALID_ACTORS` |
+
+**Required value** (all four actors):
+
+```text
+VALID_ACTORS=operator,study,clinician,patient
+```
+
+Rename in every deployment surface before rollout:
+
+- Authentication, User, and any service using **authentication-in-the-middle** v0.9.5+ (Capabilities, Chat, Care Episode, templates, etc.)
+- Local CDP stack: `cdp/.authentication.env`, `cdp/.user.env`, `cdp/.capabilities.env` (and `.authentication.env.sample`)
+- Cloud secret bundles (AWS Secrets Manager, Railway, PaaS)
+
+The service **refuses to start** if `VALID_ACTORS` is unset or empty. There is **no** default or fallback list in application code.
+
+### WorkOS
+
+Add the **`study`** environment-level actor slug in WorkOS Authorization (alongside `operator`, `clinician`, `patient`). Assign **`study`** to users who administer CRO, sponsor, or SMO tenants (CRO clinical ops, sponsor monitors, etc.). Tier-2 org roles still map to `study` via the User role catalog `assigner_actors`.
+
+### SDK **authentication-in-the-middle** v0.9.5
+
+- Reads **`VALID_ACTORS`** only (not `VALID_ROLES`).
+- Removed hardcoded fallback `operator,clinician,patient`. Each JWT consumer must set Flask config **`TIER1_ACTOR_CLASSES`** at startup (parsed from Pydantic `valid_actors` / env `VALID_ACTORS`); the middleware does not read env vars directly.
+
+### SDK **authentication-in-the-middle** v0.9.6 + Authentication well-known
+
+- Authentication publishes **`GET /.well-known/platform-actors.json`** (`{"tier1_actors": [...]}`) from its **`VALID_ACTORS`** (sole source of truth).
+- JWT consumers with **`JWT_JWKS_URI`** load Tier-1 actors from the same origin as JWKS (replace `jwks.json` with `platform-actors.json`). Call **`configure_tier1_actor_classes(app)`** at startup; no per-service **`VALID_ACTORS`** env var.
+- Remove **`valid_actors`** from downstream service Settings; keep **`JWT_JWKS_URI`** only.
+
+Bump the wheel URL in each service `pyproject.toml`, run `uv sync`, rebuild images, and redeploy.
+
+### Deploy checklist
+
+1. Rename `VALID_ROLES` -> `VALID_ACTORS` and set `operator,study,clinician,patient`.
+2. Publish/use SDK tag `authentication-in-the-middle/v0.9.5`.
+3. Redeploy Authentication, User, Capabilities, and other JWT consumers.
+4. Add **`study`** in WorkOS; re-login study users and confirm `neosofia:actors` includes `study`.
+
+---
+
 ## authentication v0.31.2
 
 ### Manual actions
@@ -49,8 +99,8 @@ Requires **user v0.2.0** and CDP UI **v0.2.0** for Admin -> Users.
 The canonical Tier-1 IdP actor class for platform administration is **`operator`** (replaces the overloaded `admin` slug). **`clinician`** and **`patient`** are the other Tier-1 actor classes.
 
 - **`/api/services/*`** requires JWT role **`operator`** (`requires operator role` on 403).
-- **`VALID_ROLES`** must list only Tier-1 slugs you issue tokens for: `operator,clinician,patient`.
-- Legacy **`admin`** is **not** accepted at the service-management gate and **must not** appear in `VALID_ROLES`. Users may still have an `admin` assignment in WorkOS for housekeeping; those users will not receive `admin` in platform JWTs and cannot manage the service registry until assigned **`operator`**.
+- **`VALID_ACTORS`** (formerly `VALID_ROLES`) must list only Tier-1 slugs you issue tokens for: `operator,study,clinician,patient`.
+- Legacy **`admin`** is **not** accepted at the service-management gate and **must not** appear in `VALID_ACTORS`. Users may still have an `admin` assignment in WorkOS for housekeeping; those users will not receive `admin` in platform JWTs and cannot manage the service registry until assigned **`operator`**.
 
 ### WorkOS setup
 
@@ -59,7 +109,7 @@ Create the **`operator`** role at the **environment (instance) level**, not per 
 1. WorkOS Dashboard -> **Authorization** (environment/instance roles).
 2. Add role slug **`operator`** (plus **`clinician`** and **`patient`** if not already present).
 3. Under each **organization**, assign **`operator`** to users who manage the service registry (replace `admin` assignments when ready).
-4. You may delete or leave unused **`admin`** org-role definitions in WorkOS; they have no effect on the platform once removed from `VALID_ROLES`.
+4. You may delete or leave unused **`admin`** org-role definitions in WorkOS; they have no effect on the platform once removed from `VALID_ACTORS`.
 
 Org-level role configuration for memberships remains under **Organizations -> [org] -> Members**.
 
@@ -67,7 +117,7 @@ Org-level role configuration for memberships remains under **Organizations -> [o
 
 | Variable | Value |
 |----------|--------|
-| `VALID_ROLES` | `operator,clinician,patient` |
+| `VALID_ACTORS` | `operator,study,clinician,patient` |
 
 Update in:
 
@@ -86,7 +136,7 @@ No other env vars change for this release.
 
 ### Public cloud checklist
 
-1. Update secret: `VALID_ROLES=operator,clinician,patient`
+1. Update secret: `VALID_ACTORS=operator,study,clinician,patient`
 2. Redeploy authentication
 3. Re-assign **`operator`** in WorkOS for registry admins
 4. Smoke-test service registry CRUD
