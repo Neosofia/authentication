@@ -63,7 +63,16 @@ markers = [
 ]
 
 [tool.coverage.run]
-omit = ["*/migrations/*", "src/db/*", "src/models/*", "src/routes/ui.py", "src/gunicorn.py", "src/config.py", "src/gunicorn*.py"]
+omit = [
+    "scripts/*",
+    "*/migrations/*",
+    "src/db/*",
+    "src/models/*",
+    "src/routes/ui.py",
+    "src/gunicorn.py",
+    "src/config.py",
+    "src/gunicorn*.py",
+]
 
 [tool.black]
 line-length = 100
