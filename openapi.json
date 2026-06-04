@@ -542,12 +542,24 @@
               "application/json": {
                 "schema": {
                   "type": "object",
+                  "required": [
+                    "status",
+                    "version"
+                  ],
                   "properties": {
                     "status": {
                       "type": "string",
                       "enum": [
-                        "ok"
+                        "ok",
+                        "degraded"
                       ]
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "Service semver from pyproject at install/build time."
+                    },
+                    "detail": {
+                      "type": "string"
                     }
                   }
                 }
@@ -560,12 +572,20 @@
               "application/json": {
                 "schema": {
                   "type": "object",
+                  "required": [
+                    "status",
+                    "version"
+                  ],
                   "properties": {
                     "status": {
                       "type": "string",
                       "enum": [
                         "error"
                       ]
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "Service semver from pyproject at install/build time."
                     },
                     "detail": {
                       "type": "string"

@@ -2,10 +2,15 @@ from flask import Blueprint, jsonify
 from sqlalchemy import text
 
 from src.bootstrap.extensions import talisman
-from src.db.engine import SessionLocal
 from src.bootstrap.logging import log_event, log_exception
+from src.bootstrap.version import service_version
+from src.db.engine import SessionLocal
 
 bp = Blueprint("health", __name__, url_prefix="")
+
+
+def _health_body(status: str, **extra: str) -> dict:
+    return {"status": status, "version": service_version(), **extra}
 
 
 @bp.route("/health")
@@ -24,10 +29,15 @@ def health():
     try:
         with SessionLocal() as db:
             db.execute(text("SELECT 1"))
-        return jsonify({"status": "ok"}), 200
+        return jsonify(_health_body("ok")), 200
     except TimeoutError:
         log_event("health_check_degraded", reason="database timeout")
-        return jsonify({"status": "degraded", "detail": "database timeout, service JWTs can not be issued"}), 200
+        return jsonify(
+            _health_body(
+                "degraded",
+                detail="database timeout, service JWTs can not be issued",
+            )
+        ), 200
     except Exception as e:
         log_exception("health_check_failed", e)
-        return jsonify({"status": "error", "detail": "database unavailable"}), 503
+        return jsonify(_health_body("error", detail="database unavailable")), 503

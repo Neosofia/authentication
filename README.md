@@ -6,7 +6,7 @@ This service is the platform's single source of truth for identity. It delegates
 
 ### Operations
 
-For testers, developers, and system administrators, [OPERATIONS.md](OPERATIONS.md) is the place to start — it covers WorkOS configuration, local tooling setup, and helps you choose the right path for your environment. From there, follow [OPS-LOCAL.md](OPS-LOCAL.md) for single-box development and testing.
+For testers, developers, and system administrators, [OPERATIONS.md](OPERATIONS.md) is the place to start — it covers WorkOS configuration, local tooling setup, and helps you choose the right path for your environment. From there, follow [OPS-LOCAL.md](OPS-LOCAL.md) for single-box development and testing. Per-release operator steps and verification are in [INSTALLATION_PLAN.md](INSTALLATION_PLAN.md).
 
 ### API Contract
 

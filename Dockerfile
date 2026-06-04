@@ -69,6 +69,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app"
 
 # Copy source code, config, and local env helper assets
+COPY pyproject.toml ./pyproject.toml
 COPY src ./src
 COPY alembic.ini ./
 COPY openapi.json ./

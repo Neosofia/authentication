@@ -1,10 +1,13 @@
 import os
 from unittest.mock import patch
-from sqlalchemy.exc import OperationalError
 
 import pytest
+from importlib.metadata import version
+from sqlalchemy.exc import OperationalError
 
 from src.app import create_app
+
+_AUTH_VERSION = version("authentication")
 
 pytestmark = pytest.mark.unit
 
@@ -41,7 +44,7 @@ def test_health_allows_plain_http_in_production(mock_session):
         response = create_app().test_client().get("/health")
         assert response.status_code == 200
         assert response.headers.get("Location") is None
-        assert response.get_json() == {"status": "ok"}
+        assert response.get_json() == {"status": "ok", "version": _AUTH_VERSION}
     finally:
         app_module.settings = original
 
@@ -57,7 +60,11 @@ def test_health_timeout(mock_log, mock_session, client):
     response = client.get("/health")
     
     assert response.status_code == 200
-    assert response.json == {"status": "degraded", "detail": "database timeout, service JWTs can not be issued"}
+    assert response.json == {
+        "status": "degraded",
+        "version": _AUTH_VERSION,
+        "detail": "database timeout, service JWTs can not be issued",
+    }
     mock_log.assert_called_once_with("health_check_degraded", reason="database timeout")
 
 # If the database is completely inaccessible (e.g., generic exception like OperationalError),
@@ -71,6 +78,10 @@ def test_health_exception(mock_log, mock_session, client):
     response = client.get("/health")
     
     assert response.status_code == 503
-    assert response.json == {"status": "error", "detail": "database unavailable"}
+    assert response.json == {
+        "status": "error",
+        "version": _AUTH_VERSION,
+        "detail": "database unavailable",
+    }
     mock_log.assert_called_once()
     assert mock_log.call_args[0][0] == "health_check_failed"
