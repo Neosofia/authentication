@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any, Protocol
 
 
@@ -22,6 +22,31 @@ class AuthenticatedSession:
     raw_access_token: str | None = None
 
 
+@dataclass(frozen=True)
+class FailedAuthenticationEvent:
+    """Provider-neutral failed sign-in event for operator observability."""
+
+    id: str
+    occurred_at: str
+    method: str
+    status: str
+    idp_user_id: str | None = None
+    email: str | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+    ip_address: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class FailedAuthenticationPage:
+    items: list[FailedAuthenticationEvent]
+    before: str | None = None
+    after: str | None = None
+
+
 class IdentityProvider(Protocol):
     name: str
 
@@ -38,4 +63,14 @@ class IdentityProvider(Protocol):
         raise NotImplementedError
 
     def to_platform_identity(self, session: AuthenticatedSession) -> PlatformIdentity:
+        raise NotImplementedError
+
+    def list_failed_authentication_events(
+        self,
+        *,
+        limit: int,
+        before: str | None = None,
+        after: str | None = None,
+    ) -> FailedAuthenticationPage:
+        """List recent failed authentication attempts from the identity provider."""
         raise NotImplementedError

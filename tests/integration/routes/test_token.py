@@ -6,11 +6,13 @@ from unittest.mock import patch, MagicMock
 from src.config import settings
 from src.models.service_credential import ServiceCredential
 from src.services.idp import get_idp
+from src.services.idp.workos import reset_workos_client
 from tests.conftest import encode_test_access_token
 
 
 def _clear_idp_cache():
     get_idp.cache_clear()
+    reset_workos_client()
 
 
 def _workos_auth_response():

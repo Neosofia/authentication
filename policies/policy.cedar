@@ -25,3 +25,12 @@ permit (
         resource is authentication::Service
     )
 };
+
+// Operator observability for identity-provider failed sign-in events.
+permit (
+    principal is authentication::User,
+    action == Action::"idp:failed_auth:read",
+    resource is authentication::IdpObservability
+) when {
+    principal.isOperator
+};

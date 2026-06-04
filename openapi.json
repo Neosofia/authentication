@@ -41,6 +41,10 @@
     {
       "name": "Tenants",
       "description": "Platform tenant metadata (authentication identity store)"
+    },
+    {
+      "name": "Identity provider",
+      "description": "Operator observability for delegated identity-provider sign-in events"
     }
   ],
   "paths": {
@@ -528,6 +532,42 @@
         }
       }
     },
+    "/api/idp/failed-authentications": {
+      "get": {
+        "tags": ["Identity provider"],
+        "summary": "List failed identity-provider sign-in attempts",
+        "description": "Returns recent failed authentication events from the configured identity provider (cursor pagination). Operator-only; requires Tier-1 operator actor.",
+        "security": [{"BearerToken": []}],
+        "parameters": [
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 25, "minimum": 1, "maximum": 100}},
+          {"name": "before", "in": "query", "schema": {"type": "string"}, "description": "Provider event id cursor for newer page"},
+          {"name": "after", "in": "query", "schema": {"type": "string"}, "description": "Provider event id cursor for older page"}
+        ],
+        "responses": {
+          "200": {
+            "description": "Failed authentication events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {"type": "array", "items": {"$ref": "#/components/schemas/FailedAuthenticationEvent"}},
+                    "limit": {"type": "integer"},
+                    "before": {"type": "string", "nullable": true},
+                    "after": {"type": "string", "nullable": true}
+                  }
+                }
+              }
+            }
+          },
+          "400": {"description": "Invalid pagination", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "401": {"description": "Unauthorized", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "403": {"description": "Forbidden — requires operator actor", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "501": {"description": "Identity provider does not expose this feed", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "503": {"description": "Identity provider unavailable", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -795,6 +835,21 @@
           "changed_by_uuid": {"type": "string", "format": "uuid"},
           "changed_by_type": {"type": "integer"},
           "change_type": {"type": "integer"}
+        }
+      },
+      "FailedAuthenticationEvent": {
+        "type": "object",
+        "title": "Failed authentication event",
+        "properties": {
+          "id": {"type": "string", "description": "Identity-provider event id"},
+          "occurred_at": {"type": "string", "format": "date-time"},
+          "method": {"type": "string", "description": "Sign-in method (password, oauth, sso, magic_auth, mfa, email_verification)"},
+          "status": {"type": "string", "enum": ["failed"]},
+          "idp_user_id": {"type": "string", "nullable": true},
+          "email": {"type": "string", "format": "email", "nullable": true},
+          "error_code": {"type": "string", "nullable": true},
+          "error_message": {"type": "string", "nullable": true},
+          "ip_address": {"type": "string", "nullable": true}
         }
       }
     },

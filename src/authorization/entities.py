@@ -8,6 +8,7 @@ Route → action → resource:
 | GET /api/v1/tenants/{tenant_uuid} | tenant:read | authentication::Tenant |
 | GET/POST /api/services | service:list, service:create | authentication::ServiceCatalog |
 | GET/PUT/POST … /api/services/{slug} | service:read, update, rotate, audit:read | authentication::Service |
+| GET /api/idp/failed-authentications | idp:failed_auth:read | authentication::IdpObservability |
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ from src.config import settings
 
 NAMESPACE = "authentication"
 SERVICE_CATALOG_ID = "service-catalog"
+IDP_OBSERVABILITY_ID = "idp-observability"
 
 
 def _jwt_claims() -> dict[str, Any]:
@@ -72,6 +74,10 @@ def build_service_catalog_entity() -> dict[str, Any]:
     return build_entity_payload(f"{NAMESPACE}::ServiceCatalog", SERVICE_CATALOG_ID, {})
 
 
+def build_idp_observability_entity() -> dict[str, Any]:
+    return build_entity_payload(f"{NAMESPACE}::IdpObservability", IDP_OBSERVABILITY_ID, {})
+
+
 def build_service_entity(slug: str) -> dict[str, Any]:
     return build_entity_payload(
         f"{NAMESPACE}::Service",
@@ -98,4 +104,11 @@ def service_entities() -> list[dict[str, Any]]:
     return [
         resolve_principal(),
         build_service_entity(request.view_args["slug"]),
+    ]
+
+
+def idp_observability_entities() -> list[dict[str, Any]]:
+    return [
+        resolve_principal(),
+        build_idp_observability_entity(),
     ]

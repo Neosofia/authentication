@@ -16,17 +16,31 @@ from workos.session import seal_session_from_auth_response, unseal_data
 
 from src.bootstrap.logging import log_event, log_exception
 from src.config import settings
-from src.services.idp.base import AuthenticatedSession, PlatformIdentity
+from src.services.idp.base import (
+    AuthenticatedSession,
+    FailedAuthenticationEvent,
+    FailedAuthenticationPage,
+    PlatformIdentity,
+)
 from src.services.token_claims import resolve_tenant_type
 
 WORKOS_TOKEN_ISSUER = "https://api.workos.com"
+
+_WORKOS_FAILED_AUTH_EVENT_TYPES = (
+    "authentication.password_failed",
+    "authentication.oauth_failed",
+    "authentication.magic_auth_failed",
+    "authentication.sso_failed",
+    "authentication.mfa_failed",
+    "authentication.email_verification_failed",
+)
 
 
 class WorkOSIdentityProvider:
     name = "workos"
 
     def __init__(self) -> None:
-        self.client = _new_workos_client()
+        self.client = get_workos_client()
 
     def authorization_url(self, *, state: str, code_challenge: str) -> str:
         return self.client.user_management.get_authorization_url(
@@ -109,25 +123,86 @@ class WorkOSIdentityProvider:
             access_token_str=session.raw_access_token,
         )
 
+    def list_failed_authentication_events(
+        self,
+        *,
+        limit: int,
+        before: str | None = None,
+        after: str | None = None,
+    ) -> FailedAuthenticationPage:
+        page = self.client.events.list_events(
+            limit=limit,
+            before=before,
+            after=after,
+            order="desc",
+            events=list(_WORKOS_FAILED_AUTH_EVENT_TYPES),
+        )
+        metadata = page.list_metadata
+        return FailedAuthenticationPage(
+            items=[_workos_event_to_failed_authentication(item) for item in page.data],
+            before=getattr(metadata, "before", None),
+            after=getattr(metadata, "after", None),
+        )
 
-# Lazily initialized compatibility client for adapter-level helpers and tests.
+
+# Lazily initialized client for adapter-level helpers and tests (patch target).
 workos_client: WorkOSClient | None = None
 
 
-def _new_workos_client() -> WorkOSClient:
-    return WorkOSClient(
-        api_key=settings.workos_api_key,
-        client_id=settings.workos_client_id,
-        request_timeout=5,
-        max_retries=1,
-    )
+def get_workos_client() -> WorkOSClient:
+    global workos_client
+    if workos_client is None:
+        workos_client = WorkOSClient(
+            api_key=settings.workos_api_key,
+            client_id=settings.workos_client_id,
+            request_timeout=5,
+            max_retries=1,
+        )
+    return workos_client
+
+
+def reset_workos_client() -> None:
+    """Clear the cached client (tests and hot reload)."""
+    global workos_client
+    workos_client = None
 
 
 def _default_workos_client() -> WorkOSClient:
-    global workos_client
-    if workos_client is None:
-        workos_client = _new_workos_client()
-    return workos_client
+    return get_workos_client()
+
+
+def _workos_event_to_failed_authentication(event: Any) -> FailedAuthenticationEvent:
+    payload = event.to_dict() if hasattr(event, "to_dict") else {}
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    error = data.get("error") if isinstance(data.get("error"), dict) else {}
+    occurred_at = payload.get("created_at")
+    if hasattr(occurred_at, "isoformat"):
+        occurred_at = occurred_at.isoformat().replace("+00:00", "Z")
+
+    method = _non_empty_str(data.get("type")) or _method_from_workos_event_name(
+        payload.get("event")
+    )
+    return FailedAuthenticationEvent(
+        id=str(payload.get("id") or ""),
+        occurred_at=str(occurred_at or ""),
+        method=method or "unknown",
+        status=_non_empty_str(data.get("status")) or "failed",
+        idp_user_id=_non_empty_str(data.get("user_id")),
+        email=_non_empty_str(data.get("email")),
+        error_code=_non_empty_str(error.get("code")),
+        error_message=_non_empty_str(error.get("message")),
+        ip_address=_non_empty_str(data.get("ip_address")),
+    )
+
+
+def _method_from_workos_event_name(event_name: Any) -> str | None:
+    name = _non_empty_str(event_name)
+    if not name or not name.startswith("authentication."):
+        return None
+    suffix = name.removeprefix("authentication.")
+    if suffix.endswith("_failed"):
+        return suffix[: -len("_failed")]
+    return suffix
 
 
 def _resolve_workos_session_id(session: Any) -> str | None:
@@ -295,7 +370,7 @@ def prepare_auth_session(
 
 @lru_cache(maxsize=1)
 def _workos_jwks_client() -> PyJWKClient:
-    return PyJWKClient(_default_workos_client().user_management.get_jwks_url())
+    return PyJWKClient(get_workos_client().user_management.get_jwks_url())
 
 
 def decode_access_token_claims(

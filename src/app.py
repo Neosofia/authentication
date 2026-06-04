@@ -11,7 +11,7 @@ from src.config import settings  # noqa: E402
 from src.bootstrap.extensions import limiter, talisman  # noqa: E402
 from src.bootstrap.logging import setup_logging  # noqa: E402
 from src.authorization.entities import NAMESPACE  # noqa: E402
-from src.routes import auth, token, health, services, tenants  # noqa: E402
+from src.routes import auth, idp, token, health, services, tenants  # noqa: E402
 
 
 def create_app(config: dict | None = None) -> Flask:
@@ -45,12 +45,13 @@ def create_app(config: dict | None = None) -> Flask:
     app.extensions["cedar_evaluator"] = CedarEvaluator(policy_source=policy_source)
 
     # Public routes (no Cedar): health, OIDC login/callback/logout, JWKS, token issuance.
-    # Protected routes use @with_security + policies/policy.cedar: tenants, services.
+    # Protected routes use @with_security + policies/policy.cedar: tenants, services, idp.
     app.register_blueprint(auth.bp)
     app.register_blueprint(token.bp)
     app.register_blueprint(health.bp)
     app.register_blueprint(services.bp)
     app.register_blueprint(tenants.bp)
+    app.register_blueprint(idp.bp)
 
     # Initialize security headers (L2: Flask-Talisman only in production)
     # In development, CSP can be restrictive; production deployments require strict headers

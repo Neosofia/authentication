@@ -1,7 +1,13 @@
 from functools import lru_cache
 
 from src.config import settings
-from src.services.idp.base import AuthenticatedSession, IdentityProvider, PlatformIdentity
+from src.services.idp.base import (
+    AuthenticatedSession,
+    FailedAuthenticationEvent,
+    FailedAuthenticationPage,
+    IdentityProvider,
+    PlatformIdentity,
+)
 from src.services.idp.workos import WorkOSIdentityProvider
 
 _IDP_FACTORIES = {"workos": WorkOSIdentityProvider}
@@ -16,4 +22,11 @@ def get_idp() -> IdentityProvider:
         raise ValueError(f"Unsupported IDP_PROVIDER: {settings.idp_provider}") from exc
 
 
-__all__ = ["AuthenticatedSession", "IdentityProvider", "PlatformIdentity", "get_idp"]
+__all__ = [
+    "AuthenticatedSession",
+    "FailedAuthenticationEvent",
+    "FailedAuthenticationPage",
+    "IdentityProvider",
+    "PlatformIdentity",
+    "get_idp",
+]

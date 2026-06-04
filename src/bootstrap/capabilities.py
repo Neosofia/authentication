@@ -6,3 +6,4 @@ class Capabilities:
     SERVICE_UPDATE = 'Action::"service:update"'
     SERVICE_ROTATE = 'Action::"service:rotate"'
     SERVICE_AUDIT_READ = 'Action::"service:audit:read"'
+    IDP_FAILED_AUTH_READ = 'Action::"idp:failed_auth:read"'
