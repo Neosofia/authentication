@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -66,6 +67,33 @@ def test_decode_access_token_claims_rejects_wrong_client_id():
 def test_decode_access_token_claims_accepts_custom_authkit_issuer():
     token = encode_test_access_token(
         {"role": "operator", "iss": "https://my-env.authkit.app/"}
+    )
+
+    claims = decode_access_token_claims(MagicMock(access_token=token))
+    assert claims.get("role") == "operator"
+
+
+@patch("src.services.idp.workos.log_event")
+def test_decode_access_token_claims_logs_unexpected_issuer_at_warning(mock_log_event):
+    token = encode_test_access_token(
+        {"role": "operator", "iss": "https://evil.example.com"}
+    )
+
+    decode_access_token_claims(MagicMock(access_token=token))
+
+    mock_log_event.assert_called_once_with(
+        "workos_access_token_unexpected_issuer",
+        level=logging.WARNING,
+        issuer="https://evil.example.com",
+    )
+
+
+def test_decode_access_token_claims_accepts_workos_user_management_issuer():
+    token = encode_test_access_token(
+        {
+            "role": "operator",
+            "iss": "https://api.workos.com/user_management/client_01ABC",
+        }
     )
 
     claims = decode_access_token_claims(MagicMock(access_token=token))

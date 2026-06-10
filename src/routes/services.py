@@ -1,8 +1,8 @@
-from authorization_in_the_middle.security import with_security
 from flask import Blueprint, jsonify, request
 
+from authorization_in_the_middle.security import with_security
+
 from src.authorization import entities as auth_entities
-from src.bootstrap.capabilities import Capabilities
 from src.bootstrap.logging import log_event, log_exception
 from src.db.engine import SessionLocal
 from src.services import service_management
@@ -29,11 +29,7 @@ def _parse_pagination() -> tuple[int, int] | tuple[None, tuple]:
 
 
 @bp.route("", methods=["GET"])
-@with_security(
-    action=Capabilities.SERVICE_LIST,
-    rate_limit="60 per minute",
-    entities_fn=auth_entities.service_catalog_entities,
-)
+@with_security()
 def list_services():
     """
     List registered platform services with credential metadata.
@@ -60,11 +56,7 @@ def list_services():
 
 
 @bp.route("", methods=["POST"])
-@with_security(
-    action=Capabilities.SERVICE_CREATE,
-    rate_limit="60 per minute",
-    entities_fn=auth_entities.service_catalog_entities,
-)
+@with_security()
 def create_service():
     """
     Register a new platform service and generate its service credentials exactly once.
@@ -90,13 +82,30 @@ def create_service():
         return jsonify({"error": "database error"}), 500
 
 
+@bp.route("/audits", methods=["GET"])
+@with_security(action='Action::"service:audit:list"')
+def list_catalog_audits():
+    """Recent service and credential audit events across the platform catalog."""
+    try:
+        limit = min(100, max(1, int(request.args.get("limit", 50))))
+    except (TypeError, ValueError):
+        return jsonify({
+            "error": "invalid limit",
+            "message": "limit must be an integer between 1 and 100",
+        }), 400
+
+    try:
+        with SessionLocal() as db:
+            return jsonify({
+                "items": service_management.list_catalog_audits(db, limit),
+            }), 200
+    except Exception as exc:
+        log_exception("list_catalog_audits_failed", exc)
+        return jsonify({"error": "database error"}), 500
+
+
 @bp.route("/<slug>", methods=["GET"])
-@with_security(
-    action=Capabilities.SERVICE_READ,
-    rate_limit="60 per minute",
-    id_arg="slug",
-    entities_fn=auth_entities.service_entities,
-)
+@with_security(id_arg="slug")
 def get_service(slug: str):
     """Return details for a single service including its latest credential metadata."""
     try:
@@ -111,12 +120,7 @@ def get_service(slug: str):
 
 
 @bp.route("/<slug>", methods=["PUT"])
-@with_security(
-    action=Capabilities.SERVICE_UPDATE,
-    rate_limit="60 per minute",
-    id_arg="slug",
-    entities_fn=auth_entities.service_entities,
-)
+@with_security(id_arg="slug")
 def update_service(slug: str):
     """Update name, slug, or base_url for a service."""
     data = request.get_json()
@@ -144,12 +148,7 @@ def update_service(slug: str):
 
 
 @bp.route("/<slug>/rotate", methods=["POST"])
-@with_security(
-    action=Capabilities.SERVICE_ROTATE,
-    rate_limit="60 per minute",
-    id_arg="slug",
-    entities_fn=auth_entities.service_entities,
-)
+@with_security(action='Action::"service:rotate"', id_arg="slug")
 def rotate_service(slug: str):
     """
     Rotate the active service credential in-place. The audit trigger captures
@@ -172,12 +171,7 @@ def rotate_service(slug: str):
 
 
 @bp.route("/<slug>/audits", methods=["GET"])
-@with_security(
-    action=Capabilities.SERVICE_AUDIT_READ,
-    rate_limit="60 per minute",
-    id_arg="slug",
-    entities_fn=auth_entities.service_entities,
-)
+@with_security(action='Action::"service:audit:list"', id_arg="slug")
 def get_service_audits(slug: str):
     """Return paginated audit history for a service's credentials."""
     pagination, error = _parse_pagination()

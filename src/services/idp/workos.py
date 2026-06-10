@@ -5,9 +5,11 @@ Owns WorkOS SDK calls, sealed-session handling, refresh semantics, claim mapping
 and external-id provisioning for the generic authentication routes.
 """
 
+import logging
 import uuid
 from functools import lru_cache
 from typing import Any
+from urllib.parse import urlparse
 
 import jwt
 from jwt import PyJWKClient
@@ -25,6 +27,8 @@ from src.services.idp.base import (
 from src.services.token_claims import resolve_tenant_type
 
 WORKOS_TOKEN_ISSUER = "https://api.workos.com"
+_WORKOS_TOKEN_ISSUER_HOST = urlparse(WORKOS_TOKEN_ISSUER).netloc
+_AUTHKIT_ISSUER_HOST_SUFFIX = ".authkit.app"
 
 _WORKOS_FAILED_AUTH_EVENT_TYPES = (
     "authentication.password_failed",
@@ -220,7 +224,12 @@ def _resolve_workos_session_id(session: Any) -> str | None:
 def _is_valid_workos_issuer(issuer: Any) -> bool:
     if not isinstance(issuer, str) or not issuer.strip():
         return False
-    return issuer.rstrip("/") == WORKOS_TOKEN_ISSUER
+    host = urlparse(issuer.strip()).netloc
+    if not host:
+        return False
+    if host == _WORKOS_TOKEN_ISSUER_HOST:
+        return True
+    return host == "authkit.app" or host.endswith(_AUTHKIT_ISSUER_HOST_SUFFIX)
 
 
 def _get_nested_value(source: Any, path: str) -> Any:
@@ -390,7 +399,11 @@ def decode_access_token_claims(
             options={"verify_aud": False, "verify_iss": False},
         )
         if not _is_valid_workos_issuer(decoded.get("iss")):
-            log_event("workos_access_token_unexpected_issuer", issuer=decoded.get("iss"))
+            log_event(
+                "workos_access_token_unexpected_issuer",
+                level=logging.WARNING,
+                issuer=decoded.get("iss"),
+            )
         if decoded.get("client_id") != settings.workos_client_id:
             raise jwt.InvalidTokenError("client_id mismatch")
         return decoded if isinstance(decoded, dict) else {}

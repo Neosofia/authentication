@@ -84,6 +84,31 @@ def test_session_grant_idp_timeout(mock_get_idp, mock_log, client):
     assert response.json == {"error": "authentication provider unavailable"}
 
 
+@patch("src.routes.token.human_token_claims", return_value=(None, []))
+@patch("src.routes.token.tokens")
+@patch("src.routes.token.log_event")
+@patch("src.routes.token.get_idp")
+@patch("src.routes.token.SessionLocal")
+def test_session_grant_success_logs_idp_and_platform_user(
+    mock_session_local, mock_get_idp, mock_log, mock_tokens, _mock_claims, client
+):
+    mock_session_local.return_value.__enter__.return_value = MagicMock()
+    fake_idp = mock_get_idp.return_value
+    fake_idp.authenticate_session.return_value = _session()
+    fake_idp.to_platform_identity.return_value = _identity()
+    mock_tokens.issue_token.return_value = "signed-jwt"
+
+    client.set_cookie("wos_session", "dummy")
+    response = client.post("/api/token")
+
+    assert response.status_code == 200
+    mock_log.assert_called_once_with(
+        "platform_token_issued",
+        idp_user_id="user_123",
+        user_uuid="user-uuid",
+    )
+
+
 # If token construction fails internally (e.g. an unexpected runtime exception),
 # a 500 error should be triggered alongside a telemetry log for platform_token_error.
 @patch("src.routes.token.log_exception")

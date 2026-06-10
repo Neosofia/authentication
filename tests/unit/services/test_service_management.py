@@ -2,7 +2,10 @@ import uuid
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
-from src.services.service_management import get_service_audits
+from src.services.service_management import (
+    list_catalog_audits,
+    get_service_audits,
+)
 
 
 def _make_mock_db(rows):
@@ -86,3 +89,32 @@ def test_get_service_audits_handles_current_credential_row_with_null_history_uui
     assert items[0]["credential_uuid"] == str(live_row["uuid"])
     assert items[0]["changed_by_name"] is None
     assert items[1]["changed_by_name"] is None
+
+
+def test_list_catalog_audits_maps_rows():
+    changed_at = datetime.now(timezone.utc)
+    credential_uuid = uuid.uuid7()
+    row = {
+        "history_uuid": uuid.uuid7(),
+        "source": "credential",
+        "slug": "chat",
+        "credential_uuid": credential_uuid,
+        "name": None,
+        "base_url": None,
+        "changed_at": changed_at,
+        "changed_by_uuid": uuid.uuid7(),
+        "changed_by_type": 1,
+        "change_type": 2,
+    }
+    mock_db = MagicMock()
+    execute_result = MagicMock()
+    execute_result.mappings.return_value.all.return_value = [row]
+    mock_db.execute.return_value = execute_result
+
+    items = list_catalog_audits(mock_db, 5)
+
+    assert len(items) == 1
+    assert items[0]["source"] == "credential"
+    assert items[0]["slug"] == "chat"
+    assert items[0]["credential_uuid"] == str(credential_uuid)
+    assert items[0]["changed_at"] == changed_at.isoformat()

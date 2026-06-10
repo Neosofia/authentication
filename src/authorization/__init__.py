@@ -1,4 +1,4 @@
-"""Cedar entity builders for the authentication service."""
+"""Authorization for the authentication service."""
 
 from src.authorization import entities
 

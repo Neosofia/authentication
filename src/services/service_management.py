@@ -1,9 +1,11 @@
 import secrets
 import uuid as _uuid
 from datetime import datetime, timezone
+from typing import Any
 
 import bcrypt
-from sqlalchemy import select, func
+from sqlalchemy import literal, select, func, union_all
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.exc import IntegrityError
 
 from src.models.service import Service, ServiceHistory
@@ -169,6 +171,22 @@ def rotate_service(db, slug: str, user_uuid: str) -> dict:
     }
 
 
+def _map_audit_row(row: Any, *, source: str) -> dict:
+    return {
+        "history_uuid": str(row["history_uuid"]) if row["history_uuid"] else None,
+        "source": source,
+        "credential_uuid": str(row["credential_uuid"]) if source == "credential" and row.get("credential_uuid") else None,
+        "name": row.get("name"),
+        "slug": row.get("slug"),
+        "base_url": row.get("base_url"),
+        "changed_at": row["changed_at"].isoformat() if row["changed_at"] else None,
+        "changed_by_uuid": str(row["changed_by_uuid"]),
+        "changed_by_type": row["changed_by_type"],
+        "changed_by_name": None,
+        "change_type": row["change_type"],
+    }
+
+
 def get_service_audits(
     db,
     service_uuid: str,
@@ -200,18 +218,55 @@ def get_service_audits(
 
     items = []
     for row in rows:
-        items.append({
-            "history_uuid": str(row["history_uuid"]) if row["history_uuid"] else None,
-            "source": source,
-            "credential_uuid": str(row["uuid"]) if source == "credential" else None,
-            "name": row.get("name"),
-            "slug": row.get("slug"),
-            "base_url": row.get("base_url"),
-            "changed_at": row["changed_at"].isoformat() if row["changed_at"] else None,
-            "changed_by_uuid": str(row["changed_by_uuid"]),
-            "changed_by_type": row["changed_by_type"],
-            "changed_by_name": None,
-            "change_type": row["change_type"],
-        })
+        mapped = dict(row)
+        if source == "credential":
+            mapped["credential_uuid"] = mapped.get("uuid")
+            mapped["slug"] = None
+        items.append(_map_audit_row(mapped, source=source))
 
     return items, total
+
+
+def list_catalog_audits(db, limit: int) -> list[dict]:
+    service_history = ServiceHistory.__table__
+    credential_history = ServiceCredentialHistory.__table__
+    services = Service.__table__
+
+    service_rows = select(
+        service_history.c.history_uuid,
+        literal("service").label("source"),
+        service_history.c.slug,
+        literal(None).cast(UUID(as_uuid=True)).label("credential_uuid"),
+        service_history.c.name,
+        service_history.c.base_url,
+        service_history.c.changed_at,
+        service_history.c.changed_by_uuid,
+        service_history.c.changed_by_type,
+        service_history.c.change_type,
+    )
+
+    credential_rows = (
+        select(
+            credential_history.c.history_uuid,
+            literal("credential").label("source"),
+            services.c.slug,
+            credential_history.c.uuid.label("credential_uuid"),
+            literal(None).label("name"),
+            literal(None).label("base_url"),
+            credential_history.c.changed_at,
+            credential_history.c.changed_by_uuid,
+            credential_history.c.changed_by_type,
+            credential_history.c.change_type,
+        )
+        .join(services, credential_history.c.service_uuid == services.c.uuid)
+    )
+
+    combined = union_all(service_rows, credential_rows).subquery()
+    rows = db.execute(
+        select(combined)
+        .order_by(combined.c.changed_at.desc())
+        .limit(limit)
+    ).mappings().all()
+
+    return [_map_audit_row(row, source=row["source"]) for row in rows]
+

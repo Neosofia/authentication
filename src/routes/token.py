@@ -94,7 +94,11 @@ def _handle_session_grant():
             claim_namespace=settings.jwt_claim_namespace,
             public_key_pem=settings.jwt_public_key_pem,
         )
-        log_event("platform_token_issued", user_id=identity.idp_user_id)
+        log_event(
+            "platform_token_issued",
+            idp_user_id=identity.idp_user_id,
+            user_uuid=identity.user_uuid,
+        )
 
         response = make_response(jsonify({
             "access_token": platform_token,

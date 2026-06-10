@@ -4,9 +4,9 @@ from logenvelope import log_event as _log_event
 from logenvelope import setup_logging as _setup_logging
 
 
-def setup_logging(name: str = "auth") -> None:
+def setup_logging(name: str = "auth", level: str | None = None) -> None:
     """Initialize logenvelope for this service."""
-    _setup_logging(name)
+    _setup_logging(name, level)
 
 
 def exc_type_name(exc: BaseException) -> str:

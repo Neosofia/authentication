@@ -1,9 +1,7 @@
-from authorization_in_the_middle.entities import entity_uid
 from authorization_in_the_middle.security import with_security
 from flask import Blueprint, jsonify, request
 
 from src.authorization import entities as auth_entities
-from src.bootstrap.capabilities import Capabilities
 from src.bootstrap.logging import log_exception
 from src.services import idp_observability
 
@@ -33,20 +31,12 @@ def _parse_cursor_pagination() -> tuple[int, str | None, str | None] | tuple[Non
     return (limit, before, after), None
 
 
-def _idp_observability_resource_uid() -> str:
-    return entity_uid(
-        f"{auth_entities.NAMESPACE}::IdpObservability",
-        auth_entities.IDP_OBSERVABILITY_ID,
-    )
-
-
 @bp.route("/failed-authentications", methods=["GET"])
 @with_security(
-    action=Capabilities.IDP_FAILED_AUTH_READ,
-    rate_limit="30 per minute",
-    resource_fn=_idp_observability_resource_uid,
+    action='Action::"idp:failed_auth:read"',
     entities_fn=auth_entities.idp_observability_entities,
-    rest=False,
+    resource_fn=auth_entities.idp_observability_resource_uid,
+    rate_limit="30 per minute",
 )
 def list_failed_authentications():
     """

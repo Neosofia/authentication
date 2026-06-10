@@ -30,7 +30,7 @@ def create_app(config: dict | None = None) -> Flask:
     # Bodies here are only form fields / small JSON; JWTs arrive in headers, not bodies.
     app.config["MAX_CONTENT_LENGTH"] = settings.max_content_length
 
-    setup_logging()
+    setup_logging(level=settings.log_level)
     limiter.init_app(app)
 
     app.config["JWT_PUBLIC_KEY"] = settings.jwt_public_key_pem

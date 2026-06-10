@@ -467,6 +467,35 @@
         }
       }
     },
+    "/api/services/audits": {
+      "get": {
+        "tags": ["Services"],
+        "summary": "List platform service audits",
+        "description": "Returns recent service and credential audit events across the catalog. Operator-only.",
+        "security": [{"BearerToken": []}],
+        "parameters": [
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 50, "minimum": 1, "maximum": 100}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent platform audit events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {"type": "array", "items": {"$ref": "#/components/schemas/CredentialAuditItem"}}
+                  }
+                }
+              }
+            }
+          },
+          "400": {"description": "Invalid query parameters", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "403": {"description": "Forbidden — requires operator role", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "500": {"description": "Database error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
+        }
+      }
+    },
     "/api/services/{slug}/rotate": {
       "parameters": [
         {"name": "slug", "in": "path", "required": true, "schema": {"type": "string"}}

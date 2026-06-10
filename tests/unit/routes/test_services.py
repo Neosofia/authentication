@@ -358,3 +358,32 @@ def test_services_get_audits_success_returns_200(client, app):
     assert response.status_code == 200
     assert response.json["total"] == 1
     assert response.json["service_uuid"] == service_uuid
+
+
+def test_services_list_catalog_audits_success_returns_200(client, app):
+    token = _get_token(app, ["operator"])
+
+    with patch("src.routes.services.SessionLocal"), \
+         patch(
+             "src.routes.services.service_management.list_catalog_audits",
+             return_value=[{"history_uuid": str(uuid.uuid7()), "source": "service", "slug": "chat"}],
+         ):
+        response = client.get(
+            "/api/services/audits?limit=10",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    assert len(response.json["items"]) == 1
+
+
+def test_services_list_catalog_audits_invalid_limit_returns_400(client, app):
+    token = _get_token(app, ["operator"])
+
+    response = client.get(
+        "/api/services/audits?limit=not-a-number",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 400
+    assert response.json["error"] == "invalid limit"

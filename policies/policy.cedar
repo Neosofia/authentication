@@ -1,4 +1,5 @@
-// Operators may read any tenant; others only their session tenant.
+// Tenant read — operators any tenant; others only their session tenant.
+//   tenant:read   GET /api/v1/tenants/{tenant_uuid}
 permit (
     principal is authentication::User,
     action == Action::"tenant:read",
@@ -7,7 +8,13 @@ permit (
     principal.isOperator || principal.tenantId == resource.tenantId
 };
 
-// Service registry operations require Tier-1 operator.
+// Service registry — operators only (route map in src/authorization/entities.py).
+//   service:list          GET  /api/services
+//   service:create        POST /api/services
+//   service:read          GET  /api/services/{slug}
+//   service:update        PUT  /api/services/{slug}
+//   service:rotate        POST /api/services/{slug}/rotate
+//   service:audit:list    GET  /api/services/audits, GET /api/services/{slug}/audits
 permit (
     principal is authentication::User,
     action in [
@@ -16,7 +23,7 @@ permit (
         Action::"service:read",
         Action::"service:update",
         Action::"service:rotate",
-        Action::"service:audit:read"
+        Action::"service:audit:list",
     ],
     resource
 ) when {
@@ -26,7 +33,8 @@ permit (
     )
 };
 
-// Operator observability for identity-provider failed sign-in events.
+// IdP failed sign-in observability — operators only.
+//   idp:failed_auth:read   GET /api/idp/failed-authentications
 permit (
     principal is authentication::User,
     action == Action::"idp:failed_auth:read",
