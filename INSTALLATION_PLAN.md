@@ -48,6 +48,30 @@ Per-version instructions for system administrators: prerequisites, deploy and co
 
 ---
 
+## authentication v0.33.0
+
+**Build identifiers:** Tag `authentication/v0.33.0`; SDK **`authorization-in-the-middle/v0.4.23`**, **`logenvelope/v0.3.4`**.
+
+**Prerequisites:**
+
+- Publish/use SDK tag `authorization-in-the-middle/v0.4.23` (hyphenated catalog inference fix).
+
+**Deploy:**
+
+1. Tag and push `authentication/v0.33.0`; wait for CI image publish if applicable.
+2. Redeploy the authentication service (no new migrations or env vars).
+
+**Post-deploy verification:**
+
+1. `GET /health` returns version `0.33.0`.
+2. Service registry and catalog audit routes still return **200** for operator JWTs.
+
+**Evidence:**
+
+- Health response showing `0.33.0`.
+
+---
+
 ## authentication v0.32.3
 
 **Build identifiers:** Tag `authentication/v0.32.3`; SDK **`authorization-in-the-middle/v0.4.22`**, **`logenvelope/v0.3.4`**.
