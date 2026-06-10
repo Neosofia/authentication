@@ -48,6 +48,32 @@ Per-version instructions for system administrators: prerequisites, deploy and co
 
 ---
 
+## authentication v0.32.3
+
+**Build identifiers:** Tag `authentication/v0.32.3`; SDK **`authorization-in-the-middle/v0.4.22`**, **`logenvelope/v0.3.4`**.
+
+**Prerequisites:**
+
+- Rebuild the authentication image so Dockerfile/`uv.lock` resolve the published SDK wheels (no local path overrides).
+
+**Deploy:**
+
+1. Tag and push `authentication/v0.32.3`; wait for CI image publish if applicable.
+2. Redeploy the authentication service (no new migrations or env vars for this release).
+
+**Post-deploy verification:**
+
+1. `GET /health` returns version `0.32.3`.
+2. Operator session: service registry list/create and catalog audit list succeed (Cedar `authorization.allowed` in logs).
+3. Login still issues `platform_token_issued`; user registry upsert logs `user_provisioning_succeeded` with status `200` or `201`.
+
+**Evidence:**
+
+- Health response showing `0.32.3`.
+- Sample `authorization.allowed` log for `GET /api/services` and `GET /api/services/audits`.
+
+---
+
 ## authentication v0.31.2
 
 **Build identifiers:** Tag `authentication/v0.31.2`; **sql-template v0.6.0**; **user v0.4.0**.
