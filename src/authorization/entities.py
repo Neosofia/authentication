@@ -3,10 +3,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from authorization_in_the_middle import extract_jwt_principal_entity
 from authorization_in_the_middle.entities import build_entity_payload, entity_uid
 from flask import g
-
-from src.config import settings
 
 NAMESPACE = "authentication"
 SERVICE_CATALOG_ID = "service-catalog"
@@ -17,22 +16,12 @@ def principal_sub() -> str:
 
 
 def resolve_principal() -> dict[str, Any]:
-    claims = _claims()
-    ns = settings.jwt_claim_namespace
-    actors = claims.get(f"{ns}:actors", [])
+    entity = extract_jwt_principal_entity(NAMESPACE, default_type="User")
+    actors = entity.get("attrs", {}).get("actors", [])
     if not isinstance(actors, list):
         actors = []
-    tenant_uuid = claims.get(f"{ns}:tenant_uuid")
-    sub = str(claims["sub"])
-    return build_entity_payload(
-        f"{NAMESPACE}::User",
-        sub,
-        {
-            "uuid": sub,
-            "tenantId": str(tenant_uuid) if tenant_uuid else "",
-            "isOperator": "operator" in actors,
-        },
-    )
+    entity["attrs"]["isOperator"] = "operator" in actors
+    return entity
 
 
 def _claims() -> dict[str, Any]:
