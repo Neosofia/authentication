@@ -8,7 +8,7 @@ permit (
     principal.isOperator || principal.tenantId == resource.tenantId
 };
 
-// Service registry — operators only (route map in src/authorization/entities.py).
+// Service registry — operators (full catalog management).
 //   service:list          GET  /api/services
 //   service:create        POST /api/services
 //   service:read          GET  /api/services/{slug}
@@ -28,6 +28,18 @@ permit (
     resource
 ) when {
     principal.isOperator && (
+        resource is authentication::ServiceCatalog ||
+        resource is authentication::Service
+    )
+};
+
+// Service registry — peer discovery (read-only base_url lookup for mesh callers).
+permit (
+    principal is authentication::Service,
+    action in [Action::"service:list", Action::"service:read"],
+    resource
+) when {
+    principal.tokenType == "service" && (
         resource is authentication::ServiceCatalog ||
         resource is authentication::Service
     )

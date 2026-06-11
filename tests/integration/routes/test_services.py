@@ -23,6 +23,23 @@ def _get_token(app, roles):
         )
 
 
+def _service_token(app, *, service_slug: str = "care-episode", audience: str = "authentication"):
+    with app.app_context():
+        from src.services.tokens import issue_token
+        return issue_token(
+            sub=service_slug,
+            token_type="service",
+            actors=None,
+            tenant_uuid=None,
+            ttl_secs=300,
+            private_key_pem=settings.jwt_private_key_pem,
+            audience=audience,
+            claim_namespace=settings.jwt_claim_namespace,
+            azp=service_slug,
+            public_key_pem=settings.jwt_public_key_pem,
+        )
+
+
 def test_services_unauthorized(client):
     response = client.get("/api/services")
     assert response.status_code == 401
@@ -31,6 +48,59 @@ def test_services_unauthorized(client):
 def test_services_forbidden(client, app):
     token = _get_token(app, ["user"])
     response = client.get("/api/services", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 403
+
+
+def test_services_list_allowed_for_service_token(client, app):
+    token = _service_token(app)
+    service = Service(
+        uuid=uuid.uuid7(),
+        name="Chat Service",
+        slug="chat",
+        base_url="http://chat:8001",
+    )
+
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.scalar.return_value = 1
+    mock_db.execute.return_value.all.return_value = [(service, None)]
+
+    with patch("src.routes.services.SessionLocal", return_value=mock_db):
+        response = client.get("/api/services", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    assert response.json["items"][0]["slug"] == "chat"
+    assert response.json["items"][0]["base_url"] == "http://chat:8001"
+
+
+def test_services_read_allowed_for_service_token(client, app):
+    token = _service_token(app)
+    service = Service(
+        uuid=uuid.uuid7(),
+        name="Chat Service",
+        slug="chat",
+        base_url="http://chat:8001",
+    )
+
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.scalar.side_effect = [service, None]
+
+    with patch("src.routes.services.SessionLocal", return_value=mock_db):
+        response = client.get("/api/services/chat", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    assert response.json["slug"] == "chat"
+    assert response.json["base_url"] == "http://chat:8001"
+
+
+def test_services_create_forbidden_for_service_token(client, app):
+    token = _service_token(app)
+    response = client.post(
+        "/api/services",
+        json={"name": "New Service", "slug": "new-service", "base_url": "http://new"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
     assert response.status_code == 403
 
 

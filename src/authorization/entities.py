@@ -3,25 +3,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from authorization_in_the_middle import extract_jwt_principal_entity
 from authorization_in_the_middle.entities import build_entity_payload, entity_uid
+from authorization_in_the_middle.flask_identity import jwt_claim_principal_attributes
 from flask import g
+
+from src.config import settings
 
 NAMESPACE = "authentication"
 SERVICE_CATALOG_ID = "service-catalog"
-
-
-def principal_sub() -> str:
-    return str(_claims()["sub"])
-
-
-def resolve_principal() -> dict[str, Any]:
-    entity = extract_jwt_principal_entity(NAMESPACE, default_type="User")
-    actors = entity.get("attrs", {}).get("actors", [])
-    if not isinstance(actors, list):
-        actors = []
-    entity["attrs"]["isOperator"] = "operator" in actors
-    return entity
 
 
 def _claims() -> dict[str, Any]:
@@ -29,6 +18,43 @@ def _claims() -> dict[str, Any]:
     if not claims.get("sub"):
         raise ValueError("missing sub")
     return claims
+
+
+def _jwt_claim(name: str) -> str:
+    return f"{settings.jwt_claim_namespace}:{name}"
+
+
+def principal_sub() -> str:
+    return str(_claims()["sub"])
+
+
+def principal_token_type() -> str:
+    claims = _claims()
+    return str(claims.get(_jwt_claim("token_type")) or claims.get("token_type") or "human")
+
+
+def build_service_principal_entity(service_slug: str, claims: dict[str, Any]) -> dict[str, Any]:
+    return build_entity_payload(
+        f"{NAMESPACE}::Service",
+        service_slug,
+        {
+            "serviceSlug": service_slug,
+            "tokenType": str(claims.get(_jwt_claim("token_type")) or claims.get("token_type") or ""),
+        },
+    )
+
+
+def resolve_principal() -> dict[str, Any]:
+    claims = _claims()
+    sub, ptype, attributes = jwt_claim_principal_attributes(claims, default_type="User")
+    if attributes.get("token_type") == "service":
+        return build_service_principal_entity(sub, claims)
+    entity = build_entity_payload(f"{NAMESPACE}::{ptype}", sub, attributes)
+    actors = entity.get("attrs", {}).get("actors", [])
+    if not isinstance(actors, list):
+        actors = []
+    entity["attrs"]["isOperator"] = "operator" in actors
+    return entity
 
 
 def build_service_catalog_entity() -> dict[str, Any]:

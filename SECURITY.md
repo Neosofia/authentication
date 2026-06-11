@@ -78,6 +78,28 @@ Key architectural decisions:
 
 - **bcrypt-hashed secrets** — stored at cost factor 12; never reversible. Compromised credentials are revoked by **rotating** the service secret via `POST /api/services/{slug}/rotate` (replaces the bcrypt hash in place; audit history preserved).
 - **Constant-time verification** — a dummy hash is pre-computed at import; unknown `client_id` submissions still run `bcrypt.checkpw` to prevent enumeration via timing side-channel ([CWE-208](https://cwe.mitre.org/data/definitions/208.html)).
+- **Identity derives from the signed `sub`** — a service token's `sub` is the authenticated `client_id` (the slug whose bcrypt secret matched). Downstream services build their Cedar service principal (`serviceSlug`) from that signed claim — never from a request header or body — so a caller cannot assert a service identity it was not issued. `token_type=service` tokens have `actors`/`roles` stripped during validation, so `X-Active-Actor` cannot elevate them.
+
+### Service Mesh Trust Model
+
+Every service-to-service call carries a Service JWT minted here. Trust is enforced in three layers, and each answers a different question:
+
+| Layer | Question | Where enforced | Forgeable? |
+|---|---|---|---|
+| **Identity** | Who is calling? | This service (mint) + SDK validation (`sub` → `serviceSlug`) | No — requires a validly signed token |
+| **Authorization** | May this principal perform this action? | Cedar policy in the **consuming** service (e.g. only `serviceSlug == "care-episode"` may create chat interactions) | No — policy evaluated on the signed principal |
+| **Fine-grained constraints** | Restrictions Cedar does not model (e.g. which caller may attach clinical `context` to a chat interaction) | Consuming-service **application code** (route handlers) — not here, not in the SDK | No — but is application logic, so covered by that service's tests |
+
+**Realistic compromise paths.** With RS256 + JWKS signature, required `aud` and `exp`, and TLS on every inter-service hop, the only practical ways to compromise mesh comms are:
+
+| Path | Blast radius | Primary control |
+|---|---|---|
+| Service `client_secret` leak | Impersonate that one service until rotated | Secret hygiene; `POST /api/services/{slug}/rotate`; 5-min TTL |
+| Signing private key compromise | Mint **any** principal — platform-wide | Private key only in env/secret manager; rotation runbook (OPERATIONS.md Appendix B) |
+| Bug in token issuance | Over-broad `aud` / wrong `sub` | Audience must resolve to a registered service before mint; tests |
+| Authz-logic bug over-permitting a *legitimate* identity | Scoped to the buggy policy / route | Cedar policy review; consuming-service tests |
+
+**Replay.** Service JWTs are stateless-validated with no single-use (`jti`) consumption store. The in-transit capture vector is closed because all inter-service hops run over TLS (services accept plain HTTP only on health routes, which take no JWT); the 5-minute Service-JWT TTL bounds any residual window. A shared `jti` store is intentionally avoided to preserve stateless validation (Constitution §VII).
 
 ### Rate Limits
 
@@ -119,7 +141,9 @@ The CDP UI is a public SPA client and is **not** registered as a platform servic
 | Session hijacking | `HttpOnly`, `Secure`, `SameSite=None`; AES-256-GCM sealed cookie |
 | Session fixation / OAuth CSRF | `state` + PKCE |
 | Auth code interception | PKCE (RFC 7636) |
-| Cross-service token replay | Per-service `aud` claim |
+| Cross-service token replay (token minted for service A used at service B) | Per-service `aud` claim |
+| Same-token replay in transit | TLS on all inter-service hops (no plaintext mesh) + 5-min Service-JWT TTL |
+| Service identity spoofing via headers/body | Principal `serviceSlug` derived from signed `sub` only; service tokens have actors/roles stripped |
 | Credential stuffing / brute force | Rate limiting + constant-time bcrypt |
 | Service credential enumeration | Constant-time dummy hash |
 | Clickjacking | `frame-ancestors 'none'` |
@@ -148,6 +172,7 @@ The CDP UI is a public SPA client and is **not** registered as a platform servic
 | Rate limit storage is per-node (in-memory) | Accepted | Upgrade to Redis via `RATELIMIT_STORAGE_URI` when shared Redis is available |
 | `/api/token-inspect` decode-only semantics | Accepted | The endpoint does not verify signature, expiry, issuer, or audience — it only rejects structurally invalid JWTs. A caller already in possession of a JWT can read the unencrypted claims directly (they are base64-encoded, not encrypted). No confidentiality is lost, but the endpoint is gated to `ENV=development`/`test` (returns 404 in production) and rate-limited to 10 / minute to limit its use as a recon aid. |
 | WorkOS session refresh logic opaque to this service | Accepted | WorkOS SDK handles refresh internally |
+| No single-use (`jti`) replay store for issued tokens | Accepted | Stateless validation (Constitution §VII). Mitigated by mesh TLS (no plaintext capture) and the 5-min Service-JWT / 15-min human-JWT TTL. Revisit only if a non-TLS hop or a token-bearing cache is introduced. |
 
 ---
 

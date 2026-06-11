@@ -48,6 +48,33 @@ Per-version instructions for system administrators: prerequisites, deploy and co
 
 ---
 
+## authentication v0.34.0
+
+**Build identifiers:** Tag `authentication/v0.34.0`; image `ghcr.io/neosofia/authentication:v0.34.0`.
+
+**Mandatory (same change window):**
+
+- Deploy **care-episode v0.4.0** (or newer) after this release so CE can resolve Chat via `GET /api/services/chat` with a care-episode service token.
+
+**Deploy:**
+
+1. Tag and push `authentication/v0.34.0`; wait for CI image publish.
+2. Redeploy the authentication service (policy bundle only — no migrations or env vars).
+
+**Post-deploy verification:**
+
+1. `GET /health` returns version `0.34.0`.
+2. Operator JWT: `GET /api/services` → **200** (full catalog management unchanged).
+3. Care-episode service token (`aud=authentication`): `GET /api/services/chat` → **200** with private-mesh `base_url`.
+4. Same service token: `POST /api/services` → **403** (read-only peer discovery).
+
+**Evidence:**
+
+- Health response showing `0.34.0`.
+- Registry read succeeds with care-episode client credentials; create/rotate still operator-only.
+
+---
+
 ## authentication v0.33.0
 
 **Build identifiers:** Tag `authentication/v0.33.0`; SDK **`authorization-in-the-middle/v0.4.23`**, **`logenvelope/v0.3.4`**.
