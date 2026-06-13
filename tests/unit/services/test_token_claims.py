@@ -92,6 +92,17 @@ def test_roles_for_jwt_accepts_short_names_without_prefix():
     assert roles_for_jwt(["admin", "audit"], "platform") == ["admin", "audit"]
 
 
+def test_roles_for_jwt_maps_patient_actor_slug_on_site_tenant():
+    assert roles_for_jwt(["patient.self", "site.clinical"], "site") == [
+        "self",
+        "clinical",
+    ]
+
+
+def test_resolve_tenant_type_rejects_patient_org_kind():
+    assert resolve_tenant_type("patient") is None
+
+
 def test_human_token_claims_invalid_uuids_return_empty_roles():
     mock_db = MagicMock()
     tenant_type, roles = human_token_claims(
@@ -168,6 +179,32 @@ def test_cache_roles_mirror_updates_user_and_infers_tenant_type():
 
     assert user.roles == ["platform.admin", "platform.audit"]
     assert tenant.type == "platform"
+    mock_db.commit.assert_called_once()
+
+
+def test_cache_roles_mirror_skips_patient_slug_for_type_inference():
+    mock_db = MagicMock()
+    tenant = Tenant(uuid=TENANT_ID, name="Site", idp_id="org_1", type=None)
+    user = User(uuid=USER_ID, idp_id="user_1", roles=[])
+
+    def get_model(model, pk):
+        if model is Tenant and pk == TENANT_ID:
+            return tenant
+        if model is User and pk == USER_ID:
+            return user
+        return None
+
+    mock_db.get.side_effect = get_model
+
+    cache_roles_mirror(
+        mock_db,
+        user_uuid=str(USER_ID),
+        tenant_uuid=str(TENANT_ID),
+        registry_payload={"roles": ["patient.self"]},
+    )
+
+    assert user.roles == ["patient.self"]
+    assert tenant.type is None
     mock_db.commit.assert_called_once()
 
 

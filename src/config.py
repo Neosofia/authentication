@@ -75,6 +75,7 @@ _REQUIRED_FIELDS = (
     "app_database_url",
     "csrf_secret_key",
     "valid_actors",
+    "valid_tenant_types",
     "jwt_private_key_pem",
     "jwt_public_key_pem",
 )
@@ -96,6 +97,7 @@ class Settings(BaseSettings):
     env: str = "production"
     jwt_web_audience: str | list[str] = "authentication"
     valid_actors: str  # comma-separated Tier-1 IdP actor classes, e.g. "operator,study,clinician,patient"
+    valid_tenant_types: str  # comma-separated org kinds, e.g. "platform,cro,sponsor,site,smo"
     idp_provider: str = "workos"
     access_token_ttl_secs: int = 900   # 15 minutes
     service_token_ttl_secs: int = 300  # 5 minutes

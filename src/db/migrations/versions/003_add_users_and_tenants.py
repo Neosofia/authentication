@@ -35,7 +35,7 @@ def upgrade() -> None:
             "type",
             sa.Text(),
             nullable=True,
-            comment="Org kind: platform, cro, sponsor, site, smo, patient (ADR-0014)",
+            comment="Org kind: platform, cro, sponsor, site, smo (ADR-0014)",
         ),
         sa.PrimaryKeyConstraint("uuid"),
         sa.UniqueConstraint("idp_id"),

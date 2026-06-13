@@ -28,7 +28,6 @@ def _identity_payload(identity: PlatformIdentity) -> dict[str, Any]:
         "first_name": identity.profile.get("first_name"),
         "last_name": identity.profile.get("last_name"),
         "email": identity.profile.get("email"),
-        "actors": list(identity.actors or []),
     }
 
 

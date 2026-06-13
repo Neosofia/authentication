@@ -13,6 +13,7 @@ _BASE = dict(
     workos_cookie_password="test-cookie-password-must-be-min-32-chars-long",
     workos_redirect_uri="http://localhost:8014/callback",
     valid_actors="operator",
+    valid_tenant_types="platform,cro,sponsor,site,smo",
     jwt_private_key_pem="DEFAULT_PRIVATE_KEY",
     jwt_public_key_pem="DEFAULT_PUBLIC_KEY",
 )
@@ -78,6 +79,15 @@ def test_normalizes_empty_pgport_in_database_urls():
     )
     assert "@db-host:5432/auth" in settings.migration_database_url
     assert "@db-host:5432/auth" in settings.app_database_url
+
+
+def test_rejects_blank_valid_tenant_types():
+    with pytest.raises(ValueError, match="VALID_TENANT_TYPES must be set"):
+        Settings(
+            **{**_BASE, "valid_tenant_types": "  "},
+            migration_database_url=MIGRATION_URL,
+            app_database_url=APP_URL,
+        )
 
 
 def test_rejects_blank_required_env_var():

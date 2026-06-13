@@ -2,6 +2,48 @@
 
 Per-version instructions for system administrators: prerequisites, deploy and configuration steps, post-deploy verification, and evidence to capture. For what changed in each release, see [CHANGELOG.md](CHANGELOG.md) when present, or the GitHub release for that tag.
 
+## Greenfield Step 0 — assign platform registry roles
+
+Run once per new environment before platform admin UI works. OAuth callback provisions the user registry row via `PUT /api/v1/users/{uuid}` with **`roles: []`**. Tier-1 WorkOS **`operator`** does **not** grant **`platform.admin`**. Authentication mirrors tier-2 roles from the user-service response only at **login** (not on token refresh alone).
+
+**Prerequisites:** stack deployed; admin has logged in once; note `user_uuid` (`JWT sub`).
+
+**Assign roles** on the user service database (example — first platform admin):
+
+```sql
+UPDATE users
+SET roles = ARRAY['platform.admin']::text[]
+WHERE uuid = '<admin-user-uuid>';
+```
+
+Admin **logs out and back in** so provision refreshes the authentication `users.roles` mirror → JWT `neosofia:roles` (short names, e.g. `admin` for `platform.admin`).
+
+**Verify:** `GET /api/v1/users/{uuid}`; decoded platform JWT; **Admin → Users** returns **200**.
+
+Full checklist and evidence: [CDP INSTALLATION_PLAN — Step 0](https://github.com/Neosofia/cdp/blob/main/INSTALLATION_PLAN.md#greenfield-step-0--assign-platform-registry-roles) and [user INSTALLATION_PLAN — Step 0](https://github.com/Neosofia/user/blob/main/INSTALLATION_PLAN.md#greenfield-step-0--assign-platform-registry-roles).
+
+---
+
+## [0.35.0] — `VALID_TENANT_TYPES` env var
+
+**Build identifiers:** Authentication **v0.35.0**.
+
+**Pre-deploy:**
+
+- Set **`VALID_TENANT_TYPES=platform,cro,sponsor,site,smo`** (or your product's org kinds) on Authentication. Required — service refuses to start if unset or empty.
+
+**Post-deploy verification:**
+
+1. Authentication starts with `VALID_TENANT_TYPES` set.
+2. Login issues tokens with expected `neosofia:tenant_type` for configured org kinds.
+
+**Evidence:**
+
+- Secret-manager or compose env showing `VALID_TENANT_TYPES`.
+- Sample JWT decode showing `neosofia:tenant_type` for a configured org kind.
+
+---
+
 ## [Unreleased] — `VALID_ACTORS` rename and `study` actor
 
 **Build identifiers:** Authentication image after `VALID_ACTORS` / `study` rollout; SDK `authentication-in-the-middle/v0.9.5` then `v0.9.6`; redeploy all JWT consumers.
@@ -176,7 +218,7 @@ Per-version instructions for system administrators: prerequisites, deploy and co
 
 **Post-deploy verification:**
 
-1. Login provisions User registry row (best-effort); first Tier-1 `operator` receives **`platform.admin`** on the user row.
+1. Login provisions User registry row (best-effort) with **`roles: []`**; complete [Greenfield Step 0](#greenfield-step-0--assign-platform-registry-roles) before expecting **`platform.admin`** on the row or in JWT claims.
 2. Human tokens include `neosofia:actors`, `neosofia:tenant_type` when `tenants.type` is set, and `neosofia:roles` (short Tier-2 names) from the local `users.roles` mirror.
 3. Token mint does not call the User service on the critical path.
 
@@ -266,7 +308,7 @@ Per-version instructions for system administrators: prerequisites, deploy and co
 **Post-deploy verification:**
 
 1. `GET /health` succeeds.
-2. User with WorkOS **`operator`** logs in; `POST /api/token` → JWT `neosofia:roles` includes `operator`.
+2. User with WorkOS **`operator`** logs in; JWT `neosofia:actors` includes **`operator`** (tier-1). Tier-2 `neosofia:roles` (e.g. `admin`) come from the user registry row after [Step 0](#greenfield-step-0--assign-platform-registry-roles), not from the WorkOS actor class.
 3. `GET /api/services` with that JWT → **200** (not 403).
 4. Use **`X-Active-Role: operator`** when calling Capabilities or downstream services.
 

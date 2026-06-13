@@ -33,5 +33,5 @@ class Tenant(Base, AuditColumnsMixin):
     type: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
-        comment="Org kind: platform, cro, sponsor, site, smo, patient (ADR-0014); required for correct JWT authz",
+        comment="Org kind: platform, cro, sponsor, site, smo (ADR-0014); required for correct JWT authz",
     )

@@ -236,7 +236,7 @@
                     "type": {
                       "type": "string",
                       "nullable": true,
-                      "description": "Org kind: platform, cro, sponsor, site, smo, patient"
+                      "description": "Org kind: platform, cro, sponsor, site, smo"
                     }
                   }
                 }
@@ -815,7 +815,7 @@
           },
           "neosofia:tenant_type": {
             "type": "string",
-            "description": "Organisation kind (platform, cro, sponsor, site, smo, patient); omitted when unset on tenant row"
+            "description": "Organisation kind (platform, cro, sponsor, site, smo); omitted when unset on tenant row"
           },
           "neosofia:tenant_uuid": {
             "type": "string",

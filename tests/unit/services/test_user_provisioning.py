@@ -61,7 +61,6 @@ def test_provision_user_registry_sync_puts_identity(monkeypatch):
             "first_name": "Ada",
             "last_name": "Lovelace",
             "email": "ada@example.com",
-            "actors": ["operator"],
         },
         headers={"Authorization": "Bearer jwt"},
         timeout=user_provisioning.settings.user_provisioning_http_timeout_secs,

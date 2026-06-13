@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session
 from src.bootstrap.logging import log_event
 from src.models.tenant import Tenant
 from src.models.user import User
+from src.services.tenant_types import valid_tenant_types
 
-VALID_TENANT_TYPES = frozenset({"platform", "cro", "sponsor", "site", "smo", "patient"})
+PATIENT_ACTOR_ROLE_PREFIX = "patient."
 
 
 def resolve_tenant_type(value: str | None) -> str | None:
@@ -21,7 +22,7 @@ def resolve_tenant_type(value: str | None) -> str | None:
     tenant_type = str(value).strip()
     if not tenant_type:
         return None
-    if tenant_type not in VALID_TENANT_TYPES:
+    if tenant_type not in valid_tenant_types():
         log_event("invalid_tenant_type_ignored", tenant_type=tenant_type)
         return None
     return tenant_type
@@ -35,6 +36,8 @@ def roles_for_jwt(full_slugs: list[str], tenant_type: str) -> list[str]:
     for slug in full_slugs:
         if slug.startswith(prefix):
             name = slug[len(prefix) :]
+        elif slug.startswith(PATIENT_ACTOR_ROLE_PREFIX):
+            name = slug[len(PATIENT_ACTOR_ROLE_PREFIX) :]
         elif "." not in slug:
             name = slug
         else:
@@ -111,10 +114,14 @@ def cache_roles_mirror(
         tenant = db.get(Tenant, tenant_id)
         if tenant is not None and not tenant.type:
             for slug in user.roles:
-                if "." in slug:
-                    inferred = resolve_tenant_type(slug.split(".", 1)[0])
-                    if inferred:
-                        tenant.type = inferred
-                        break
+                if "." not in slug:
+                    continue
+                inferred_prefix = slug.split(".", 1)[0]
+                if inferred_prefix == "patient":
+                    continue
+                inferred = resolve_tenant_type(inferred_prefix)
+                if inferred:
+                    tenant.type = inferred
+                    break
 
     db.commit()

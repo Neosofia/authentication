@@ -59,6 +59,7 @@ def app_container():
         container = DockerContainer(IMAGE_TAG)
         container.with_kwargs(extra_hosts={"host.docker.internal": "host-gateway"})
         container.with_env("VALID_ACTORS", "operator,study,clinician,patient")
+        container.with_env("VALID_TENANT_TYPES", "platform,cro,sponsor,site,smo")
         container.with_env("JWT_PRIVATE_KEY_PEM", "DEFAULT_PRIVATE_KEY")
         container.with_env("JWT_PUBLIC_KEY_PEM", "DEFAULT_PUBLIC_KEY")
         container.with_env("APP_DATABASE_URL", app_url_container)

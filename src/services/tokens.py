@@ -34,7 +34,7 @@ def issue_token(
       {ns}:actors      — Tier-1 actor classes (operator, clinician, patient)
       {ns}:roles       — Tier-2 role short names within tenant_type (e.g. admin, audit)
       {ns}:tenant_uuid — platform UUID for the org (present for all human tokens)
-      {ns}:tenant_type — org kind (platform, cro, sponsor, site, smo, patient)
+      {ns}:tenant_type — org kind (platform, cro, sponsor, site, smo)
 
     The claim namespace prefix (default "neosofia") is set via the
     JWT_CLAIM_NAMESPACE env var, allowing forks to use their own namespace

@@ -2,6 +2,27 @@
 
 What changed for authentication consumers. Deploy: [INSTALLATION_PLAN.md](INSTALLATION_PLAN.md).
 
+## [0.36.0] - 2026-06-13
+
+### Added
+
+- **`demo`** tier-1 actor in provisioning docs and samples; operators must include it in **`VALID_ACTORS`** for demo bootstrap.
+- **`tenant_types`** helper module for org-kind validation shared with JWT mint.
+
+### Changed
+
+- Token claims and user provisioning align with demo actor and tenant-type vocabulary.
+
+## [0.35.0] - 2026-06-13
+
+### Added
+
+- **`VALID_TENANT_TYPES`** — required comma-separated org-kind allow-list for `neosofia:tenant_type` at JWT mint (interim; vocabulary will move to a dedicated service later).
+
+### Changed
+
+- Tenant-type validation uses `VALID_TENANT_TYPES` instead of a hard-coded allow-list.
+
 ## [0.34.0] - 2026-06-11
 
 ### Added
