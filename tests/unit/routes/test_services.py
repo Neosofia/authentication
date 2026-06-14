@@ -61,7 +61,8 @@ def test_services_create_missing_fields_returns_400(client, app):
         )
 
     assert response.status_code == 400
-    assert response.json["error"] == "missing required fields (name, slug, base_url)"
+    assert response.json["error"] == "invalid_request"
+    assert "base_url" in response.json["message"]
 
 
 def test_services_update_no_fields_returns_400(client, app):
@@ -75,7 +76,8 @@ def test_services_update_no_fields_returns_400(client, app):
         )
 
     assert response.status_code == 400
-    assert response.json["error"] == "no updatable fields provided"
+    assert response.json["error"] == "invalid_request"
+    assert response.json["message"] == "no updatable fields provided"
 
 
 def test_services_create_invalid_json_returns_400(client, app):
@@ -287,7 +289,8 @@ def test_services_update_empty_body_returns_400(client, app):
         )
 
     assert response.status_code == 400
-    assert response.json["error"] == "request body required"
+    assert response.json["error"] == "invalid_request"
+    assert response.json["message"] == "body must be a JSON object"
 
 
 def test_services_update_no_updatable_fields_returns_400(client, app):
@@ -301,7 +304,8 @@ def test_services_update_no_updatable_fields_returns_400(client, app):
         )
 
     assert response.status_code == 400
-    assert response.json["error"] == "no updatable fields provided"
+    assert response.json["error"] == "invalid_request"
+    assert response.json["message"] == "no updatable fields provided"
 
 
 def test_services_update_not_found_returns_404(client, app):

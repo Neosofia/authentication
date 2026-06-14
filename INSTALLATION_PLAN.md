@@ -24,6 +24,26 @@ Full checklist and evidence: [CDP INSTALLATION_PLAN — Step 0](https://github.c
 
 ---
 
+## [0.37.0] — authorization middleware v0.7.1
+
+**Build identifiers:** Authentication **v0.37.0**; SDK **`authorization-in-the-middle/v0.7.1`**.
+
+**Deploy:**
+
+1. Rebuild and deploy **authentication v0.37.0** (no new env vars).
+
+**Post-deploy verification:**
+
+1. `GET /health` reports **0.37.0**.
+2. Platform operator can `GET /api/services` and `GET /api/services/{slug}` with a service-registry–authorized JWT.
+3. Service token peer discovery for care-episode and chat mesh clients still returns **200**.
+
+**Evidence:**
+
+- Health version **0.37.0**; authorized registry list/read responses.
+
+---
+
 ## [0.35.0] — `VALID_TENANT_TYPES` env var
 
 **Build identifiers:** Authentication **v0.35.0**.

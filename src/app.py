@@ -1,12 +1,14 @@
 from dotenv import load_dotenv
 from flask import Flask
 from flask_cors import CORS
+from pathlib import Path
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv()  # no-op in containers where env vars come from the runtime
 
 # Extensions must be imported after load_dotenv so env vars are available.
-from authorization_in_the_middle import CedarEvaluator, FilesystemPolicySetSource  # noqa: E402
+from authorization_in_the_middle import CedarEvaluator, FilesystemPolicySetSource, bind_openapi_spec  # noqa: E402
+from authentication_in_the_middle.actors import parse_tier1_actor_classes  # noqa: E402
 from src.config import settings  # noqa: E402
 from src.bootstrap.extensions import limiter, talisman  # noqa: E402
 from src.bootstrap.logging import setup_logging  # noqa: E402
@@ -37,6 +39,13 @@ def create_app(config: dict | None = None) -> Flask:
     app.config["JWT_AUDIENCE"] = settings.jwt_web_audience
     app.config["JWT_CLAIM_NAMESPACE"] = settings.jwt_claim_namespace
     app.config["CEDAR_NAMESPACE"] = NAMESPACE
+    if app.config.get("TIER1_ACTOR_CLASSES") is None:
+        app.config["TIER1_ACTOR_CLASSES"] = parse_tier1_actor_classes(settings.valid_actors)
+    app.config.setdefault(
+        "OPENAPI_SPEC_PATH",
+        str(Path(__file__).resolve().parents[1] / "openapi.json"),
+    )
+    bind_openapi_spec(app)
 
     policy_source = FilesystemPolicySetSource(
         settings.authorization_policies_dir,

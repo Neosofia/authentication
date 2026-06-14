@@ -8,6 +8,7 @@ pytestmark = pytest.mark.unit
 
 def test_resolve_principal_builds_operator_user():
     app = Flask(__name__)
+    app.config["TIER1_ACTOR_CLASSES"] = frozenset({"operator"})
     with app.test_request_context():
         g.jwt_claims = {
             "sub": "00000000-0000-7000-8000-000000000001",

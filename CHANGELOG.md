@@ -2,6 +2,13 @@
 
 What changed for authentication consumers. Deploy: [INSTALLATION_PLAN.md](INSTALLATION_PLAN.md).
 
+## [0.37.0] - 2026-06-14
+
+### Changed
+
+- Pinned **`authorization-in-the-middle/v0.7.1`** — shared `resolve_jwt_principal`, SDK REST entity inference for service registry routes, OpenAPI write planners for Cedar merge on PATCH.
+- Service registry Cedar attrs use `registry_{model}_cedar_attrs` hooks; removed duplicate principal and catalog builders.
+
 ## [0.36.0] - 2026-06-13
 
 ### Added
