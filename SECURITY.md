@@ -31,7 +31,7 @@ To report any security-related issue please email security@neosofia.tech — do 
 ┌──────────────────────────────────────────────────────┐
 │  Authentication Service (Flask)                      │
 │  ├─ /login, /callback        OAuth + state + PKCE    │
-│  ├─ /api/token (session)     Human JWT (15 min)      │
+│  ├─ /api/token (session)     Human JWT (30 min)      │
 │  ├─ /api/token (client_cred) Service JWT (5 min)     │
 │  ├─ /api/token-inspect       RS256 validation        │
 │  └─ /.well-known/jwks.json   Public key publication  │
@@ -46,7 +46,7 @@ To report any security-related issue please email security@neosofia.tech — do 
 Key architectural decisions:
 - **Stateless validation** — downstream services validate JWTs locally via cached JWKS; no per-request callback to this service or WorkOS.
 - **Delegated identity** — WorkOS owns passwords, MFA, federation, and user lifecycle.
-- **Short-lived tokens** — human JWTs expire in 15 minutes; Service JWTs in 5. No refresh tokens issued by this service.
+- **Short-lived tokens** — human JWTs expire in 30 minutes; Service JWTs in 5. No refresh tokens issued by this service.
 
 ---
 
@@ -118,10 +118,10 @@ Every service-to-service call carries a Service JWT minted here. Trust is enforc
 The CDP UI is a public SPA client and is **not** registered as a platform service.
 
 - **JWT stored in React state (in-memory)** — The platform JWT returned by `POST /api/token` is held in JS memory, not `localStorage` or a cookie. This is the OWASP-preferred storage for SPA access tokens: in-memory state is not persisted to disk, not accessible by other origins, and is destroyed on tab close. ([OWASP Cheat Sheet: Storing tokens](https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html))
-- **Short TTL bounds exposure** — Human JWTs expire in 15 minutes. An XSS that exfiltrates the token has a maximum 15-minute replay window; the sealed `wos_session` credential remains in an `HttpOnly`/`Secure`/`SameSite=None` cookie and is not accessible to JS.
+- **Short TTL bounds exposure** — Human JWTs expire in 30 minutes. An XSS that exfiltrates the token has a maximum 30-minute replay window; the sealed `wos_session` credential remains in an `HttpOnly`/`Secure`/`SameSite=None` cookie and is not accessible to JS.
 - **Real credential stays HttpOnly** — The upstream credential (`wos_session`) is sealed with AES-256-GCM and served as `HttpOnly`/`Secure`/`SameSite=None`. Even a successful XSS cannot exfiltrate it.
 - **CSP `script-src 'self'`** — Talisman enforces this in production, substantially narrowing the XSS surface.
-- **Rec §3.4 evaluated and accepted as-is** — Issuing the JWT into an `HttpOnly` cookie (the "Token Handler" / BFF pattern) was considered. The tradeoffs outweigh the marginal gain given the 15-minute TTL and the HttpOnly sealed session already protecting the real credential. The UI and this service are already cross-origin (`FRONTEND_URL`); credentialed CORS to `/api/token` depends on `SameSite=None` on `wos_session`. Re-evaluate the BFF pattern if the JWT TTL is extended beyond 15 minutes.
+- **Rec §3.4 evaluated and accepted as-is** — Issuing the JWT into an `HttpOnly` cookie (the "Token Handler" / BFF pattern) was considered. The tradeoffs outweigh the marginal gain given the 30-minute TTL, proactive CDP UI refresh every 15 minutes, and the HttpOnly sealed session already protecting the real credential. The UI and this service are already cross-origin (`FRONTEND_URL`); credentialed CORS to `/api/token` depends on `SameSite=None` on `wos_session`. Re-evaluate the BFF pattern if the JWT TTL is extended materially beyond 30 minutes.
 
 ### Web-Layer Defenses
 

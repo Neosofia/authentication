@@ -99,7 +99,7 @@ class Settings(BaseSettings):
     valid_actors: str  # comma-separated Tier-1 IdP actor classes, e.g. "operator,study,clinician,patient"
     valid_tenant_types: str  # comma-separated org kinds, e.g. "platform,cro,sponsor,site,smo"
     idp_provider: str = "workos"
-    access_token_ttl_secs: int = 900   # 15 minutes
+    access_token_ttl_secs: int = 1800  # 30 minutes
     service_token_ttl_secs: int = 300  # 5 minutes
     user_provisioning_enabled: bool = True
     user_provisioning_http_timeout_secs: float = Field(default=2.0, gt=0)

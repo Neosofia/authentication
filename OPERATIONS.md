@@ -245,7 +245,7 @@ Startup and Alembic require both database URLs to be set and to use different Po
 | `JWT_PREVIOUS_PUBLIC_KEY_PEM` | Set during key-rotation overlap window only; clear after overlap | copy old `JWT_PUBLIC_KEY_PEM` value |
 | `VALID_ACTORS` | Comma-separated Tier-1 IdP actor classes at token issuance (required): `operator,study,clinician,patient,demo`. Include **`demo`** wherever CDP demo bootstrap runs. See [INSTALLATION_PLAN.md](INSTALLATION_PLAN.md) and [Demo workspace humans](#demo-workspace-humans). | — |
 | `VALID_TENANT_TYPES` | Comma-separated org kinds accepted in `neosofia:tenant_type` at JWT mint (required): `platform,cro,sponsor,site,smo`. | — |
-| `ACCESS_TOKEN_TTL_SECS` | Optional, default `900` (15 min) | — |
+| `ACCESS_TOKEN_TTL_SECS` | Optional, default `1800` (30 min) | — |
 | `SERVICE_TOKEN_TTL_SECS` | Optional, default `300` (5 min) | — |
 | `USER_PROVISIONING_ENABLED` | Optional, default `true`; set `false` to stop login-time User registry sync | — |
 | `USER_PROVISIONING_HTTP_TIMEOUT_SECS` | Optional, default `2` | — |
@@ -305,7 +305,7 @@ Allow at least **1 hour** (the JWKS `max-age`) for all downstream service instan
 
 **5. Close the overlap window — remove the old key**
 
-Once all in-flight tokens signed with the old key have expired (max `ACCESS_TOKEN_TTL_SECS`, default 15 min, plus the cache refresh window), remove the old key:
+Once all in-flight tokens signed with the old key have expired (max `ACCESS_TOKEN_TTL_SECS`, default 30 min, plus the cache refresh window), remove the old key:
 
 | Variable | Value |
 |---|---|

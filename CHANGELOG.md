@@ -2,6 +2,12 @@
 
 What changed for authentication consumers. Deploy: [INSTALLATION_PLAN.md](INSTALLATION_PLAN.md).
 
+## [0.38.0] - 2026-06-16
+
+### Changed
+
+- Human access token default lifetime increased from **15 minutes** to **30 minutes** (`ACCESS_TOKEN_TTL_SECS`, default **1800**). Staging and production should set the env var explicitly when overriding defaults.
+
 ## [0.37.0] - 2026-06-14
 
 ### Changed

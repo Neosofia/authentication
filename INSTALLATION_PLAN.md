@@ -24,6 +24,26 @@ Full checklist and evidence: [CDP INSTALLATION_PLAN — Step 0](https://github.c
 
 ---
 
+## [0.38.0] — 30-minute human JWT lifetime
+
+**Build identifiers:** Authentication **v0.38.0**.
+
+**Deploy:**
+
+1. Set **`ACCESS_TOKEN_TTL_SECS=1800`** on authentication (optional if relying on the new default; required on environments that previously pinned `900`).
+2. Redeploy **authentication v0.38.0**.
+3. Redeploy CDP UI **2026.06.18** or later (proactive token refresh every 15 minutes and 401 retry).
+
+**Post-deploy verification:**
+
+1. `GET /health` reports **0.38.0**.
+2. After login, `POST /api/token` with `grant_type=session` returns `"expires_in": 1800`.
+3. CDP patient/clinician chat loads without **401** on sessions longer than 15 minutes.
+
+**Evidence:** Health JSON; token `expires_in`; chat interaction list **200** after 20+ minutes idle (tab refocus).
+
+---
+
 ## [0.37.0] — authorization middleware v0.7.1
 
 **Build identifiers:** Authentication **v0.37.0**; SDK **`authorization-in-the-middle/v0.7.1`**.
