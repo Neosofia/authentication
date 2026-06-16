@@ -2,6 +2,12 @@
 
 What changed for authentication consumers. Deploy: [INSTALLATION_PLAN.md](INSTALLATION_PLAN.md).
 
+## [0.38.1] - 2026-06-16
+
+### Fixed
+
+- Trivy lockfile scan: pin **`pyjwt>=2.13.0`** and **`cryptography>=48.0.1`** (dev group and runtime `pyjwt` dependency).
+
 ## [0.38.0] - 2026-06-16
 
 ### Changed
