@@ -2,6 +2,12 @@
 
 What changed for authentication consumers. Deploy: [INSTALLATION_PLAN.md](INSTALLATION_PLAN.md).
 
+## [0.38.2] - 2026-06-18
+
+### Fixed
+
+- Service errors and API failures are recorded in operational logs at default verbosity.
+
 ## [0.38.1] - 2026-06-16
 
 ### Fixed

@@ -1,5 +1,7 @@
 """Logging configuration using logenvelope for structured JSON logging."""
 
+import logging
+
 from logenvelope import log_event as _log_event
 from logenvelope import setup_logging as _setup_logging
 
@@ -16,7 +18,7 @@ def exc_type_name(exc: BaseException) -> str:
 
 def log_exception(event_type: str, exc: BaseException, **fields) -> None:
     """Log an event with error_class set to the exception type name."""
-    _log_event(event_type, error_class=exc_type_name(exc), **fields)
+    _log_event(event_type, level=logging.WARNING, error_class=exc_type_name(exc), **fields)
 
 
 # Re-export from logenvelope

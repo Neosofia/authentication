@@ -24,6 +24,23 @@ Full checklist and evidence: [CDP INSTALLATION_PLAN — Step 0](https://github.c
 
 ---
 
+## [0.38.2] — authorization middleware v0.7.6
+
+**Build identifiers:** Authentication **v0.38.2**; SDK **`authorization-in-the-middle/v0.7.6`**.
+
+**Deploy:**
+
+1. Redeploy **authentication v0.38.2** (no new env vars beyond **v0.38.1**).
+
+**Post-deploy verification:**
+
+1. `GET /health` reports **0.38.2**.
+2. `POST /api/token` still returns `"expires_in": 1800`.
+
+**Evidence:** Health JSON.
+
+---
+
 ## [0.38.1] — Trivy lockfile CVE fixes
 
 **Build identifiers:** Authentication **v0.38.1** (same runtime behavior as **v0.38.0**).
