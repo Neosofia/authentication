@@ -69,14 +69,18 @@ def test_token_client_credentials_happy_path(client, api_spec, validate_response
     with patch("src.routes.token.SessionLocal") as mock_db:
         mock_session = MagicMock()
         mock_db.return_value.__enter__.return_value = mock_session
-        mock_session.execute.return_value.scalar_one_or_none.return_value = mock_cred
-        
+        mock_result_cred = MagicMock()
+        mock_result_cred.one_or_none.return_value = (mock_cred, service)
+        mock_result_target = MagicMock()
+        mock_result_target.scalar_one_or_none.return_value = service
+        mock_session.execute.side_effect = [mock_result_cred, mock_result_target]
+
         credentials = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
-        
+
         response = client.post("/api/token", data={"grant_type": "client_credentials", "audience": "test-service"}, headers={
             "Authorization": f"Basic {credentials}"
         })
-        
+
         assert response.status_code == 200
         validate_response(api_spec, "/api/token", "post", 200, response.json)
 
@@ -90,6 +94,7 @@ def test_token_client_credentials_happy_path(client, api_spec, validate_response
         assert decoded["aud"] == "test-service"
         assert decoded["sub"] == client_id
         assert decoded["azp"] == client_id
+        assert decoded[f"{settings.jwt_claim_namespace}:service_uuid"] == str(service.uuid)
 
 
 def test_token_client_credentials_rejects_invalid_secret(client, api_spec, validate_response):
@@ -115,7 +120,7 @@ def test_token_client_credentials_rejects_invalid_secret(client, api_spec, valid
         mock_session = MagicMock()
         mock_db.return_value.__enter__.return_value = mock_session
         mock_result_cred = MagicMock()
-        mock_result_cred.scalar_one_or_none.return_value = mock_cred
+        mock_result_cred.one_or_none.return_value = (mock_cred, service)
         mock_result_target = MagicMock()
         mock_result_target.scalar_one_or_none.return_value = service
         mock_session.execute.side_effect = [mock_result_cred, mock_result_target]

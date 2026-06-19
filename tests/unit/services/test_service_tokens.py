@@ -9,7 +9,7 @@ from src.services.service_tokens import InvalidClientError, issue_service_token
 
 def test_issue_service_token_rejects_unknown_service():
     mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = None
+    mock_result.one_or_none.return_value = None
     mock_session = MagicMock()
     mock_session.execute.return_value = mock_result
 
@@ -21,6 +21,15 @@ def test_issue_service_token_rejects_unknown_service():
         raise AssertionError("Expected InvalidClientError")
 
 
+def _credential_row(requester: Service) -> tuple[ServiceCredential, Service]:
+    credential = ServiceCredential(
+        service_uuid=requester.uuid,
+        hashed_secret=bcrypt.hashpw(b"secret", bcrypt.gensalt()).decode(),
+        service=requester,
+    )
+    return credential, requester
+
+
 @patch("src.services.service_tokens.log_event")
 def test_issue_service_token_rejects_missing_audience(mock_log):
     requester = Service(
@@ -29,14 +38,8 @@ def test_issue_service_token_rejects_missing_audience(mock_log):
         slug="requester-service",
         base_url="https://requester.local",
     )
-    credential = ServiceCredential(
-        service_uuid=requester.uuid,
-        hashed_secret=bcrypt.hashpw(b"secret", bcrypt.gensalt()).decode(),
-        service=requester,
-    )
-
     mock_result_requester = MagicMock()
-    mock_result_requester.scalar_one_or_none.return_value = credential
+    mock_result_requester.one_or_none.return_value = _credential_row(requester)
 
     mock_session = MagicMock()
     mock_session.execute.return_value = mock_result_requester
@@ -57,14 +60,8 @@ def test_issue_service_token_rejects_invalid_audience_slug(mock_log):
         slug="requester-service",
         base_url="https://requester.local",
     )
-    credential = ServiceCredential(
-        service_uuid=requester.uuid,
-        hashed_secret=bcrypt.hashpw(b"secret", bcrypt.gensalt()).decode(),
-        service=requester,
-    )
-
     mock_result_requester = MagicMock()
-    mock_result_requester.scalar_one_or_none.return_value = credential
+    mock_result_requester.one_or_none.return_value = _credential_row(requester)
     mock_result_target = MagicMock()
     mock_result_target.scalar_one_or_none.return_value = None
 

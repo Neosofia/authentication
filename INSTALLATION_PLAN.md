@@ -24,6 +24,23 @@ Full checklist and evidence: [CDP INSTALLATION_PLAN — Step 0](https://github.c
 
 ---
 
+## [0.39.0] — service UUID on service tokens
+
+**Build identifiers:** Authentication **v0.39.0**.
+
+**Deploy:**
+
+1. Redeploy **authentication v0.39.0** (no new env vars).
+
+**Post-deploy verification:**
+
+1. `GET /health` reports **0.39.0**.
+2. `POST /api/token` with `grant_type=client_credentials` returns a JWT whose decoded payload includes **`neosofia:service_uuid`** matching the caller's registry row.
+
+**Evidence:** Health JSON; decoded service token claims (no secrets in tickets).
+
+---
+
 ## [0.38.2] — authorization middleware v0.7.6
 
 **Build identifiers:** Authentication **v0.38.2**; SDK **`authorization-in-the-middle/v0.7.6`**.

@@ -2,6 +2,12 @@
 
 What changed for authentication consumers. Deploy: [INSTALLATION_PLAN.md](INSTALLATION_PLAN.md).
 
+## [0.39.0] - 2026-06-19
+
+### Added
+
+- Service JWTs include **`neosofia:service_uuid`** — the platform registry UUID of the authenticated caller — so downstream services can stamp audit rows without trusting request bodies.
+
 ## [0.38.2] - 2026-06-18
 
 ### Fixed

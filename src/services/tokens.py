@@ -19,6 +19,7 @@ def issue_token(
     public_key_pem: str | None = None,
     tenant_type: str | None = None,
     roles: list[str] | None = None,
+    service_uuid: str | None = None,
 ) -> str:
     """
     Sign and return a compact RS256 platform JWT.
@@ -31,6 +32,7 @@ def issue_token(
       azp              — authorized party / client_id (service tokens, RFC 7519)
       {ns}:token_type  — "human" | "service"
       {ns}:token_version — integer schema version (increment on breaking changes)
+      {ns}:service_uuid — platform registry UUID for service tokens (audit attribution)
       {ns}:actors      — Tier-1 actor classes (operator, clinician, patient)
       {ns}:roles       — Tier-2 role short names within tenant_type (e.g. admin, audit)
       {ns}:tenant_uuid — platform UUID for the org (present for all human tokens)
@@ -63,6 +65,8 @@ def issue_token(
         claims[f"{ns}:tenant_type"] = tenant_type
     if roles is not None:
         claims[f"{ns}:roles"] = roles
+    if service_uuid:
+        claims[f"{ns}:service_uuid"] = service_uuid
 
     headers = {}
     if public_key_pem:

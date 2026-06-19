@@ -31,7 +31,7 @@ def issue_service_token(
     Uses constant-time comparison to prevent timing attacks (CWE-208).
     """
     result = db.execute(
-        select(ServiceCredential)
+        select(ServiceCredential, Service)
         .join(Service, ServiceCredential.service_uuid == Service.uuid)
         .where(
             Service.slug == service_name,
@@ -39,9 +39,11 @@ def issue_service_token(
         .order_by(ServiceCredential.changed_at.desc())
         .limit(1)
     )
-    credential = result.scalar_one_or_none()
+    row = result.one_or_none()
+    credential = row[0] if row is not None else None
+    caller_service = row[1] if row is not None else None
 
-    if credential is None:
+    if credential is None or caller_service is None:
         # Use pre-computed dummy hash to maintain constant timing for all requests
         bcrypt.checkpw(_DUMMY_SECRET, _DUMMY_HASH)
         log_event("service_auth_failure", reason="unknown_service", service=service_name)
@@ -73,6 +75,7 @@ def issue_service_token(
         claim_namespace=settings.jwt_claim_namespace,
         azp=service_name,
         public_key_pem=settings.jwt_public_key_pem,
+        service_uuid=str(caller_service.uuid),
     )
     log_event("service_token_issued", service=service_name)
     return token
